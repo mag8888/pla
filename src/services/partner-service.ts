@@ -308,12 +308,16 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
     let description = '';
 
     if (referral.level === 1) {
-      // Прямой реферал: либо 25% либо 15%, но не оба
-      // Выбираем большую из двух систем
-      const directBonus = orderAmount * 0.25;  // Прямая система
-      const multiBonus = orderAmount * 0.15;   // Многоуровневая система
-      bonusAmount = Math.max(directBonus, multiBonus); // Выбираем большую
-      description = `Бонус за заказ прямого реферала (${orderAmount} PZ) - ${directBonus > multiBonus ? 'прямая система 25%' : 'многоуровневая система 15%'}`;
+      // Прямой реферал: процент зависит от типа программы реферала
+      if (referral.referralType === 'DIRECT') {
+        // Прямая система: 25%
+        bonusAmount = orderAmount * 0.25;
+        description = `Бонус за заказ прямого реферала (${orderAmount} PZ) - прямая система 25%`;
+      } else {
+        // Многоуровневая система: 15%
+        bonusAmount = orderAmount * 0.15;
+        description = `Бонус за заказ прямого реферала (${orderAmount} PZ) - многоуровневая система 15%`;
+      }
     } else if (referral.level === 2) {
       // Уровень 2: 5%
       bonusAmount = orderAmount * 0.05;
@@ -364,13 +368,14 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
   return bonuses;
 }
 
-export async function createPartnerReferral(profileId: string, level: number, referredId?: string, contact?: string) {
+export async function createPartnerReferral(profileId: string, level: number, referredId?: string, contact?: string, referralType: 'DIRECT' | 'MULTI_LEVEL' = 'DIRECT') {
   return prisma.partnerReferral.create({
     data: {
       profileId,
       level,
       referredId,
       contact,
+      referralType,
     },
   });
 }

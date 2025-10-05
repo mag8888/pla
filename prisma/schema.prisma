@@ -129,6 +129,7 @@ model PartnerReferral {
   referredId  String?          @db.ObjectId
   contact     String?
   level       Int
+  referralType PartnerProgramType @default(DIRECT) // Тип программы реферала
   createdAt   DateTime          @default(now())
 }
 
