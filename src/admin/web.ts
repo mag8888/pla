@@ -5214,6 +5214,54 @@ function getStatusDisplayName(status: string) {
         }
       });
 
+      // Серверные функции для преобразования названий операций
+      function getBalanceActionNameServer(action: string): string {
+        const actionNames: { [key: string]: string } = {
+          'balance_updated': '💰 Изменение баланса',
+          'REFERRAL_BONUS': '🎯 Реферальный бонус',
+          'ORDER_PAYMENT': '💳 Оплата заказа',
+          'BALANCE_ADD': '➕ Пополнение баланса',
+          'BALANCE_SUBTRACT': '➖ Списание с баланса'
+        };
+        return actionNames[action] || action;
+      }
+
+      function getExpirationStatusColorServer(expiresAt: Date): string {
+        const now = new Date();
+        const expiration = new Date(expiresAt);
+        const daysLeft = Math.ceil((expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysLeft < 0) {
+          return '#dc3545'; // Красный - истекла
+        } else if (daysLeft <= 3) {
+          return '#ffc107'; // Желтый - скоро истекает
+        } else if (daysLeft <= 7) {
+          return '#fd7e14'; // Оранжевый - неделя
+        } else {
+          return '#28a745'; // Зеленый - много времени
+        }
+      }
+
+      function getExpirationStatusTextServer(expiresAt: Date): string {
+        const now = new Date();
+        const expiration = new Date(expiresAt);
+        const daysLeft = Math.ceil((expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysLeft < 0) {
+          return '❌ Активация истекла';
+        } else if (daysLeft === 0) {
+          return '⚠️ Истекает сегодня';
+        } else if (daysLeft === 1) {
+          return '⚠️ Истекает завтра';
+        } else if (daysLeft <= 3) {
+          return `⚠️ Истекает через ${daysLeft} дня`;
+        } else if (daysLeft <= 7) {
+          return `🟡 Истекает через ${daysLeft} дней`;
+        } else {
+          return `✅ Действует еще ${daysLeft} дней`;
+        }
+      }
+
       const html = `
         <!DOCTYPE html>
         <html>
@@ -5369,11 +5417,15 @@ function getStatusDisplayName(status: string) {
                   Object.keys(transactionsByDate).map(date => `
                     <h3 style="color: #6c757d; margin: 20px 0 10px 0; font-size: 16px;">${new Date(date).toLocaleDateString('ru-RU')}</h3>
                     ${transactionsByDate[date]
-                      .filter(tx => tx.amount !== 0) // Показываем только изменения баланса
+                      .filter(tx => {
+                        // Показываем только финансовые операции
+                        const financialActions = ['balance_updated', 'REFERRAL_BONUS', 'ORDER_PAYMENT', 'BALANCE_ADD', 'BALANCE_SUBTRACT'];
+                        return financialActions.includes(tx.action) && tx.amount !== 0;
+                      })
                       .map(tx => `
                       <div class="transaction-item balance-item" onclick="showBalanceDetails('${tx.id}', '${tx.action}', ${tx.amount || 0}, '${tx.createdAt.toLocaleString('ru-RU')}')">
                         <div class="transaction-details">
-                          <div><strong>${tx.action}</strong></div>
+                          <div><strong>${getBalanceActionNameServer(tx.action)}</strong></div>
                           <div class="transaction-date">${tx.createdAt.toLocaleTimeString('ru-RU')}</div>
                         </div>
                         <div class="transaction-amount ${tx.amount && tx.amount > 0 ? 'positive' : 'negative'}">
@@ -5415,7 +5467,14 @@ function getStatusDisplayName(status: string) {
                     <p><strong>Тип программы:</strong> ${partnerProfile.programType}</p>
                     <p><strong>Баланс:</strong> ${partnerProfile.balance || 0} PZ</p>
                     ${(partnerProfile as any).activatedAt ? `<p><strong>Активирован:</strong> ${(partnerProfile as any).activatedAt.toLocaleString('ru-RU')}</p>` : ''}
-                    ${(partnerProfile as any).expiresAt ? `<p><strong>Истекает:</strong> ${(partnerProfile as any).expiresAt.toLocaleString('ru-RU')}</p>` : ''}
+                    ${(partnerProfile as any).expiresAt ? `
+                      <p><strong>Истекает:</strong> ${(partnerProfile as any).expiresAt.toLocaleString('ru-RU')}</p>
+                      <div style="background: ${getExpirationStatusColorServer((partnerProfile as any).expiresAt)}; padding: 10px; border-radius: 6px; margin: 10px 0;">
+                        <p style="margin: 0; color: white; font-weight: bold;">
+                          ${getExpirationStatusTextServer((partnerProfile as any).expiresAt)}
+                        </p>
+                      </div>
+                    ` : ''}
                     <p><strong>Тип активации:</strong> ${(partnerProfile as any).activationType || 'Не указан'}</p>
                   </div>
                 ` : '<p>Партнерский профиль не создан</p>'}
@@ -5460,6 +5519,55 @@ function getStatusDisplayName(status: string) {
           </div>
 
           <script>
+            // Функции для определения статуса истечения активации
+            function getExpirationStatusColor(expiresAt) {
+              const now = new Date();
+              const expiration = new Date(expiresAt);
+              const daysLeft = Math.ceil((expiration - now) / (1000 * 60 * 60 * 24));
+              
+              if (daysLeft < 0) {
+                return '#dc3545'; // Красный - истекла
+              } else if (daysLeft <= 3) {
+                return '#ffc107'; // Желтый - скоро истекает
+              } else if (daysLeft <= 7) {
+                return '#fd7e14'; // Оранжевый - неделя
+              } else {
+                return '#28a745'; // Зеленый - много времени
+              }
+            }
+            
+            function getExpirationStatusText(expiresAt) {
+              const now = new Date();
+              const expiration = new Date(expiresAt);
+              const daysLeft = Math.ceil((expiration - now) / (1000 * 60 * 60 * 24));
+              
+              if (daysLeft < 0) {
+                return '❌ Активация истекла';
+              } else if (daysLeft === 0) {
+                return '⚠️ Истекает сегодня';
+              } else if (daysLeft === 1) {
+                return '⚠️ Истекает завтра';
+              } else if (daysLeft <= 3) {
+                return \`⚠️ Истекает через \${daysLeft} дня\`;
+              } else if (daysLeft <= 7) {
+                return \`🟡 Истекает через \${daysLeft} дней\`;
+              } else {
+                return \`✅ Действует еще \${daysLeft} дней\`;
+              }
+            }
+            
+            // Функция для преобразования технических названий операций в понятные
+            function getBalanceActionName(action) {
+              const actionNames = {
+                'balance_updated': '💰 Изменение баланса',
+                'REFERRAL_BONUS': '🎯 Реферальный бонус',
+                'ORDER_PAYMENT': '💳 Оплата заказа',
+                'BALANCE_ADD': '➕ Пополнение баланса',
+                'BALANCE_SUBTRACT': '➖ Списание с баланса'
+              };
+              return actionNames[action] || action;
+            }
+            
             function showTab(tabName) {
               // Hide all tab contents
               document.querySelectorAll('.tab-content').forEach(content => {
@@ -5491,7 +5599,7 @@ function getStatusDisplayName(status: string) {
               
               modalBody.innerHTML = \`
                 <div class="balance-detail">
-                  <strong>Операция:</strong> \${action}
+                  <strong>Операция:</strong> \${getBalanceActionName(action)}
                 </div>
                 <div class="balance-detail">
                   <strong>Дата и время:</strong> \${date}
