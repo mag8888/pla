@@ -11,6 +11,8 @@ export async function showAudioFiles(ctx: Context, category?: string) {
   try {
     const audioFiles = await getActiveAudioFiles(category);
     
+    console.log('🎵 Loading audio files:', { category, count: audioFiles.length });
+    
     if (audioFiles.length === 0) {
       await ctx.reply('🎵 Звуковые матрицы\n\nПока нет доступных аудиофайлов.');
       return;
@@ -18,15 +20,42 @@ export async function showAudioFiles(ctx: Context, category?: string) {
 
     // Send each audio file
     for (const audioFile of audioFiles) {
-      await ctx.replyWithAudio(
-        audioFile.fileId,
-        {
-          title: audioFile.title,
-          performer: audioFile.description || 'Plazma Water',
-          duration: audioFile.duration || undefined,
-          caption: audioFile.description || undefined,
+      console.log('🎵 Sending audio file:', audioFile.title, 'File ID:', audioFile.fileId);
+      
+      try {
+        // Проверяем, является ли file_id заглушкой
+        if (audioFile.fileId.startsWith('PLACEHOLDER_') || audioFile.fileId.startsWith('BAADBAAD')) {
+          // Отправляем информацию о файле вместо самого файла
+          await ctx.reply(
+            `🎵 ${audioFile.title}\n` +
+            `📝 ${audioFile.description}\n` +
+            `⏱️ Длительность: ${audioFile.duration ? formatDuration(audioFile.duration) : 'Неизвестно'}\n` +
+            `📁 Размер: ${audioFile.fileSize ? Math.round(audioFile.fileSize / 1024) + ' KB' : 'Неизвестно'}\n\n` +
+            `⚠️ Файл загружен в систему, но требуется реальный file_id от Telegram.\n` +
+            `💡 Для прослушивания загрузите файл через бота.`
+          );
+        } else {
+          // Отправляем реальный аудиофайл
+          await ctx.replyWithAudio(
+            audioFile.fileId,
+            {
+              title: audioFile.title,
+              performer: audioFile.description || 'Plazma Water',
+              duration: audioFile.duration || undefined,
+              caption: audioFile.description || undefined,
+            }
+          );
         }
-      );
+      } catch (error) {
+        console.error('Error sending audio file:', audioFile.title, error);
+        // Отправляем информацию о файле в случае ошибки
+        await ctx.reply(
+          `🎵 ${audioFile.title}\n` +
+          `📝 ${audioFile.description}\n` +
+          `⏱️ Длительность: ${audioFile.duration ? formatDuration(audioFile.duration) : 'Неизвестно'}\n\n` +
+          `❌ Ошибка воспроизведения файла.`
+        );
+      }
     }
 
     // Send summary message
