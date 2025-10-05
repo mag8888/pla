@@ -59,6 +59,41 @@ async function showSupport(ctx: Context) {
   );
 }
 
+async function showGiftMessage(ctx: Context) {
+  const giftMessage = `🔥 Для Вас уникальный материал.
+
+Аудиофайлы записанные методом Гаряева были списаны с реакторов конкретной плазмы.
+
+Слушая файлы вы можете получить весь спектр воздействия. 👇🏼
+
+🎁 Первый подарок - 6 чистых звуковых матриц:
+${'https://t.me/iplasmanano/252'}
+
+Это чистые звуковые матрицы без обработки и наложение фоновой музыки. Можно слушать как в наушниках так и фоном.
+
+🎁 Второй подарок - ГИД по плазменному здоровью:
+${'https://t.me/iplasmanano/509'}`;
+
+  await ctx.reply(giftMessage, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: '🎵 Получить звуковые матрицы',
+            url: 'https://t.me/iplasmanano/252',
+          },
+        ],
+        [
+          {
+            text: '📖 ГИД по плазменному здоровью',
+            url: 'https://t.me/iplasmanano/509',
+          },
+        ],
+      ],
+    },
+  });
+}
+
 const navigationItems: NavigationItem[] = [
   {
     id: 'shop',
@@ -80,17 +115,6 @@ const navigationItems: NavigationItem[] = [
     },
   },
   {
-    id: 'cart',
-    title: 'Корзина',
-    emoji: '🧺',
-    description: 'Выбранные товары и оформление заказа',
-    badgeKey: 'cart',
-    handler: async (ctx) => {
-      const { showCart } = await import('../cart/index.js');
-      await showCart(ctx);
-    },
-  },
-  {
     id: 'partner',
     title: 'Партнёрка',
     emoji: '🤝',
@@ -98,6 +122,15 @@ const navigationItems: NavigationItem[] = [
     handler: async (ctx) => {
       const { showPartnerIntro } = await import('../partner/index.js');
       await showPartnerIntro(ctx);
+    },
+  },
+  {
+    id: 'sounds',
+    title: 'Звуковые матрицы Гаряева',
+    emoji: '🎵',
+    description: 'Уникальные аудиофайлы для оздоровления',
+    handler: async (ctx) => {
+      await showGiftMessage(ctx);
     },
   },
   {
@@ -113,7 +146,7 @@ const navigationItems: NavigationItem[] = [
   },
   {
     id: 'about',
-    title: 'О PLAZMA',
+    title: 'О PLASMA',
     emoji: 'ℹ️',
     description: 'Информация о Plazma Water и соцсети',
     handler: async (ctx) => {
@@ -159,6 +192,12 @@ async function sendWelcomeVideo(ctx: Context) {
           {
             text: '📖 Подробнее',
             callback_data: 'nav:more',
+          },
+        ],
+        [
+          {
+            text: '🎁 Подарок',
+            callback_data: 'nav:gift',
           },
         ],
       ],
@@ -303,9 +342,9 @@ async function sendNavigationMenu(ctx: Context) {
 
 export function mainKeyboard() {
   return Markup.keyboard([
-    ['🛒 Магазин', '🛍️ Корзина'],
-    ['💰 Партнёрка'],
-    ['⭐ Отзывы', 'ℹ️ О PLAZMA'],
+    ['🛒 Магазин', '🤝 Партнёрка'],
+    ['🎵 Звуковые матрицы Гаряева'],
+    ['⭐ Отзывы', 'ℹ️ О PLASMA'],
   ]).resize();
 }
 
@@ -440,12 +479,24 @@ export const navigationModule: BotModule = {
       await renderHome(ctx);
     });
 
+    // Обработчики для кнопок классического меню
+    bot.hears('🎵 Звуковые матрицы Гаряева', async (ctx) => {
+      await logUserAction(ctx, 'menu:sounds');
+      await showGiftMessage(ctx);
+    });
+
 
 
     bot.action('nav:more', async (ctx) => {
       await ctx.answerCbQuery();
       await logUserAction(ctx, 'cta:detailed-intro');
       await ctx.reply(introDetails);
+    });
+
+    bot.action('nav:gift', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'cta:gift');
+      await showGiftMessage(ctx);
     });
 
     for (const item of navigationItems) {

@@ -63,6 +63,18 @@ export async function showCategories(ctx: Context, region?: string) {
     const regionEmoji = region === 'RUSSIA' ? '🇷🇺' : region === 'BALI' ? '🇮🇩' : '🌍';
     const regionText = region === 'RUSSIA' ? 'Россия' : region === 'BALI' ? 'Бали' : 'Все регионы';
     
+    // Get cart items count
+    const userId = ctx.from?.id?.toString();
+    let cartItemsCount = 0;
+    if (userId) {
+      try {
+        const cartItems = await getCartItems(userId);
+        cartItemsCount = cartItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+      } catch (error) {
+        console.warn('Failed to get cart items count:', error);
+      }
+    }
+
     const keyboard = [
       ...categories.map((category: any) => [
         {
@@ -70,6 +82,12 @@ export async function showCategories(ctx: Context, region?: string) {
           callback_data: `${CATEGORY_ACTION_PREFIX}${category.id}`,
         },
       ]),
+      [
+        {
+          text: `🛒 Корзина${cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}`,
+          callback_data: 'shop:cart',
+        },
+      ],
       [
         {
           text: `🔄 Сменить регион (${regionEmoji} ${regionText})`,
@@ -333,6 +351,14 @@ export const shopModule: BotModule = {
       const match = ctx.match as RegExpExecArray;
       const productId = match[1];
       await handleBuy(ctx, productId);
+    });
+
+    // Handle cart button from shop
+    bot.action('shop:cart', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'shop:cart');
+      const { showCart } = await import('../cart/index.js');
+      await showCart(ctx);
     });
 
   },
