@@ -324,7 +324,7 @@ async function showPartnersByLevel(ctx: Context, level: number) {
     });
     
     if (directPartners.length > 0) {
-      const directPartnerIds = directPartners.map(p => p.referredId).filter(Boolean);
+      const directPartnerIds = directPartners.map(p => p.referredId).filter((id): id is string => Boolean(id));
       
       // Теперь находим партнеров наших прямых партнеров
       partnerReferrals = await prisma.partnerReferral.findMany({
@@ -354,7 +354,7 @@ async function showPartnersByLevel(ctx: Context, level: number) {
     });
     
     if (directPartners.length > 0) {
-      const directPartnerIds = directPartners.map(p => p.referredId).filter(Boolean);
+      const directPartnerIds = directPartners.map(p => p.referredId).filter((id): id is string => Boolean(id));
       
       // Находим партнеров наших прямых партнеров (2-й уровень)
       const secondLevelPartners = await prisma.partnerReferral.findMany({
@@ -366,7 +366,7 @@ async function showPartnersByLevel(ctx: Context, level: number) {
       });
       
       if (secondLevelPartners.length > 0) {
-        const secondLevelPartnerIds = secondLevelPartners.map(p => p.referredId).filter(Boolean);
+        const secondLevelPartnerIds = secondLevelPartners.map(p => p.referredId).filter((id): id is string => Boolean(id));
         
         // Находим партнеров партнеров наших партнеров (3-й уровень)
         partnerReferrals = await prisma.partnerReferral.findMany({
