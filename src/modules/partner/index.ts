@@ -533,7 +533,7 @@ async function showInvite(ctx: Context) {
   }
 
   await ctx.answerCbQuery('Выберите тип ссылки', { show_alert: false });
-  await ctx.reply(`Ваши реферальные ссылки:\n\n🔗 Прямая ссылка (25% с покупок):\n${buildReferralLink(dashboard.profile.referralCode, 'DIRECT')}\n\n🔗 Многоуровневая ссылка (15% + 5% + 5%):\n${buildReferralLink(dashboard.profile.referralCode, 'MULTI_LEVEL')}`);
+  await ctx.reply(`Ваши реферальные ссылки:\n\nДружище 🌟\nЯ желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧\nПопробуй PLAZMA Water — технология будущего, которая реально меняет состояние ⚡️\n🔗 Твоя ссылка:\n${buildReferralLink(dashboard.profile.referralCode, 'DIRECT')}\n\n🔗 Многоуровневая ссылка (15% + 5% + 5%):\n${buildReferralLink(dashboard.profile.referralCode, 'MULTI_LEVEL')}`);
 }
 
 async function showDirectInvite(ctx: Context) {
@@ -550,7 +550,7 @@ async function showDirectInvite(ctx: Context) {
   }
 
   await ctx.answerCbQuery('Ссылка скопирована', { show_alert: false });
-  await ctx.reply(`🔗 Прямая ссылка (25% с покупок):\n${buildReferralLink(dashboard.profile.referralCode, 'DIRECT')}`);
+  await ctx.reply(`Дружище 🌟\nЯ желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧\nПопробуй PLAZMA Water — технология будущего, которая реально меняет состояние ⚡️\n🔗 Твоя ссылка:\n${buildReferralLink(dashboard.profile.referralCode, 'DIRECT')}`);
 }
 
 async function showMultiInvite(ctx: Context) {
