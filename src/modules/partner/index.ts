@@ -6,6 +6,26 @@ import { ensureUser, logUserAction } from '../../services/user-history.js';
 import { buildReferralLink, getOrCreatePartnerProfile, getPartnerDashboard, getPartnerList } from '../../services/partner-service.js';
 import { prisma } from '../../lib/prisma.js';
 
+// Тип для партнерского реферала с включенными данными
+type PartnerReferralWithUser = {
+  id: string;
+  profileId: string;
+  referredId: string | null;
+  contact: string | null;
+  level: number;
+  referralType: any;
+  createdAt: Date;
+  profile: {
+    id: string;
+    userId: string;
+    user: {
+      username: string | null;
+      firstName: string | null;
+      telegramId: number;
+    };
+  };
+};
+
 const DASHBOARD_ACTION = 'partner:dashboard';
 const DIRECT_PLAN_ACTION = 'partner:plan:direct';
 const MULTI_PLAN_ACTION = 'partner:plan:multi';
@@ -293,7 +313,7 @@ async function showPartnersByLevel(ctx: Context, level: number) {
   console.log(`🔍 Partner: Looking for level ${level} partners for user ${user.id}, profile ${dashboard.profile.id}`);
   
   // Получаем список партнеров конкретного уровня
-  let partnerReferrals = [];
+  let partnerReferrals: PartnerReferralWithUser[] = [];
   
   if (level === 1) {
     // Прямые партнеры - те, кто пришел по нашей ссылке
