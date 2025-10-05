@@ -4,6 +4,7 @@ import { Context } from '../../bot/context.js';
 import { BotModule } from '../../bot/types.js';
 import { ensureUser, logUserAction } from '../../services/user-history.js';
 import { buildReferralLink, getOrCreatePartnerProfile, getPartnerDashboard, getPartnerList } from '../../services/partner-service.js';
+import { prisma } from '../../lib/prisma.js';
 
 const DASHBOARD_ACTION = 'partner:dashboard';
 const DIRECT_PLAN_ACTION = 'partner:plan:direct';
@@ -77,7 +78,13 @@ function partnerActionsKeyboard() {
     [Markup.button.callback('👥 Мои партнёры', PARTNERS_ACTION), Markup.button.callback('📤 Пригласить друга', INVITE_ACTION)],
     [Markup.button.callback('🔗 Ссылка 25%', INVITE_DIRECT_ACTION)],
     [Markup.button.callback('🔗 Ссылка 15%+5%+5%', INVITE_MULTI_ACTION)],
+  ]);
+}
+
+function partnerLevelsKeyboard() {
+  return Markup.inlineKeyboard([
     [Markup.button.callback('👤 Партнёры: 1-й', PARTNERS_LEVEL_1_ACTION), Markup.button.callback('👥 Партнёры: 2-й', PARTNERS_LEVEL_2_ACTION), Markup.button.callback('👨‍👩‍👧‍👦 Партнёры: 3-й', PARTNERS_LEVEL_3_ACTION)],
+    [Markup.button.callback('🔙 Назад к основному меню', DASHBOARD_ACTION)],
   ]);
 }
 
@@ -95,10 +102,51 @@ async function showDashboard(ctx: Context) {
   }
 
   const { profile, stats } = dashboard;
-  const transactions = profile.transactions.map((tx) => {
+  
+  // Берем только последние 3 транзакции и улучшаем их отображение
+  const recentTransactions = profile.transactions.slice(0, 3);
+  
+  // Собираем все ID пользователей из транзакций для запроса в БД
+  const userIds = new Set<string>();
+  recentTransactions.forEach(tx => {
+    if (tx.description.includes('приглашение друга') && tx.description.includes('(')) {
+      const userIdMatch = tx.description.match(/\(([^)]+)\)/);
+      if (userIdMatch) {
+        userIds.add(userIdMatch[1]);
+      }
+    }
+  });
+  
+  // Получаем информацию о пользователях
+  const users = userIds.size > 0 ? await prisma.user.findMany({
+    where: { id: { in: Array.from(userIds) } },
+    select: { id: true, username: true, firstName: true }
+  }) : [];
+  
+  // Создаем мапу для быстрого поиска пользователей
+  const userMap = new Map(users.map(user => [user.id, user]));
+  
+  const transactions = recentTransactions.map((tx) => {
     const sign = tx.type === 'CREDIT' ? '+' : '-';
     const amount = Number(tx.amount).toFixed(2);
-    return `${sign}${amount} PZ — ${tx.description}`;
+    
+    // Улучшаем описание транзакции
+    let description = tx.description;
+    
+    // Если это бонус за приглашение друга, пытаемся получить имя пользователя
+    if (tx.description.includes('приглашение друга') && tx.description.includes('(')) {
+      const userIdMatch = tx.description.match(/\(([^)]+)\)/);
+      if (userIdMatch) {
+        const userId = userIdMatch[1];
+        const user = userMap.get(userId);
+        if (user) {
+          const displayName = user.username ? `@${user.username}` : (user.firstName || `ID:${userId.slice(-5)}`);
+          description = `Бонус за приглашение ${displayName}`;
+        }
+      }
+    }
+    
+    return `${sign}${amount} PZ — ${description}`;
   });
 
   // Проверяем статус активации партнерки
@@ -305,8 +353,8 @@ async function showMultiInvite(ctx: Context) {
     return;
   }
 
-  await ctx.answerCbQuery('Ссылка скопирована', { show_alert: false });
-  await ctx.reply(`🔗 Многоуровневая ссылка (15% + 5% + 5%):\n${buildReferralLink(dashboard.profile.referralCode, 'MULTI_LEVEL')}`);
+  await ctx.answerCbQuery();
+  await ctx.reply(`🔗 Многоуровневая ссылка (15% + 5% + 5%):\n${buildReferralLink(dashboard.profile.referralCode, 'MULTI_LEVEL')}\n\nВыберите уровень партнёров для просмотра:`, partnerLevelsKeyboard());
 }
 
 export const partnerModule: BotModule = {
