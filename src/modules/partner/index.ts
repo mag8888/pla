@@ -438,10 +438,25 @@ async function showPartnersByLevel(ctx: Context, level: number) {
   if (partnerReferrals.length === 0) {
     message += `📭 Пока нет партнёров ${level}-го уровня.\nПриглашайте друзей по вашей реферальной ссылке!`;
   } else {
+    // Получаем информацию о приглашенных пользователях
+    const referredUserIds = partnerReferrals.map(r => r.referredId).filter((id): id is string => Boolean(id));
+    const referredUsers = referredUserIds.length > 0 ? await prisma.user.findMany({
+      where: { id: { in: referredUserIds } },
+      select: { id: true, username: true, firstName: true, telegramId: true }
+    }) : [];
+    
+    const userMap = new Map(referredUsers.map(user => [user.id, user]));
+    
     partnerReferrals.forEach((referral, index) => {
-      const user = referral.profile.user;
-      const displayName = user.username ? `@${user.username}` : (user.firstName || `ID:${user.telegramId}`);
-      message += `${index + 1}. ${displayName}\n`;
+      if (referral.referredId) {
+        const referredUser = userMap.get(referral.referredId);
+        if (referredUser) {
+          const displayName = referredUser.username ? `@${referredUser.username}` : (referredUser.firstName || `ID:${referredUser.telegramId}`);
+          message += `${index + 1}. ${displayName}\n`;
+        } else {
+          message += `${index + 1}. ID:${referral.referredId.slice(-5)}\n`;
+        }
+      }
     });
   }
   
