@@ -5308,7 +5308,7 @@ function getStatusDisplayName(status: string) {
                 <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                   <p style="margin: 0; color: #2d5a2d; font-weight: bold;">🎯 Двойная система бонусов:</p>
                   <ul style="margin: 10px 0; color: #2d5a2d;">
-                    <li><strong>Прямой реферал:</strong> 25% + 15% = <strong>40%</strong></li>
+                    <li><strong>Прямой реферал:</strong> 25% <strong>либо</strong> 15% (выбирается большая)</li>
                     <li><strong>2-й уровень:</strong> <strong>5%</strong></li>
                     <li><strong>3-й уровень:</strong> <strong>5%</strong></li>
                   </ul>
@@ -5326,7 +5326,7 @@ function getStatusDisplayName(status: string) {
                   <div>
                     <label>Тип активации:</label><br>
                     <select name="programType" required>
-                      <option value="DUAL">Двойная система (25%+15%+5%+5%)</option>
+                      <option value="DUAL">Двойная система (25% либо 15%+5%+5%)</option>
                     </select>
                   </div>
                   <button type="submit" class="activation-btn">Активировать</button>
