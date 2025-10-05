@@ -290,20 +290,47 @@ async function showPartnersByLevel(ctx: Context, level: number) {
 
   await ctx.answerCbQuery();
   
+  // Получаем список партнеров конкретного уровня
+  const partnerReferrals = await prisma.partnerReferral.findMany({
+    where: { 
+      profileId: dashboard.profile.id,
+      level: level 
+    },
+    include: {
+      profile: {
+        include: {
+          user: {
+            select: { username: true, firstName: true, telegramId: true }
+          }
+        }
+      }
+    }
+  });
+
   let message = `👥 Партнёры ${level}-го уровня\n\n`;
   
   if (level === 1) {
-    message += `Прямые партнёры: ${dashboard.stats.directPartners}\n`;
-    message += `Получаете 15% с их покупок`;
+    message += `Прямые партнёры (${partnerReferrals.length}):\n`;
+    message += `Получаете 15% с их покупок\n\n`;
   } else if (level === 2) {
-    message += `Партнёры 2-го уровня: ${dashboard.stats.multiPartners}\n`;
-    message += `Получаете 5% с их покупок`;
+    message += `Партнёры 2-го уровня (${partnerReferrals.length}):\n`;
+    message += `Получаете 5% с их покупок\n\n`;
   } else if (level === 3) {
-    message += `Партнёры 3-го уровня: ${dashboard.stats.partners - dashboard.stats.directPartners - dashboard.stats.multiPartners}\n`;
-    message += `Получаете 5% с их покупок`;
+    message += `Партнёры 3-го уровня (${partnerReferrals.length}):\n`;
+    message += `Получаете 5% с их покупок\n\n`;
+  }
+
+  if (partnerReferrals.length === 0) {
+    message += `📭 Пока нет партнёров ${level}-го уровня.\nПриглашайте друзей по вашей реферальной ссылке!`;
+  } else {
+    partnerReferrals.forEach((referral, index) => {
+      const user = referral.profile.user;
+      const displayName = user.username ? `@${user.username}` : (user.firstName || `ID:${user.telegramId}`);
+      message += `${index + 1}. ${displayName}\n`;
+    });
   }
   
-  await ctx.reply(message);
+  await ctx.reply(message, partnerLevelsKeyboard());
 }
 
 async function showInvite(ctx: Context) {
