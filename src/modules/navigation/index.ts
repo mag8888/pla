@@ -64,23 +64,15 @@ async function showGiftMessage(ctx: Context) {
 
 Аудиофайлы записанные методом Гаряева были списаны с реакторов конкретной плазмы.
 
-Слушая файлы вы можете получить весь спектр воздействия. 👇🏼
-
-🎁 Первый подарок - 6 чистых звуковых матриц:
-${'https://t.me/iplasmanano/252'}
-
-Это чистые звуковые матрицы без обработки и наложение фоновой музыки. Можно слушать как в наушниках так и фоном.
-
-🎁 Второй подарок - ГИД по плазменному здоровью:
-${'https://t.me/iplasmanano/509'}`;
+Слушая файлы вы можете получить весь спектр воздействия. 👇🏼`;
 
   await ctx.reply(giftMessage, {
     reply_markup: {
       inline_keyboard: [
         [
           {
-            text: '🎵 Получить звуковые матрицы',
-            url: 'https://t.me/iplasmanano/252',
+            text: '🎵 Слушать звуковые матрицы',
+            callback_data: 'nav:audio:gift',
           },
         ],
         [
@@ -130,7 +122,8 @@ const navigationItems: NavigationItem[] = [
     emoji: '🎵',
     description: 'Уникальные аудиофайлы для оздоровления',
     handler: async (ctx) => {
-      await showGiftMessage(ctx);
+      const { showAudioFiles } = await import('../audio/index.js');
+      await showAudioFiles(ctx, 'gift');
     },
   },
   {
@@ -497,6 +490,13 @@ export const navigationModule: BotModule = {
       await ctx.answerCbQuery();
       await logUserAction(ctx, 'cta:gift');
       await showGiftMessage(ctx);
+    });
+
+    bot.action('nav:audio:gift', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'cta:audio:gift');
+      const { showAudioFiles } = await import('../audio/index.js');
+      await showAudioFiles(ctx, 'gift');
     });
 
     for (const item of navigationItems) {

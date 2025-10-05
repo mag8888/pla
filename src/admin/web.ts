@@ -6747,6 +6747,158 @@ async function distributeReferralBonuses(userId: string, orderAmount: number) {
 }
 
 
+// Audio files management routes
+router.get('/admin/audio', requireAdmin, async (req, res) => {
+  try {
+    const audioFiles = await prisma.audioFile.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const audioFilesHtml = audioFiles.map(file => `
+      <div class="audio-file-card">
+        <div class="audio-file-header">
+          <h3>🎵 ${file.title}</h3>
+          <div class="audio-file-status ${file.isActive ? 'active' : 'inactive'}">
+            ${file.isActive ? '✅ Активен' : '❌ Неактивен'}
+          </div>
+        </div>
+        <div class="audio-file-info">
+          <p><strong>Описание:</strong> ${file.description || 'Не указано'}</p>
+          <p><strong>Категория:</strong> ${file.category || 'Не указана'}</p>
+          <p><strong>Длительность:</strong> ${file.duration ? Math.floor(file.duration / 60) + ':' + (file.duration % 60).toString().padStart(2, '0') : 'Неизвестно'}</p>
+          <p><strong>Размер:</strong> ${file.fileSize ? Math.round(file.fileSize / 1024) + ' KB' : 'Неизвестно'}</p>
+          <p><strong>Загружен:</strong> ${file.createdAt.toLocaleDateString('ru-RU')}</p>
+        </div>
+        <div class="audio-file-actions">
+          <button onclick="toggleAudioStatus('${file.id}')" class="toggle-btn ${file.isActive ? 'deactivate' : 'activate'}">
+            ${file.isActive ? '❌ Деактивировать' : '✅ Активировать'}
+          </button>
+          <button onclick="deleteAudioFile('${file.id}')" class="delete-btn">🗑️ Удалить</button>
+        </div>
+      </div>
+    `).join('');
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Управление аудиофайлами - Plazma Bot Admin</title>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+          .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .audio-file-card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .audio-file-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+          .audio-file-header h3 { margin: 0; color: #333; }
+          .audio-file-status.active { color: #28a745; font-weight: bold; }
+          .audio-file-status.inactive { color: #dc3545; font-weight: bold; }
+          .audio-file-info p { margin: 5px 0; color: #666; }
+          .audio-file-actions { display: flex; gap: 10px; margin-top: 15px; }
+          .toggle-btn, .delete-btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+          .toggle-btn.activate { background: #28a745; color: white; }
+          .toggle-btn.deactivate { background: #ffc107; color: black; }
+          .delete-btn { background: #dc3545; color: white; }
+          .toggle-btn:hover, .delete-btn:hover { opacity: 0.8; }
+          .back-btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <a href="/admin" class="back-btn">← Назад в админ-панель</a>
+        <div class="header">
+          <h1>🎵 Управление аудиофайлами</h1>
+          <p>Здесь вы можете управлять загруженными аудиофайлами для раздела "Звуковые матрицы Гаряева"</p>
+        </div>
+        ${audioFilesHtml || '<p>Пока нет загруженных аудиофайлов.</p>'}
+        
+        <script>
+          async function toggleAudioStatus(fileId) {
+            if (confirm('Вы уверены, что хотите изменить статус файла?')) {
+              try {
+                const response = await fetch('/admin/audio/toggle', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fileId })
+                });
+                if (response.ok) {
+                  location.reload();
+                } else {
+                  alert('Ошибка при изменении статуса файла');
+                }
+              } catch (error) {
+                alert('Ошибка при изменении статуса файла');
+              }
+            }
+          }
+
+          async function deleteAudioFile(fileId) {
+            if (confirm('Вы уверены, что хотите удалить этот аудиофайл? Это действие нельзя отменить.')) {
+              try {
+                const response = await fetch('/admin/audio/delete', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fileId })
+                });
+                if (response.ok) {
+                  location.reload();
+                } else {
+                  alert('Ошибка при удалении файла');
+                }
+              } catch (error) {
+                alert('Ошибка при удалении файла');
+              }
+            }
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Error loading audio files:', error);
+    res.status(500).send('Ошибка загрузки аудиофайлов');
+  }
+});
+
+// Toggle audio file status
+router.post('/admin/audio/toggle', requireAdmin, async (req, res) => {
+  try {
+    const { fileId } = req.body;
+    
+    const audioFile = await prisma.audioFile.findUnique({
+      where: { id: fileId }
+    });
+
+    if (!audioFile) {
+      return res.status(404).json({ error: 'Аудиофайл не найден' });
+    }
+
+    await prisma.audioFile.update({
+      where: { id: fileId },
+      data: { isActive: !audioFile.isActive }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error toggling audio file status:', error);
+    res.status(500).json({ error: 'Ошибка изменения статуса файла' });
+  }
+});
+
+// Delete audio file
+router.post('/admin/audio/delete', requireAdmin, async (req, res) => {
+  try {
+    const { fileId } = req.body;
+    
+    await prisma.audioFile.delete({
+      where: { id: fileId }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting audio file:', error);
+    res.status(500).json({ error: 'Ошибка удаления файла' });
+  }
+});
+
 // Mount orders module
 // router.use('/', ordersModule);
 

@@ -154,3 +154,17 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model AudioFile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  fileId      String   // Telegram file ID
+  duration    Int?     // Duration in seconds
+  fileSize    Int?     // File size in bytes
+  mimeType    String?
+  isActive    Boolean  @default(true)
+  category    String?  // For grouping (e.g., "gift", "healing", etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
