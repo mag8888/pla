@@ -11,9 +11,14 @@ export async function showAudioFiles(ctx: Context, category?: string) {
   try {
     const audioFiles = await getActiveAudioFiles(category);
     
-    console.log('🎵 Loading audio files:', { category, count: audioFiles.length });
+    console.log('🎵 Loading audio files:', { 
+      category, 
+      count: audioFiles.length,
+      files: audioFiles.map(f => ({ title: f.title, category: f.category, isActive: f.isActive }))
+    });
     
     if (audioFiles.length === 0) {
+      console.log('❌ No audio files found for category:', category);
       await ctx.reply('🎵 Звуковые матрицы\n\nПока нет доступных аудиофайлов.');
       return;
     }
