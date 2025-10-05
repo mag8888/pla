@@ -221,7 +221,7 @@ export function registerCartActions(bot: Telegraf<Context>) {
       
       try {
         const bonuses = await calculateDualSystemBonuses(userId, totalAmount);
-        console.log('✅ CART CHECKOUT: Referral bonuses calculated:', bonuses.length, 'bonuses awarded');
+        console.log('✅ CART CHECKOUT: Referral bonuses calculated:', bonuses?.length || 0, 'bonuses awarded');
       } catch (error) {
         console.error('❌ CART CHECKOUT: Error calculating referral bonuses:', error);
       }

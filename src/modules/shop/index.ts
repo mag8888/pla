@@ -250,7 +250,7 @@ async function handleBuy(ctx: Context, productId: string) {
   
   try {
     const bonuses = await calculateDualSystemBonuses(user.id, totalAmount);
-    console.log('✅ SHOP: Referral bonuses calculated:', bonuses.length, 'bonuses awarded');
+    console.log('✅ SHOP: Referral bonuses calculated:', bonuses?.length || 0, 'bonuses awarded');
   } catch (error) {
     console.error('❌ SHOP: Error calculating referral bonuses:', error);
   }
