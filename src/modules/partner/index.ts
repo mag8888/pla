@@ -359,10 +359,10 @@ async function showPartnersByLevel(ctx: Context, level: number) {
       console.log(`🔍 Partner: Direct partner IDs for level 2 search:`, directPartnerIds);
       
       // Теперь находим партнеров наших прямых партнеров
+      // Нужно искать по referredId (ID пользователя), а не по profileId
       partnerReferrals = await prisma.partnerReferral.findMany({
         where: { 
-          profileId: { in: directPartnerIds },
-          level: 1 
+          referredId: { in: directPartnerIds }
         },
         include: {
           profile: {
@@ -393,8 +393,7 @@ async function showPartnersByLevel(ctx: Context, level: number) {
       // Находим партнеров наших прямых партнеров (2-й уровень)
       const secondLevelPartners = await prisma.partnerReferral.findMany({
         where: { 
-          profileId: { in: directPartnerIds },
-          level: 1 
+          referredId: { in: directPartnerIds }
         },
         select: { referredId: true }
       });
@@ -405,8 +404,7 @@ async function showPartnersByLevel(ctx: Context, level: number) {
         // Находим партнеров партнеров наших партнеров (3-й уровень)
         partnerReferrals = await prisma.partnerReferral.findMany({
           where: { 
-            profileId: { in: secondLevelPartnerIds },
-            level: 1 
+            referredId: { in: secondLevelPartnerIds }
           },
           include: {
             profile: {
