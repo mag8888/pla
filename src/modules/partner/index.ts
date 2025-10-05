@@ -332,6 +332,15 @@ async function showPartnersByLevel(ctx: Context, level: number) {
         }
       }
     });
+    
+    console.log(`🔍 Partner: Found ${partnerReferrals.length} level 1 partners`);
+    partnerReferrals.forEach((p, index) => {
+      console.log(`🔍 Partner: Level 1 partner ${index + 1}:`, {
+        referredId: p.referredId,
+        username: p.profile.user.username,
+        firstName: p.profile.user.firstName
+      });
+    });
   } else if (level === 2) {
     // Партнеры 2-го уровня - партнеры наших партнеров
     // Сначала находим наших прямых партнеров
@@ -343,8 +352,11 @@ async function showPartnersByLevel(ctx: Context, level: number) {
       select: { referredId: true }
     });
     
+    console.log(`🔍 Partner: Found ${directPartners.length} direct partners:`, directPartners.map(p => p.referredId));
+    
     if (directPartners.length > 0) {
       const directPartnerIds = directPartners.map(p => p.referredId).filter((id): id is string => Boolean(id));
+      console.log(`🔍 Partner: Direct partner IDs for level 2 search:`, directPartnerIds);
       
       // Теперь находим партнеров наших прямых партнеров
       partnerReferrals = await prisma.partnerReferral.findMany({
@@ -362,6 +374,8 @@ async function showPartnersByLevel(ctx: Context, level: number) {
           }
         }
       });
+      
+      console.log(`🔍 Partner: Found ${partnerReferrals.length} second level partners`);
     }
   } else if (level === 3) {
     // Партнеры 3-го уровня - партнеры партнеров наших партнеров
