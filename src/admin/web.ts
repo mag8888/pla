@@ -5259,6 +5259,20 @@ function getStatusDisplayName(status: string) {
             .alert { padding: 15px 20px; margin: 20px 0; border-radius: 8px; font-weight: 500; border: 1px solid; }
             .alert-success { background: #d4edda; color: #155724; border-color: #c3e6cb; }
             .alert-error { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+            .balance-item { cursor: pointer; transition: background-color 0.2s; }
+            .balance-item:hover { background-color: #f8f9fa; }
+            .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+            .modal-content { background-color: white; margin: 10% auto; padding: 30px; border-radius: 10px; width: 80%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+            .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+            .modal-title { margin: 0; color: #212529; font-size: 24px; }
+            .close { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+            .close:hover { color: #000; }
+            .modal-body { line-height: 1.6; }
+            .balance-detail { margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+            .balance-detail strong { color: #007bff; }
+            .amount-large { font-size: 24px; font-weight: bold; margin: 10px 0; }
+            .amount-positive { color: #28a745; }
+            .amount-negative { color: #dc3545; }
           </style>
         </head>
         <body>
@@ -5341,12 +5355,37 @@ function getStatusDisplayName(status: string) {
 
             <div class="section">
               <div class="tabs">
-                <div class="tab active" onclick="showTab('transactions')">📊 История транзакций</div>
+                <div class="tab active" onclick="showTab('balance')">💰 История баланса</div>
+                <div class="tab" onclick="showTab('transactions')">📊 История транзакций</div>
                 <div class="tab" onclick="showTab('partners')">👥 Партнеры</div>
                 <div class="tab" onclick="showTab('orders')">📦 Заказы</div>
               </div>
 
-              <div id="transactions" class="tab-content active">
+              <div id="balance" class="tab-content active">
+                <h2>💰 История изменений баланса</h2>
+                <p style="color: #6c757d; margin-bottom: 20px;">Кликните на изменение баланса для просмотра деталей</p>
+                ${Object.keys(transactionsByDate).length === 0 ? 
+                  '<p style="text-align: center; color: #6c757d; padding: 40px;">Нет изменений баланса</p>' :
+                  Object.keys(transactionsByDate).map(date => `
+                    <h3 style="color: #6c757d; margin: 20px 0 10px 0; font-size: 16px;">${new Date(date).toLocaleDateString('ru-RU')}</h3>
+                    ${transactionsByDate[date]
+                      .filter(tx => tx.amount !== 0) // Показываем только изменения баланса
+                      .map(tx => `
+                      <div class="transaction-item balance-item" onclick="showBalanceDetails('${tx.id}', '${tx.action}', ${tx.amount || 0}, '${tx.createdAt.toLocaleString('ru-RU')}')">
+                        <div class="transaction-details">
+                          <div><strong>${tx.action}</strong></div>
+                          <div class="transaction-date">${tx.createdAt.toLocaleTimeString('ru-RU')}</div>
+                        </div>
+                        <div class="transaction-amount ${tx.amount && tx.amount > 0 ? 'positive' : 'negative'}">
+                          ${tx.amount ? (tx.amount > 0 ? '+' : '') + tx.amount.toFixed(2) + ' PZ' : '0.00 PZ'}
+                        </div>
+                      </div>
+                    `).join('')}
+                  `).join('')
+                }
+              </div>
+
+              <div id="transactions" class="tab-content">
                 <h2>📊 История транзакций</h2>
                 ${Object.keys(transactionsByDate).length === 0 ? 
                   '<p style="text-align: center; color: #6c757d; padding: 40px;">Нет транзакций</p>' :
@@ -5407,6 +5446,19 @@ function getStatusDisplayName(status: string) {
             </div>
           </div>
 
+          <!-- Модальное окно для деталей баланса -->
+          <div id="balanceModal" class="modal">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h2 id="balanceModalTitle" class="modal-title">💰 Детали изменения баланса</h2>
+                <span class="close" onclick="closeBalanceModal()">&times;</span>
+              </div>
+              <div id="balanceModalBody" class="modal-body">
+                <!-- Содержимое будет заполнено JavaScript -->
+              </div>
+            </div>
+          </div>
+
           <script>
             function showTab(tabName) {
               // Hide all tab contents
@@ -5424,6 +5476,49 @@ function getStatusDisplayName(status: string) {
               
               // Add active class to clicked tab
               event.target.classList.add('active');
+            }
+            
+            // Функция для показа деталей изменения баланса
+            function showBalanceDetails(id, action, amount, date) {
+              const modal = document.getElementById('balanceModal');
+              const modalTitle = document.getElementById('balanceModalTitle');
+              const modalBody = document.getElementById('balanceModalBody');
+              
+              modalTitle.textContent = '💰 Детали изменения баланса';
+              
+              const amountClass = amount > 0 ? 'amount-positive' : 'amount-negative';
+              const amountSign = amount > 0 ? '+' : '';
+              
+              modalBody.innerHTML = \`
+                <div class="balance-detail">
+                  <strong>Операция:</strong> \${action}
+                </div>
+                <div class="balance-detail">
+                  <strong>Дата и время:</strong> \${date}
+                </div>
+                <div class="balance-detail">
+                  <strong>Изменение баланса:</strong>
+                  <div class="amount-large \${amountClass}">\${amountSign}\${amount.toFixed(2)} PZ</div>
+                </div>
+                <div class="balance-detail">
+                  <strong>ID транзакции:</strong> \${id}
+                </div>
+              \`;
+              
+              modal.style.display = 'block';
+            }
+            
+            // Закрытие модального окна
+            function closeBalanceModal() {
+              document.getElementById('balanceModal').style.display = 'none';
+            }
+            
+            // Закрытие модального окна при клике вне его
+            window.onclick = function(event) {
+              const modal = document.getElementById('balanceModal');
+              if (event.target === modal) {
+                modal.style.display = 'none';
+              }
             }
           </script>
         </body>
