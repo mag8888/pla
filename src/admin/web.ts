@@ -5256,11 +5256,16 @@ function getStatusDisplayName(status: string) {
             .tab.active { border-bottom-color: #007bff; color: #007bff; }
             .tab-content { display: none; }
             .tab-content.active { display: block; }
+            .alert { padding: 15px 20px; margin: 20px 0; border-radius: 8px; font-weight: 500; border: 1px solid; }
+            .alert-success { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+            .alert-error { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
           </style>
         </head>
         <body>
           <div class="container">
             <a href="/admin" class="back-btn">← Назад к админ-панели</a>
+            
+            ${req.query.success === 'referral_activated' ? '<div class="alert alert-success">🎉 Реферальная программа успешно активирована! Пользователь может теперь приглашать партнёров и получать бонусы.</div>' : ''}
             
             <div class="header">
               <div style="display: flex; align-items: center; gap: 20px;">
