@@ -21,7 +21,7 @@ type PartnerReferralWithUser = {
     user: {
       username: string | null;
       firstName: string | null;
-      telegramId: number;
+      telegramId: string;
     };
   };
 };
