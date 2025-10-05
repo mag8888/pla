@@ -272,29 +272,81 @@ export async function recalculatePartnerBonuses(profileId: string) {
   return totalBonus;
 }
 
-// Новая функция для расчета бонусов по двойной системе
-export async function calculateDualSystemBonuses(orderUserId: string, orderAmount: number) {
-  console.log(`🎯 Calculating dual system bonuses for order ${orderAmount} PZ by user ${orderUserId}`);
+// Функция для поиска всей цепочки партнеров
+async function findAllPartnerChain(orderUserId: string) {
+  const allReferrals = [];
   
-  // Находим всех партнеров, которые могут получить бонусы
-  const partnerReferrals = await prisma.partnerReferral.findMany({
+  // Ищем прямых партнеров (уровень 1)
+  const level1Referrals = await prisma.partnerReferral.findMany({
     where: { referredId: orderUserId },
     include: {
       profile: {
         include: { user: true }
       }
-    },
-    orderBy: { level: 'asc' }
+    }
   });
+  
+  for (const referral of level1Referrals) {
+    allReferrals.push({
+      ...referral,
+      level: 1
+    });
+    
+    // Ищем партнеров 2-го уровня (партнеры партнера)
+    const level2Referrals = await prisma.partnerReferral.findMany({
+      where: { referredId: referral.profile.userId },
+      include: {
+        profile: {
+          include: { user: true }
+        }
+      }
+    });
+    
+    for (const level2Referral of level2Referrals) {
+      allReferrals.push({
+        ...level2Referral,
+        level: 2
+      });
+      
+      // Ищем партнеров 3-го уровня (партнеры партнера партнера)
+      const level3Referrals = await prisma.partnerReferral.findMany({
+        where: { referredId: level2Referral.profile.userId },
+        include: {
+          profile: {
+            include: { user: true }
+          }
+        }
+      });
+      
+      for (const level3Referral of level3Referrals) {
+        allReferrals.push({
+          ...level3Referral,
+          level: 3
+        });
+      }
+    }
+  }
+  
+  return allReferrals;
+}
 
-  if (partnerReferrals.length === 0) {
+// Новая функция для расчета бонусов по двойной системе
+export async function calculateDualSystemBonuses(orderUserId: string, orderAmount: number) {
+  console.log(`🎯 Calculating dual system bonuses for order ${orderAmount} PZ by user ${orderUserId}`);
+  
+  // Находим всех партнеров в цепочке, которые могут получить бонусы
+  const allPartnerReferrals = await findAllPartnerChain(orderUserId);
+  
+  if (allPartnerReferrals.length === 0) {
     console.log(`❌ No partner referrals found for user ${orderUserId}`);
     return;
   }
+  
+  console.log(`🔍 Found ${allPartnerReferrals.length} partners in chain for user ${orderUserId}`);
 
   const bonuses = [];
 
-  for (const referral of partnerReferrals) {
+  for (const referral of allPartnerReferrals) {
     const partnerProfile = referral.profile;
     
     // Проверяем, активен ли партнерский профиль
