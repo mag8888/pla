@@ -240,12 +240,12 @@ router.get('/', requireAdmin, async (req, res) => {
                   <option value="name">Имени</option>
                   <option value="balance">Балансу</option>
                   <option value="partners">Партнёрам</option>
-                  <option value="orders">Заказам</option>
+                  <option value="orders" selected>Заказам</option>
                   <option value="activity">Активности</option>
                 </select>
                 <select id="sortOrder" onchange="applySorting()">
                   <option value="asc">По возрастанию</option>
-                  <option value="desc">По убыванию</option>
+                  <option value="desc" selected>По убыванию</option>
                 </select>
               </div>
               <div class="message-controls">
@@ -1695,6 +1695,11 @@ router.get('/', requireAdmin, async (req, res) => {
               alert('❌ Ошибка: ' + error.message);
             }
           });
+          
+          // Apply default sorting on page load
+          window.addEventListener('DOMContentLoaded', function() {
+            applySorting();
+          });
         </script>
       </body>
       </html>
@@ -1708,7 +1713,7 @@ router.get('/', requireAdmin, async (req, res) => {
 // Detailed users management with sorting and filtering
 router.get('/users-detailed', requireAdmin, async (req, res) => {
   try {
-    const sortBy = req.query.sort as string || 'activity';
+    const sortBy = req.query.sort as string || 'orders';
     const sortOrder = req.query.order as string || 'desc';
     
     // Get all users with their related data
