@@ -1119,8 +1119,8 @@ router.get('/', requireAdmin, async (req, res) => {
                         <input type="number" name="amount" step="0.01" min="0.01" required placeholder="0.00">
                       </div>
                       <div class="form-group">
-                        <label>Комментарий:</label>
-                        <textarea name="comment" rows="3" placeholder="Причина изменения баланса"></textarea>
+                        <label>Комментарий: <span style="color: red;">*</span></label>
+                        <textarea name="comment" rows="3" placeholder="Причина изменения баланса" required></textarea>
                       </div>
                       <div class="form-actions">
                         <button type="button" onclick="closeBalanceModal()">Отмена</button>
@@ -1141,6 +1141,12 @@ router.get('/', requireAdmin, async (req, res) => {
               const operation = formData.get('operation');
               const amount = parseFloat(formData.get('amount'));
               const comment = formData.get('comment');
+              
+              // Validate comment field
+              if (!comment || comment.trim().length === 0) {
+                alert('Пожалуйста, укажите причину изменения баланса в комментарии');
+                return;
+              }
               
               try {
                 const response = await fetch('/admin/users/' + userId + '/update-balance', {
@@ -4811,6 +4817,10 @@ router.post('/users/:userId/update-balance', requireAdmin, async (req, res) => {
     
     if (!operation || !amount || amount <= 0) {
       return res.json({ success: false, error: 'Неверные параметры' });
+    }
+    
+    if (!comment || comment.trim().length === 0) {
+      return res.json({ success: false, error: 'Комментарий обязателен' });
     }
     
     // Get user
