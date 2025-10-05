@@ -31,6 +31,9 @@ export async function showAbout(ctx: Context) {
       Markup.button.url('📸 Instagram', 'https://www.instagram.com/iplazmanano/')
     ],
     [
+      Markup.button.url('🆘 Поддержка', 'https://t.me/diglukhov?text=Здрасвуйте у меня вопрос по PLAZMA')
+    ],
+    [
       Markup.button.url('🌐 Каталог', 'https://iplazma.tilda.ws/'),
       Markup.button.url('💬 Telegram', 'https://t.me/iplasmanano')
     ]

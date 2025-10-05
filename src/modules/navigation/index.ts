@@ -337,7 +337,6 @@ export function mainKeyboard() {
   return Markup.keyboard([
     ['🛒 Магазин', '🤝 Партнёрка'],
     ['🎵 Звуковые матрицы Гаряева'],
-    ['🆘 Поддержка'],
     ['⭐ Отзывы', 'ℹ️ О PLASMA'],
   ]).resize();
 }
@@ -490,26 +489,6 @@ export const navigationModule: BotModule = {
       await logUserAction(ctx, 'menu:sounds');
       const { showAudioFiles } = await import('../audio/index.js');
       await showAudioFiles(ctx, 'gift');
-    });
-
-    bot.hears('🆘 Поддержка', async (ctx) => {
-      await logUserAction(ctx, 'menu:support');
-      await ctx.reply(
-        '🆘 <b>Поддержка</b>\n\nДля получения помощи обращайтесь к нашему специалисту:',
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: '💬 Написать в поддержку',
-                  url: 'https://t.me/diglukhov?text=Здрасвуйте у меня вопрос по PLAZMA'
-                }
-              ]
-            ]
-          },
-          parse_mode: 'HTML'
-        }
-      );
     });
 
     bot.hears('⭐ Отзывы', async (ctx) => {
