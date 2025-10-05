@@ -205,9 +205,9 @@ async function showDashboard(ctx: Context) {
     }
   }
 
-  // Balance = total bonuses (they are the same now)
+  // Use user.balance instead of profile.balance for display
   const message = cardTemplate({
-    balance: Number(profile.balance).toFixed(2),
+    balance: Number(user.balance).toFixed(2),
     partners: stats.partners,
     direct: stats.directPartners,
     bonus: Number(profile.bonus).toFixed(2),
