@@ -90,6 +90,7 @@ function planKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback('📊 Карточка клиента', DASHBOARD_ACTION)],
     [Markup.button.callback('💰 25%', DIRECT_PLAN_ACTION), Markup.button.callback('📈 15% + 5% + 5%', MULTI_PLAN_ACTION)],
+    [Markup.button.callback('📋 Подробнее', 'partner:details')],
   ]);
 }
 
@@ -629,9 +630,75 @@ export const partnerModule: BotModule = {
       await logUserAction(ctx, 'partner:level:3');
       await showPartnersByLevel(ctx, 3);
     });
+
+    bot.action('partner:details', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'partner:details');
+      await showPartnerDetails(ctx);
+    });
+
+    bot.action('partner:how_it_works', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'partner:how_it_works');
+      await showHowItWorks(ctx);
+    });
+
+    bot.action('partner:more', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'partner:more');
+      await showMoreDetails(ctx);
+    });
   },
 };
 
 export async function showPartnerIntro(ctx: Context) {
   await ctx.reply(programIntro, planKeyboard());
+}
+
+async function showPartnerDetails(ctx: Context) {
+  const text = `💠 Реферальная программа PLAZMA
+Любой продукт нуждается в маркетинге —
+и мы решили отдавать маркетинговый бюджет клиентам!
+Теперь ты можешь зарабатывать до 25%, просто рекомендуя PLAZMA = здоровье 💧`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('🤔 Как работает?!', 'partner:how_it_works')]
+  ]);
+
+  await ctx.reply(text, keyboard);
+}
+
+async function showHowItWorks(ctx: Context) {
+  const text = `Как это работает 👇
+👥 Делись ссылкой с друзьями
+💸 Получай 10% от их покупок
+🌟 Хочешь больше?
+Стань партнёром и получай 25% дохода + скидку 10%
+(при покупках на 200 PZ = 20 000 ₽ в месяц)`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('📈 Больше', 'partner:more')]
+  ]);
+
+  await ctx.reply(text, keyboard);
+}
+
+async function showMoreDetails(ctx: Context) {
+  const text = `Хочешь строить сеть и получать больше? 📈
+Партнёрская сеть даёт 15 % + 5 % + 5 % от трёх уровней!
+
+💵 Пример:
+1️⃣ 10 партнёров × 30 $ = 300 $
+2️⃣ 100 партнёров × 10 $ = 1 000 $
+3️⃣ 1 000 партнёров × 10 $ = 10 000 $
+✨ Итого: 11 300 $ в месяц!
+
+⚡️ Рекомендуй PLAZMA — помогай друзьям, повышай вибрации и зарабатывай 💎`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('📊 Карточка клиента', DASHBOARD_ACTION)],
+    [Markup.button.callback('💰 25%', DIRECT_PLAN_ACTION), Markup.button.callback('📈 15% + 5% + 5%', MULTI_PLAN_ACTION)]
+  ]);
+
+  await ctx.reply(text, keyboard);
 }
