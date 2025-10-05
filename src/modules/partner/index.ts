@@ -290,22 +290,105 @@ async function showPartnersByLevel(ctx: Context, level: number) {
 
   await ctx.answerCbQuery();
   
+  console.log(`🔍 Partner: Looking for level ${level} partners for user ${user.id}, profile ${dashboard.profile.id}`);
+  
   // Получаем список партнеров конкретного уровня
-  const partnerReferrals = await prisma.partnerReferral.findMany({
-    where: { 
-      profileId: dashboard.profile.id,
-      level: level 
-    },
-    include: {
-      profile: {
-        include: {
-          user: {
-            select: { username: true, firstName: true, telegramId: true }
+  let partnerReferrals = [];
+  
+  if (level === 1) {
+    // Прямые партнеры - те, кто пришел по нашей ссылке
+    partnerReferrals = await prisma.partnerReferral.findMany({
+      where: { 
+        profileId: dashboard.profile.id,
+        level: 1 
+      },
+      include: {
+        profile: {
+          include: {
+            user: {
+              select: { username: true, firstName: true, telegramId: true }
+            }
           }
         }
       }
+    });
+  } else if (level === 2) {
+    // Партнеры 2-го уровня - партнеры наших партнеров
+    // Сначала находим наших прямых партнеров
+    const directPartners = await prisma.partnerReferral.findMany({
+      where: { 
+        profileId: dashboard.profile.id,
+        level: 1 
+      },
+      select: { referredId: true }
+    });
+    
+    if (directPartners.length > 0) {
+      const directPartnerIds = directPartners.map(p => p.referredId).filter(Boolean);
+      
+      // Теперь находим партнеров наших прямых партнеров
+      partnerReferrals = await prisma.partnerReferral.findMany({
+        where: { 
+          profileId: { in: directPartnerIds },
+          level: 1 
+        },
+        include: {
+          profile: {
+            include: {
+              user: {
+                select: { username: true, firstName: true, telegramId: true }
+              }
+            }
+          }
+        }
+      });
     }
-  });
+  } else if (level === 3) {
+    // Партнеры 3-го уровня - партнеры партнеров наших партнеров
+    const directPartners = await prisma.partnerReferral.findMany({
+      where: { 
+        profileId: dashboard.profile.id,
+        level: 1 
+      },
+      select: { referredId: true }
+    });
+    
+    if (directPartners.length > 0) {
+      const directPartnerIds = directPartners.map(p => p.referredId).filter(Boolean);
+      
+      // Находим партнеров наших прямых партнеров (2-й уровень)
+      const secondLevelPartners = await prisma.partnerReferral.findMany({
+        where: { 
+          profileId: { in: directPartnerIds },
+          level: 1 
+        },
+        select: { referredId: true }
+      });
+      
+      if (secondLevelPartners.length > 0) {
+        const secondLevelPartnerIds = secondLevelPartners.map(p => p.referredId).filter(Boolean);
+        
+        // Находим партнеров партнеров наших партнеров (3-й уровень)
+        partnerReferrals = await prisma.partnerReferral.findMany({
+          where: { 
+            profileId: { in: secondLevelPartnerIds },
+            level: 1 
+          },
+          include: {
+            profile: {
+              include: {
+                user: {
+                  select: { username: true, firstName: true, telegramId: true }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  console.log(`🔍 Partner: Found ${partnerReferrals.length} partners for level ${level}`);
 
   let message = `👥 Партнёры ${level}-го уровня\n\n`;
   
