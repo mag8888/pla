@@ -308,9 +308,10 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
     let description = '';
 
     if (referral.level === 1) {
-      // Прямой реферал: 25% + 15% = 40%
+      // Прямой реферал в двойной системе: 25% + 15% = 40%
+      // Это единая двойная система, не суммирование двух отдельных систем
       bonusAmount = orderAmount * 0.40;
-      description = `Бонус за заказ прямого реферала (${orderAmount} PZ) - двойная система`;
+      description = `Бонус за заказ прямого реферала (${orderAmount} PZ) - двойная система 40%`;
     } else if (referral.level === 2) {
       // Уровень 2: 5%
       bonusAmount = orderAmount * 0.05;
