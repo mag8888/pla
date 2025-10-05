@@ -75,7 +75,8 @@ function planKeyboard() {
 function partnerActionsKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback('👥 Мои партнёры', PARTNERS_ACTION), Markup.button.callback('📤 Пригласить друга', INVITE_ACTION)],
-    [Markup.button.callback('🔗 Ссылка 25%', INVITE_DIRECT_ACTION), Markup.button.callback('🔗 Ссылка 15%+5%+5%', INVITE_MULTI_ACTION)],
+    [Markup.button.callback('🔗 Ссылка 25%', INVITE_DIRECT_ACTION)],
+    [Markup.button.callback('🔗 Ссылка 15%+5%+5%', INVITE_MULTI_ACTION)],
     [Markup.button.callback('👤 Партнёры: 1-й', PARTNERS_LEVEL_1_ACTION), Markup.button.callback('👥 Партнёры: 2-й', PARTNERS_LEVEL_2_ACTION), Markup.button.callback('👨‍👩‍👧‍👦 Партнёры: 3-й', PARTNERS_LEVEL_3_ACTION)],
   ]);
 }
@@ -101,6 +102,12 @@ async function showDashboard(ctx: Context) {
   });
 
   // Проверяем статус активации партнерки
+  console.log('🔍 Partner: Profile activation status:', {
+    isActive: (profile as any).isActive,
+    expiresAt: (profile as any).expiresAt,
+    activationType: (profile as any).activationType
+  });
+  
   let activationStatus = '';
   if ((profile as any).isActive) {
     const expiresAt = (profile as any).expiresAt;
@@ -142,6 +149,9 @@ async function showDashboard(ctx: Context) {
     expiresAt: (profile as any).expiresAt,
     activationStatus,
   });
+
+  console.log('🔍 Partner: Final activation status:', activationStatus);
+  console.log('🔍 Partner: Final message preview:', message.substring(0, 200) + '...');
 
   await ctx.reply(message, partnerActionsKeyboard());
 }
