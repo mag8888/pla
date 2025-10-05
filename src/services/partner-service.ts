@@ -361,6 +361,32 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
       });
 
       console.log(`✅ Added ${bonusAmount} PZ bonus to partner ${partnerProfile.userId} (level ${referral.level})`);
+
+      // Отправляем уведомление партнеру о пополнении баланса
+      try {
+        const { getBotInstance } = await import('../lib/bot-instance.js');
+        const bot = await getBotInstance();
+        
+        // Проверяем, активна ли партнерка
+        const isPartnerActive = await checkPartnerActivation(partnerProfile.userId);
+        let notificationMessage = '';
+        
+        if (isPartnerActive) {
+          // Если партнерка активна - показываем повышенный процент
+          const percentage = referral.level === 1 ? 
+            (referral.referralType === 'DIRECT' ? '25%' : '15%') : 
+            '5%';
+          notificationMessage = `🎉 Ваш счет пополнен на сумму ${bonusAmount.toFixed(2)} PZ (${percentage}) от покупки вашего реферала!`;
+        } else {
+          // Если партнерка не активна - показываем 10% и предлагаем активацию
+          notificationMessage = `🎉 Ваш счет пополнен на сумму ${bonusAmount.toFixed(2)} PZ (10%) от покупки вашего реферала!\n\n💡 Если вы желаете получать повышенный % (25% или 15%+5%+5%), вам нужно активировать партнерку на 200 PZ товарооборота в месяц.`;
+        }
+        
+        await bot.telegram.sendMessage(partnerProfile.user.telegramId, notificationMessage);
+        console.log(`📱 Notification sent to partner ${partnerProfile.userId} about ${bonusAmount.toFixed(2)} PZ bonus`);
+      } catch (error) {
+        console.warn(`⚠️ Failed to send notification to partner ${partnerProfile.userId}:`, error);
+      }
     }
   }
 

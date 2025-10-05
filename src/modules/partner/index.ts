@@ -35,11 +35,15 @@ const cardTemplate = (params: {
   bonus: string;
   referral?: string;
   transactions: string[];
+  isActive?: boolean;
+  expiresAt?: Date;
+  activationStatus?: string;
 }) => `🧾 Карточка клиента (личный кабинет)
 	•	💰 Баланс: [${params.balance} PZ]
 	•	👥 Партнёры: [${params.partners}]
 	•	🎁 Всего бонусов: [${params.bonus} PZ]
-${params.transactions.length ? `	•	📊 История начислений: [список транзакций]\n${params.transactions.join('\n')}` : '	•	📊 История начислений: [список транзакций]'}`;
+${params.transactions.length ? `	•	📊 История начислений: [список транзакций]\n${params.transactions.join('\n')}` : '	•	📊 История начислений: [список транзакций]'}
+${params.activationStatus || ''}`;
 
 const directPlanText = `(на кнопку 25%) Прямая комиссия — 25%
 Делитесь ссылкой → получаете 25% от всех покупок друзей.
@@ -96,6 +100,36 @@ async function showDashboard(ctx: Context) {
     return `${sign}${amount} PZ — ${tx.description}`;
   });
 
+  // Проверяем статус активации партнерки
+  let activationStatus = '';
+  if ((profile as any).isActive) {
+    const expiresAt = (profile as any).expiresAt;
+    if (expiresAt) {
+      const now = new Date();
+      const expiration = new Date(expiresAt);
+      const daysLeft = Math.ceil((expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysLeft > 0) {
+        activationStatus = `\n✅ Активация партнерки 25% до ${expiration.toLocaleDateString('ru-RU')} (осталось ${daysLeft} дней)`;
+      } else {
+        activationStatus = '\n❌ Активация партнерки истекла';
+      }
+    } else {
+      activationStatus = '\n✅ Активация партнерки активна';
+    }
+  } else {
+    // Вычисляем сколько нужно до активации (200 PZ товарооборот)
+    const currentTurnover = Number(profile.balance); // Используем баланс как показатель активности
+    const neededTurnover = 200;
+    const remainingTurnover = Math.max(0, neededTurnover - currentTurnover);
+    
+    if (remainingTurnover > 0) {
+      activationStatus = `\n⏳ До активации партнерки осталось ${remainingTurnover} PZ товарооборота (нужно 200 PZ в месяц)`;
+    } else {
+      activationStatus = '\n🎯 Достаточно активности для активации партнерки!';
+    }
+  }
+
   // Balance = total bonuses (they are the same now)
   const message = cardTemplate({
     balance: Number(profile.balance).toFixed(2),
@@ -104,6 +138,9 @@ async function showDashboard(ctx: Context) {
     bonus: Number(profile.bonus).toFixed(2),
     referral: buildReferralLink(profile.referralCode, profile.programType),
     transactions,
+    isActive: (profile as any).isActive,
+    expiresAt: (profile as any).expiresAt,
+    activationStatus,
   });
 
   await ctx.reply(message, partnerActionsKeyboard());
