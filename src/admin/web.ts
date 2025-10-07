@@ -3513,6 +3513,22 @@ router.post('/partners/:id/change-inviter', requireAdmin, async (req, res) => {
       });
       if (inviterUser) {
         newInviter = await prisma.partnerProfile.findFirst({ where: { userId: inviterUser.id }, include: { user: true } });
+        if (!newInviter) {
+          // Auto-create partner profile for inviter if missing
+          const code = `REF${inviterUser.id.slice(-6)}${Date.now().toString().slice(-4)}`;
+          try {
+            newInviter = await prisma.partnerProfile.create({
+              data: {
+                userId: inviterUser.id,
+                programType: 'MULTI_LEVEL',
+                referralCode: code,
+                balance: 0,
+                bonus: 0
+              },
+              include: { user: true }
+            });
+          } catch {}
+        }
       }
     } else if (newInviterCode) {
       newInviter = await prisma.partnerProfile.findUnique({ where: { referralCode: newInviterCode }, include: { user: true } });
@@ -3563,6 +3579,21 @@ router.post('/users/:id/change-inviter', requireAdmin, async (req, res) => {
       });
       if (inviterUser) {
         newInviter = await prisma.partnerProfile.findFirst({ where: { userId: inviterUser.id }, include: { user: true } });
+        if (!newInviter) {
+          const code = `REF${inviterUser.id.slice(-6)}${Date.now().toString().slice(-4)}`;
+          try {
+            newInviter = await prisma.partnerProfile.create({
+              data: {
+                userId: inviterUser.id,
+                programType: 'MULTI_LEVEL',
+                referralCode: code,
+                balance: 0,
+                bonus: 0
+              },
+              include: { user: true }
+            });
+          } catch {}
+        }
       }
     } else if (newInviterCode) {
       newInviter = await prisma.partnerProfile.findUnique({ where: { referralCode: newInviterCode }, include: { user: true } });
