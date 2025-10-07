@@ -1099,26 +1099,27 @@ router.get('/', requireAdmin, async (req, res) => {
             modal.id = 'inviterModal';
             modal.innerHTML =
               '<div class="modal-overlay" id="inviterOverlay">' +
-                '<div class="modal-content" style="max-width:520px;" id="inviterContent">' +
-                  '<div class="modal-header">' +
-                    '<h2>🔄 Смена пригласителя</h2>' +
-                    '<button class="close-btn" id="inviterClose">&times;</button>' +
+                '<div class="modal-content" style="max-width:560px; border-radius:12px; overflow:hidden; box-shadow:0 12px 30px rgba(0,0,0,.2)" id="inviterContent">' +
+                  '<div class="modal-header" style="background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:16px 20px; display:flex; align-items:center; justify-content:space-between">' +
+                    '<h2 style="margin:0; font-size:18px; font-weight:600">🔄 Смена пригласителя</h2>' +
+                    '<button class="close-btn" id="inviterClose" style="background:transparent; border:none; color:#fff; font-size:22px; cursor:pointer">&times;</button>' +
                   '</div>' +
-                  '<div class="modal-body">' +
-                    '<p>Пользователь: <strong>' + userName + '</strong></p>' +
-                    '<div class="form-group">' +
-                      '<label>Поиск по @username или коду:</label>' +
-                      '<input type="text" id="inviterSearch" placeholder="@username или код" autocomplete="off" />' +
+                  '<div class="modal-body" style="padding:16px 20px; background:#fff">' +
+                    '<div style="margin-bottom:8px; color:#6b7280">Пользователь:</div>' +
+                    '<div style="font-weight:600; margin-bottom:12px">' + userName + '</div>' +
+                    '<div class="form-group" style="margin-bottom:10px">' +
+                      '<label style="display:block; font-weight:600; margin-bottom:6px">Поиск по @username или коду</label>' +
+                      '<input type="text" id="inviterSearch" placeholder="@username или код" autocomplete="off" style="width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px" />' +
                     '</div>' +
-                    '<div id="inviterResults" style="max-height:200px; overflow:auto; border:1px solid #e5e7eb; border-radius:6px; padding:6px; display:none"></div>' +
-                    '<div class="form-group">' +
-                      '<label>Или введите код вручную:</label>' +
-                      '<input type="text" id="inviterCodeManual" placeholder="Код пригласителя" />' +
+                    '<div id="inviterResults" style="max-height:200px; overflow:auto; border:1px solid #e5e7eb; border-radius:8px; padding:6px; display:none"></div>' +
+                    '<div class="form-group" style="margin-top:10px">' +
+                      '<label style="display:block; font-weight:600; margin-bottom:6px">Или введите код вручную</label>' +
+                      '<input type="text" id="inviterCodeManual" placeholder="Код пригласителя" style="width:260px; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px" />' +
                     '</div>' +
                   '</div>' +
-                  '<div class="modal-footer">' +
-                    '<button class="btn" style="background:#6c757d" id="inviterCancel">Отмена</button>' +
-                    '<button class="btn" id="inviterApplyBtn" style="background:#10b981">Применить</button>' +
+                  '<div class="modal-footer" style="display:flex; gap:10px; justify-content:flex-end; padding:12px 20px; background:#f9fafb">' +
+                    '<button class="btn" id="inviterCancel" style="background:#6c757d; color:#fff; border:none; padding:8px 14px; border-radius:8px; cursor:pointer">Отмена</button>' +
+                    '<button class="btn" id="inviterApplyBtn" style="background:#10b981; color:#fff; border:none; padding:8px 14px; border-radius:8px; cursor:pointer">Применить</button>' +
                   '</div>' +
                 '</div>' +
               '</div>';
@@ -1178,10 +1179,15 @@ router.get('/', requireAdmin, async (req, res) => {
               }, 300);
             });
             applyBtn.addEventListener('click', async function(){
-              const payload = (selected && selected.username)
-                ? { inviterUsername: selected.username }
-                : { newInviterCode: (codeInput.value || searchInput.value).trim() };
-              if (!payload.inviterUsername && !payload.newInviterCode){ alert('Укажите пригласителя'); return; }
+              var typed = (codeInput.value || searchInput.value).trim();
+              var payload = {};
+              if (selected && selected.username) {
+                payload = { inviterUsername: selected.username };
+              } else if (typed) {
+                if (typed.startsWith('@')) payload = { inviterUsername: typed.replace(/^@/, '') };
+                else payload = { newInviterCode: typed };
+              }
+              if (!('inviterUsername' in payload) && !('newInviterCode' in payload)) { alert('Укажите пригласителя'); return; }
               try{
                 const resp = await fetch('/admin/users/' + userId + '/change-inviter', {
                   method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload)
