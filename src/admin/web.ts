@@ -932,7 +932,6 @@ router.get('/', requireAdmin, async (req, res) => {
             </div>
           </div>
         </div>
-
         <!-- Add Product Modal -->
         <div id="addProductModal" class="modal">
           <div class="modal-content product-modal">
@@ -1095,28 +1094,94 @@ router.get('/', requireAdmin, async (req, res) => {
           }
           
           async function openChangeInviter(userId, userName) {
-            const code = prompt(\`Введите код пригласителя для «\${userName}»\`);
-            if (!code) return;
-            try {
-              const resp = await fetch('/admin/users/' + userId + '/change-inviter', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ newInviterCode: code })
-              });
-              if (resp.redirected) {
-                window.location.href = resp.url;
+            const modal = document.createElement('div');
+            modal.id = 'inviterModal';
+            modal.innerHTML =
+              '<div class="modal-overlay" onclick="(function(e){if(e.target===this) document.body.removeChild(document.getElementById(\'inviterModal\'));}).call(this,event)">' +
+                '<div class="modal-content" style="max-width:520px;" onclick="event.stopPropagation()">' +
+                  '<div class="modal-header">' +
+                    '<h2>🔄 Смена пригласителя</h2>' +
+                    '<button class="close-btn" onclick="document.body.removeChild(document.getElementById(\'inviterModal\'))">&times;</button>' +
+                  '</div>' +
+                  '<div class="modal-body">' +
+                    '<p>Пользователь: <strong>' + userName + '</strong></p>' +
+                    '<div class="form-group">' +
+                      '<label>Поиск по @username или коду:</label>' +
+                      '<input type="text" id="inviterSearch" placeholder="@username или код" autocomplete="off" />' +
+                    '</div>' +
+                    '<div id="inviterResults" style="max-height:200px; overflow:auto; border:1px solid #e5e7eb; border-radius:6px; padding:6px; display:none"></div>' +
+                    '<div class="form-group">' +
+                      '<label>Или введите код вручную:</label>' +
+                      '<input type="text" id="inviterCodeManual" placeholder="Код пригласителя" />' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="modal-footer">' +
+                    '<button class="btn" style="background:#6c757d" onclick="document.body.removeChild(document.getElementById(\'inviterModal\'))">Отмена</button>' +
+                    '<button class="btn" id="inviterApplyBtn" style="background:#10b981">Применить</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            document.body.appendChild(modal);
+
+            const searchInput = document.getElementById('inviterSearch');
+            const resultsEl = document.getElementById('inviterResults');
+            const codeInput = document.getElementById('inviterCodeManual');
+            const applyBtn = document.getElementById('inviterApplyBtn');
+
+            let selected = null; // {username, referralCode}
+            let typingTimer;
+
+            function renderResults(items){
+              if (!items || items.length === 0){
+                resultsEl.style.display = 'none';
+                resultsEl.innerHTML = '';
                 return;
               }
-              if (resp.ok) {
-                alert('Пригласитель изменен');
-                window.location.reload();
-              } else {
-                alert('Не удалось изменить пригласителя');
-              }
-            } catch (e) {
-              alert('Ошибка сети при смене пригласителя');
+              resultsEl.style.display = 'block';
+              resultsEl.innerHTML = items.map(function(i){
+                const uname = i.username ? '@' + i.username : '';
+                const name = ((i.firstName || '') + ' ' + (i.lastName || '')).trim();
+                return '<div class="list-item" style="cursor:pointer; padding:6px; border-bottom:1px solid #eee" data-username="' + (i.username || '') + '" data-code="' + i.referralCode + '">' +
+                  '<div class="list-info"><div class="list-name">' + (uname || name || 'Без имени') + '</div>' +
+                  '<div class="list-time">код: ' + i.referralCode + '</div></div></div>';
+              }).join('');
+              Array.prototype.slice.call(resultsEl.querySelectorAll('[data-username]')).forEach(function(el){
+                el.addEventListener('click', function(){
+                  selected = { username: el.getAttribute('data-username'), code: el.getAttribute('data-code') };
+                  searchInput.value = selected.username ? '@' + selected.username : selected.code;
+                  codeInput.value = '';
+                  resultsEl.style.display = 'none';
+                });
+              });
             }
+
+            searchInput.addEventListener('input', function(){
+              clearTimeout(typingTimer);
+              const q = searchInput.value.trim();
+              if (!q){ renderResults([]); return; }
+              typingTimer = setTimeout(async function(){
+                try{
+                  const resp = await fetch('/admin/inviters/search?q=' + encodeURIComponent(q), { credentials: 'include' });
+                  const data = await resp.json();
+                  renderResults(data);
+                }catch(e){ renderResults([]); }
+              }, 300);
+            });
+
+            applyBtn.addEventListener('click', async function(){
+              const payload = (selected && selected.username)
+                ? { inviterUsername: selected.username }
+                : { newInviterCode: (codeInput.value || searchInput.value).trim() };
+              if (!payload.inviterUsername && !payload.newInviterCode){ alert('Укажите пригласителя'); return; }
+              try{
+                const resp = await fetch('/admin/users/' + userId + '/change-inviter', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload)
+                });
+                if (resp.redirected){ window.location.href = resp.url; return; }
+                if (resp.ok){ alert('Пригласитель изменен'); location.reload(); }
+                else { alert('Не удалось изменить пригласителя'); }
+              }catch(e){ alert('Ошибка сети'); }
+            });
           }
           
           // Balance management modal
@@ -1366,7 +1431,6 @@ router.get('/', requireAdmin, async (req, res) => {
             
             applySorting();
           }
-          
           function applySorting() {
             const sortBy = document.getElementById('sortBy').value;
             const sortOrder = document.getElementById('sortOrder').value;
@@ -2084,28 +2148,94 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           }
           
           async function openChangeInviter(userId, userName) {
-            const code = prompt(\`Введите код пригласителя для «\${userName}»\`);
-            if (!code) return;
-            try {
-              const resp = await fetch('/admin/users/' + userId + '/change-inviter', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ newInviterCode: code })
-              });
-              if (resp.redirected) {
-                window.location.href = resp.url;
+            const modal = document.createElement('div');
+            modal.id = 'inviterModal';
+            modal.innerHTML =
+              '<div class="modal-overlay" onclick="(function(e){if(e.target===this) document.body.removeChild(document.getElementById(\'inviterModal\'));}).call(this,event)">' +
+                '<div class="modal-content" style="max-width:520px;" onclick="event.stopPropagation()">' +
+                  '<div class="modal-header">' +
+                    '<h2>🔄 Смена пригласителя</h2>' +
+                    '<button class="close-btn" onclick="document.body.removeChild(document.getElementById(\'inviterModal\'))">&times;</button>' +
+                  '</div>' +
+                  '<div class="modal-body">' +
+                    '<p>Пользователь: <strong>' + userName + '</strong></p>' +
+                    '<div class="form-group">' +
+                      '<label>Поиск по @username или коду:</label>' +
+                      '<input type="text" id="inviterSearch" placeholder="@username или код" autocomplete="off" />' +
+                    '</div>' +
+                    '<div id="inviterResults" style="max-height:200px; overflow:auto; border:1px solid #e5e7eb; border-radius:6px; padding:6px; display:none"></div>' +
+                    '<div class="form-group">' +
+                      '<label>Или введите код вручную:</label>' +
+                      '<input type="text" id="inviterCodeManual" placeholder="Код пригласителя" />' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="modal-footer">' +
+                    '<button class="btn" style="background:#6c757d" onclick="document.body.removeChild(document.getElementById(\'inviterModal\'))">Отмена</button>' +
+                    '<button class="btn" id="inviterApplyBtn" style="background:#10b981">Применить</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            document.body.appendChild(modal);
+
+            const searchInput = document.getElementById('inviterSearch');
+            const resultsEl = document.getElementById('inviterResults');
+            const codeInput = document.getElementById('inviterCodeManual');
+            const applyBtn = document.getElementById('inviterApplyBtn');
+
+            let selected = null; // {username, referralCode}
+            let typingTimer;
+
+            function renderResults(items){
+              if (!items || items.length === 0){
+                resultsEl.style.display = 'none';
+                resultsEl.innerHTML = '';
                 return;
               }
-              if (resp.ok) {
-                alert('Пригласитель изменен');
-                window.location.reload();
-              } else {
-                alert('Не удалось изменить пригласителя');
-              }
-            } catch (e) {
-              alert('Ошибка сети при смене пригласителя');
+              resultsEl.style.display = 'block';
+              resultsEl.innerHTML = items.map(function(i){
+                const uname = i.username ? '@' + i.username : '';
+                const name = ((i.firstName || '') + ' ' + (i.lastName || '')).trim();
+                return '<div class="list-item" style="cursor:pointer; padding:6px; border-bottom:1px solid #eee" data-username="' + (i.username || '') + '" data-code="' + i.referralCode + '">' +
+                  '<div class="list-info"><div class="list-name">' + (uname || name || 'Без имени') + '</div>' +
+                  '<div class="list-time">код: ' + i.referralCode + '</div></div></div>';
+              }).join('');
+              Array.prototype.slice.call(resultsEl.querySelectorAll('[data-username]')).forEach(function(el){
+                el.addEventListener('click', function(){
+                  selected = { username: el.getAttribute('data-username'), code: el.getAttribute('data-code') };
+                  searchInput.value = selected.username ? '@' + selected.username : selected.code;
+                  codeInput.value = '';
+                  resultsEl.style.display = 'none';
+                });
+              });
             }
+
+            searchInput.addEventListener('input', function(){
+              clearTimeout(typingTimer);
+              const q = searchInput.value.trim();
+              if (!q){ renderResults([]); return; }
+              typingTimer = setTimeout(async function(){
+                try{
+                  const resp = await fetch('/admin/inviters/search?q=' + encodeURIComponent(q), { credentials: 'include' });
+                  const data = await resp.json();
+                  renderResults(data);
+                }catch(e){ renderResults([]); }
+              }, 300);
+            });
+
+            applyBtn.addEventListener('click', async function(){
+              const payload = (selected && selected.username)
+                ? { inviterUsername: selected.username }
+                : { newInviterCode: (codeInput.value || searchInput.value).trim() };
+              if (!payload.inviterUsername && !payload.newInviterCode){ alert('Укажите пригласителя'); return; }
+              try{
+                const resp = await fetch('/admin/users/' + userId + '/change-inviter', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload)
+                });
+                if (resp.redirected){ window.location.href = resp.url; return; }
+                if (resp.ok){ alert('Пригласитель изменен'); location.reload(); }
+                else { alert('Не удалось изменить пригласителя'); }
+              }catch(e){ alert('Ошибка сети'); }
+            });
           }
         </script>
       </body>
@@ -2116,7 +2246,6 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
     res.status(500).send('Ошибка загрузки страницы пользователей');
   }
 });
-
 // Send messages to users
 router.post('/send-messages', requireAdmin, async (req, res) => {
   try {
@@ -2610,7 +2739,6 @@ router.get('/users/:userId', requireAdmin, async (req, res) => {
     res.status(500).send('Ошибка загрузки деталей пользователя');
   }
 });
-
 // Force recalculate all partner bonuses
 router.post('/force-recalculate-all-bonuses', requireAdmin, async (req, res) => {
   try {
@@ -3016,7 +3144,6 @@ router.get('/partners-hierarchy', requireAdmin, async (req, res) => {
     }
 
     const hierarchyHtml = buildInteractiveHierarchy();
-
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -3163,28 +3290,30 @@ router.get('/partners-hierarchy', requireAdmin, async (req, res) => {
 router.post('/admin/partners/:id/change-inviter', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { newInviterCode } = req.body as any;
+    const { newInviterCode, inviterUsername } = req.body as any;
 
-    const newInviter = await prisma.partnerProfile.findUnique({
-      where: { referralCode: newInviterCode },
-      include: { user: true }
-    });
+    let newInviter = null as any;
+    if (inviterUsername) {
+      const uname = String(inviterUsername).trim().replace(/^@/, '');
+      newInviter = await prisma.partnerProfile.findFirst({
+        where: { user: { username: { equals: uname, mode: 'insensitive' } } },
+        include: { user: true },
+      });
+    } else if (newInviterCode) {
+      newInviter = await prisma.partnerProfile.findUnique({ where: { referralCode: newInviterCode }, include: { user: true } });
+    }
+
     if (!newInviter) {
       return res.redirect('/admin/partners?error=inviter_not_found');
     }
 
-    const currentPartner = await prisma.partnerProfile.findUnique({
-      where: { id },
-      include: { user: true }
-    });
+    const currentPartner = await prisma.partnerProfile.findUnique({ where: { id }, include: { user: true } });
     if (!currentPartner) {
       return res.redirect('/admin/partners?error=partner_not_found');
     }
 
     await prisma.partnerReferral.deleteMany({ where: { referredId: currentPartner.userId } });
-    await prisma.partnerReferral.create({
-      data: { profileId: newInviter.id, referredId: currentPartner.userId, level: 1 }
-    });
+    await prisma.partnerReferral.create({ data: { profileId: newInviter.id, referredId: currentPartner.userId, level: 1 } });
 
     return res.redirect('/admin/partners?success=inviter_changed');
   } catch (error) {
@@ -3197,12 +3326,19 @@ router.post('/admin/partners/:id/change-inviter', requireAdmin, async (req, res)
 router.post('/admin/users/:id/change-inviter', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { newInviterCode } = req.body as any;
+    const { newInviterCode, inviterUsername } = req.body as any;
 
-    const newInviter = await prisma.partnerProfile.findUnique({
-      where: { referralCode: newInviterCode },
-      include: { user: true }
-    });
+    let newInviter = null as any;
+    if (inviterUsername) {
+      const uname = String(inviterUsername).trim().replace(/^@/, '');
+      newInviter = await prisma.partnerProfile.findFirst({
+        where: { user: { username: { equals: uname, mode: 'insensitive' } } },
+        include: { user: true },
+      });
+    } else if (newInviterCode) {
+      newInviter = await prisma.partnerProfile.findUnique({ where: { referralCode: newInviterCode }, include: { user: true } });
+    }
+
     if (!newInviter) {
       return res.redirect('/admin/users?error=inviter_not_found');
     }
@@ -3213,9 +3349,7 @@ router.post('/admin/users/:id/change-inviter', requireAdmin, async (req, res) =>
     }
 
     await prisma.partnerReferral.deleteMany({ where: { referredId: id } });
-    await prisma.partnerReferral.create({
-      data: { profileId: newInviter.id, referredId: id, level: 1 }
-    });
+    await prisma.partnerReferral.create({ data: { profileId: newInviter.id, referredId: id, level: 1 } });
 
     return res.redirect('/admin/users?success=inviter_changed');
   } catch (error) {
@@ -3223,7 +3357,6 @@ router.post('/admin/users/:id/change-inviter', requireAdmin, async (req, res) =>
     return res.redirect('/admin/users?error=inviter_change');
   }
 });
-
 router.get('/products', requireAdmin, async (req, res) => {
   try {
     console.log('🛍️ Admin products page accessed');
@@ -3488,7 +3621,6 @@ router.get('/products', requireAdmin, async (req, res) => {
       `;
       return res.send(html);
     }
-
     allProducts.forEach((product) => {
       const rubPrice = (product.price * 100).toFixed(2);
       const priceFormatted = `${rubPrice} ₽ / ${product.price.toFixed(2)} PZ`;
@@ -3846,7 +3978,6 @@ router.post('/products/:id/toggle-active', requireAdmin, async (req, res) => {
     res.redirect('/admin?error=product_toggle');
   }
 });
-
 // Update product
 router.post('/products/:productId/update', requireAdmin, upload.single('image'), async (req, res) => {
   try {
@@ -4396,7 +4527,6 @@ router.post('/recalculate-all-balances', requireAdmin, async (req, res) => {
     res.redirect('/admin/partners?error=balance_recalculation_failed');
   }
 });
-
 // Debug partners page
 router.get('/debug-partners', requireAdmin, async (req, res) => {
   try {
@@ -5017,7 +5147,6 @@ router.post('/users/:userId/update-balance', requireAdmin, async (req, res) => {
     res.json({ success: false, error: 'Ошибка обновления баланса' });
   }
 });
-
 // Helper functions for user orders page
 function createUserOrderCard(order: any) {
   // Handle both string and object types for itemsJson
@@ -5388,7 +5517,6 @@ function getStatusDisplayName(status: string) {
           return `✅ Действует еще ${daysLeft} дней`;
         }
       }
-
       const html = `
         <!DOCTYPE html>
         <html>
@@ -6671,7 +6799,6 @@ router.post('/orders/:orderId/pay', requireAdmin, async (req, res) => {
     res.status(500).json({ success: false, error: 'Ошибка оплаты заказа' });
   }
 });
-
 // Get order details for editing
 router.get('/orders/:orderId', requireAdmin, async (req, res) => {
   try {
