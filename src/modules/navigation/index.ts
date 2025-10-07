@@ -418,10 +418,9 @@ export const navigationModule: BotModule = {
             if (isNewReferral) {
               try {
                 console.log('🔗 Referral: Sending notification to inviter:', partnerProfile.user.telegramId);
-                await ctx.telegram.sendMessage(
-                  partnerProfile.user.telegramId,
-                  '🎉 Ваш счет пополнен на 3PZ, приглашайте больше друзей и получайте продукцию за бонусы!'
-                );
+                const joinedLabel = user.username ? `@${user.username}` : (user.firstName || 'пользователь');
+                const text = `🎉 Ваш счет пополнен на 3PZ — присоединился ${joinedLabel}!\n\nПриглашайте больше друзей и получайте продукцию за бонусы!`;
+                await ctx.telegram.sendMessage(partnerProfile.user.telegramId, text);
                 console.log('🔗 Referral: Notification sent successfully');
               } catch (error) {
                 console.warn('🔗 Referral: Failed to send notification to inviter:', error);
