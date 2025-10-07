@@ -1929,6 +1929,12 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
       );
     }
 
+    // Optional filter
+    const filter = (req.query.filter as string | undefined) || '';
+    if (filter === 'with_balance') {
+      sortedUsers = sortedUsers.filter((u: any) => (u.balance || 0) > 0);
+    }
+
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -2025,11 +2031,11 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           </div>
           
           <div class="stats-bar">
-            <div class="stat-item">
+            <div class="stat-item" style="cursor:pointer" onclick="applyFilter('all')">
               <div class="stat-number">${sortedUsers.length}</div>
               <div class="stat-label">Всего пользователей</div>
             </div>
-            <div class="stat-item">
+            <div class="stat-item" style="cursor:pointer" onclick="applyFilter('with_balance')">
               <div class="stat-number">${sortedUsers.filter(u => u.balance > 0).length}</div>
               <div class="stat-label">С балансом</div>
             </div>
@@ -2129,6 +2135,15 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             const sortBy = document.getElementById('sortSelect').value;
             const order = document.getElementById('orderSelect').value;
             window.location.href = \`/admin/users-detailed?sort=\${sortBy}&order=\${order}\`;
+          }
+          function applyFilter(filter){
+            const url = new URL(window.location.href);
+            const sortBy = document.getElementById('sortSelect') ? document.getElementById('sortSelect').value : url.searchParams.get('sort') || 'orders';
+            const order = document.getElementById('orderSelect') ? document.getElementById('orderSelect').value : url.searchParams.get('order') || 'desc';
+            if(filter === 'all') url.searchParams.delete('filter'); else url.searchParams.set('filter', filter);
+            url.searchParams.set('sort', sortBy);
+            url.searchParams.set('order', order);
+            window.location.href = url.pathname + '?' + url.searchParams.toString();
           }
           function searchByUsername(){
             var q = document.getElementById('searchUsername').value.trim();
