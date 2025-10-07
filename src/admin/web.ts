@@ -2295,6 +2295,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
 });
 
 // Lightweight username prefix search for suggestions
+// Alias with and without /admin prefix (router mounted at /admin)
 router.get('/users/search', requireAdmin, async (req, res) => {
   try {
     const q = String((req.query.q as string) || '').trim().replace(/^@/, '');
@@ -2307,6 +2308,21 @@ router.get('/users/search', requireAdmin, async (req, res) => {
     });
     res.json(users);
   } catch (e) {
+    res.json([]);
+  }
+});
+router.get('/admin/users/search', requireAdmin, async (req, res) => {
+  const q = String((req.query.q as string) || '').trim().replace(/^@/, '');
+  if (!q) return res.json([]);
+  try {
+    const users = await prisma.user.findMany({
+      where: { username: { startsWith: q, mode: 'insensitive' } },
+      select: { id: true, username: true, firstName: true },
+      take: 10,
+      orderBy: { username: 'asc' }
+    });
+    res.json(users);
+  } catch {
     res.json([]);
   }
 });
