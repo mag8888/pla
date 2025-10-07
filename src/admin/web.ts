@@ -1188,11 +1188,11 @@ router.get('/', requireAdmin, async (req, res) => {
               if (!('inviterUsername' in payload) && !('newInviterCode' in payload)) { alert('Укажите пригласителя'); return; }
               try{
                 const resp = await fetch('/admin/users/' + userId + '/change-inviter', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload)
+                  method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, credentials: 'include', body: JSON.stringify(payload)
                 });
-                if (resp.redirected){ window.location.href = resp.url; return; }
-                if (resp.ok){ alert('Пригласитель изменен'); location.reload(); }
-                else { alert('Не удалось изменить пригласителя'); }
+                if (resp.ok){ alert('Пригласитель изменен'); location.reload(); return; }
+                let data = null; try { data = await resp.json(); } catch(e) {}
+                alert('Не удалось изменить пригласителя' + (data && data.error ? (' — ' + data.error) : ''));
               }catch(e){ alert('Ошибка сети'); }
             });
           }
@@ -3466,20 +3466,32 @@ router.post('/admin/partners/:id/change-inviter', requireAdmin, async (req, res)
     }
 
     if (!newInviter) {
+      if ((req.headers['accept'] || '').toString().includes('application/json')) {
+        return res.status(400).json({ success: false, error: 'inviter_not_found' });
+      }
       return res.redirect('/admin/partners?error=inviter_not_found');
     }
 
     const currentPartner = await prisma.partnerProfile.findUnique({ where: { id }, include: { user: true } });
     if (!currentPartner) {
+      if ((req.headers['accept'] || '').toString().includes('application/json')) {
+        return res.status(404).json({ success: false, error: 'partner_not_found' });
+      }
       return res.redirect('/admin/partners?error=partner_not_found');
     }
 
     await prisma.partnerReferral.deleteMany({ where: { referredId: currentPartner.userId } });
     await prisma.partnerReferral.create({ data: { profileId: newInviter.id, referredId: currentPartner.userId, level: 1 } });
-
+    
+    if ((req.headers['accept'] || '').toString().includes('application/json')) {
+      return res.json({ success: true });
+    }
     return res.redirect('/admin/partners?success=inviter_changed');
   } catch (error) {
     console.error('Change inviter error:', error);
+    if ((req.headers['accept'] || '').toString().includes('application/json')) {
+      return res.status(500).json({ success: false, error: 'inviter_change' });
+    }
     return res.redirect('/admin/partners?error=inviter_change');
   }
 });
@@ -3504,20 +3516,32 @@ router.post('/admin/users/:id/change-inviter', requireAdmin, async (req, res) =>
     }
 
     if (!newInviter) {
+      if ((req.headers['accept'] || '').toString().includes('application/json')) {
+        return res.status(400).json({ success: false, error: 'inviter_not_found' });
+      }
       return res.redirect('/admin/users?error=inviter_not_found');
     }
 
     const currentUser = await prisma.user.findUnique({ where: { id } });
     if (!currentUser) {
+      if ((req.headers['accept'] || '').toString().includes('application/json')) {
+        return res.status(404).json({ success: false, error: 'user_not_found' });
+      }
       return res.redirect('/admin/users?error=user_not_found');
     }
 
     await prisma.partnerReferral.deleteMany({ where: { referredId: id } });
     await prisma.partnerReferral.create({ data: { profileId: newInviter.id, referredId: id, level: 1 } });
-
+    
+    if ((req.headers['accept'] || '').toString().includes('application/json')) {
+      return res.json({ success: true });
+    }
     return res.redirect('/admin/users?success=inviter_changed');
   } catch (error) {
     console.error('Change user inviter error:', error);
+    if ((req.headers['accept'] || '').toString().includes('application/json')) {
+      return res.status(500).json({ success: false, error: 'inviter_change' });
+    }
     return res.redirect('/admin/users?error=inviter_change');
   }
 });
