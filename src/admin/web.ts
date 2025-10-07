@@ -2331,6 +2331,38 @@ router.get('/users/search', requireAdmin, async (req, res) => {
     res.json([]);
   }
 });
+
+// Inviter search (username or referral code) for modal suggestions
+router.get('/inviters/search', requireAdmin, async (req, res) => {
+  try {
+    const q = String((req.query.q as string) || '').trim();
+    if (!q) return res.json([]);
+    if (q.startsWith('@')) {
+      const uname = q.replace(/^@/, '');
+      const users = await prisma.user.findMany({
+        where: { username: { startsWith: uname, mode: 'insensitive' } },
+        take: 10,
+        select: { id: true, username: true, firstName: true }
+      });
+      // attach referral codes when exist
+      const profiles = await prisma.partnerProfile.findMany({
+        where: { userId: { in: users.map(u => u.id) } },
+        select: { userId: true, referralCode: true }
+      });
+      const map = new Map(profiles.map(p => [p.userId, p.referralCode]));
+      return res.json(users.map(u => ({ username: u.username, firstName: u.firstName, referralCode: map.get(u.id) || '' })));
+    }
+    // treat as referral code prefix search
+    const partners = await prisma.partnerProfile.findMany({
+      where: { referralCode: { startsWith: q } },
+      take: 10,
+      include: { user: true }
+    });
+    return res.json(partners.map(p => ({ username: p.user?.username || '', firstName: p.user?.firstName || '', referralCode: p.referralCode })));
+  } catch {
+    return res.json([]);
+  }
+});
 // Send messages to users
 router.post('/send-messages', requireAdmin, async (req, res) => {
   try {
