@@ -3068,7 +3068,7 @@ router.get('/partners-hierarchy', requireAdmin, async (req, res) => {
       })
     );
 
-    // Build interactive hierarchy with multi-level referrals
+    // Build interactive hierarchy with multi-level referrals (full tree)
     function buildInteractiveHierarchy() {
       const rootPartners = partnersWithInviters.filter(p => !p.inviter);
       
@@ -3143,7 +3143,60 @@ router.get('/partners-hierarchy', requireAdmin, async (req, res) => {
 
       return html;
     }
-    const hierarchyHtml = buildInteractiveHierarchy();
+    // If a specific user is provided, render focused 0-4 view: inviter -> user -> L1 -> L2 -> L3
+    function buildFocusedHierarchy(userId: string) {
+      const target = partnersWithInviters.find(p => p.user.id === userId);
+      if (!target) return '<p style="color:#6c757d">Партнёр не найден</p>';
+
+      // 0: inviter
+      const inviter = target.inviter;
+
+      // 1: user
+      const user = target;
+
+      // 2: level 1 referrals (direct)
+      const level1 = partnersWithInviters.filter(p => p.inviter && p.inviter.id === user.user.id);
+      const level1Ids = new Set(level1.map(p => p.user.id));
+
+      // 3: level 2 referrals
+      const level2 = partnersWithInviters.filter(p => p.inviter && level1Ids.has(p.inviter.id));
+      const level2Ids = new Set(level2.map(p => p.user.id));
+
+      // 4: level 3 referrals
+      const level3 = partnersWithInviters.filter(p => p.inviter && level2Ids.has(p.inviter.id));
+
+      function renderUserRow(label: string, u: any | null) {
+        if (!u) return `<div class="partner-node"><div class="partner-header level-0">${label}: —</div></div>`;
+        const name = `${u.firstName || u.user?.firstName || ''} ${u.lastName || u.user?.lastName || ''}`.trim();
+        const username = (u.username || u.user?.username) ? ` (@${u.username || u.user?.username})` : '';
+        const balance = (u.balance ?? u.user?.balance ?? 0).toFixed ? (u.balance).toFixed(2) : (Number(u.balance || 0)).toFixed(2);
+        return `<div class="partner-node"><div class="partner-header level-0"><strong>${label}:</strong> ${name}${username} <span class="balance">${balance} PZ</span></div></div>`;
+      }
+
+      function renderList(label: string, arr: any[]) {
+        if (arr.length === 0) return `<div class="partner-node"><div class="partner-header level-1"><strong>${label}:</strong> —</div></div>`;
+        return `
+          <div class="partner-node"><div class="partner-header level-1"><strong>${label}:</strong> (${arr.length})</div>
+            <div class="children">
+              ${arr.map(p => {
+                const name = `${p.user.firstName || ''} ${p.user.lastName || ''}`.trim();
+                const username = p.user.username ? ` (@${p.user.username})` : '';
+                return `<div class=\"partner-node\"><div class=\"partner-header level-2\">${name}${username} <span class=\"balance\">${p.balance.toFixed(2)} PZ</span></div></div>`;
+              }).join('')}
+            </div>
+          </div>`;
+      }
+
+      return `
+        ${renderUserRow('0 — Пригласитель', inviter)}
+        ${renderUserRow('1 — Пользователь', user.user || user)}
+        ${renderList('2 — Партнёры 1-го уровня', level1)}
+        ${renderList('3 — Партнёры 2-го уровня', level2)}
+        ${renderList('4 — Партнёры 3-го уровня', level3)}
+      `;
+    }
+
+    const hierarchyHtml = userId ? buildFocusedHierarchy(userId) : buildInteractiveHierarchy();
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -3193,7 +3246,7 @@ router.get('/partners-hierarchy', requireAdmin, async (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h2>🌳 Интерактивная иерархия партнёров v3.0</h2>
+          <h2>🌳 Иерархия партнёров ${userId ? '(фокус на пользователе)' : 'v3.0'}</h2>
           <p style="color: #666; font-size: 12px; margin: 5px 0;">Версия: 3.0 | ${new Date().toLocaleString()}</p>
           
           <div class="controls">
