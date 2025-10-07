@@ -106,7 +106,7 @@ router.get('/', requireAdmin, async (req, res) => {
     // Helper function for detailed users section
     async function getDetailedUsersSection() {
       try {
-        // Get all users with their related data
+        // Get recent users with their related data (preview)
         const users = await prisma.user.findMany({
           include: {
             partner: {
@@ -165,7 +165,7 @@ router.get('/', requireAdmin, async (req, res) => {
             return totalCount;
           }
           
-          const totalPartners = countAllReferrals(user.id);
+        const totalPartners = countAllReferrals(user.id);
           
           // Разделяем заказы по статусам
           const ordersByStatus = {
@@ -223,8 +223,9 @@ router.get('/', requireAdmin, async (req, res) => {
           return '<div class="empty-state"><h3>📭 Нет пользователей</h3><p>Пользователи появятся здесь после регистрации</p></div>';
         }
 
-        // Calculate total balance of all users for this section
-        const totalUserBalance = usersWithStats.reduce((sum, user) => sum + (user.balance || 0), 0);
+        // Calculate total balance across ALL users (not just this screen)
+        const allBalances = await prisma.user.findMany({ select: { balance: true } });
+        const totalUserBalance = allBalances.reduce((sum, u) => sum + (u.balance || 0), 0);
 
         return `
           <div class="detailed-users-container">
@@ -1433,12 +1434,10 @@ router.get('/', requireAdmin, async (req, res) => {
             document.getElementById('addProductModal').style.display = 'block';
           };
           
-          // Sorting functionality
+          // Sorting: redirect to full users page with server-side sorting across ALL users
           function sortTable(column) {
             const sortBy = document.getElementById('sortBy');
             const sortOrder = document.getElementById('sortOrder');
-            
-            // Set the sort parameters
             switch(column) {
               case 'name': sortBy.value = 'name'; break;
               case 'balance': sortBy.value = 'balance'; break;
@@ -1446,54 +1445,12 @@ router.get('/', requireAdmin, async (req, res) => {
               case 'orders': sortBy.value = 'orders'; break;
               case 'activity': sortBy.value = 'activity'; break;
             }
-            
             applySorting();
           }
           function applySorting() {
-            const sortBy = document.getElementById('sortBy').value;
-            const sortOrder = document.getElementById('sortOrder').value;
-            const tbody = document.querySelector('.users-table tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            
-            rows.sort((a, b) => {
-              let aVal, bVal;
-              
-              switch(sortBy) {
-                case 'name':
-                  aVal = a.dataset.name.toLowerCase();
-                  bVal = b.dataset.name.toLowerCase();
-                  break;
-                case 'balance':
-                  aVal = parseFloat(a.dataset.balance);
-                  bVal = parseFloat(b.dataset.balance);
-                  break;
-                case 'partners':
-                  aVal = parseInt(a.dataset.partners);
-                  bVal = parseInt(b.dataset.partners);
-                  break;
-                case 'orders':
-                  // Приоритет статуса заказов: new > processing > completed > cancelled > none
-                  const statusPriority = { 'new': 5, 'processing': 4, 'completed': 3, 'cancelled': 2, 'none': 1 };
-                  aVal = statusPriority[a.dataset.orders] || 0;
-                  bVal = statusPriority[b.dataset.orders] || 0;
-                  break;
-                case 'activity':
-                  aVal = parseInt(a.dataset.activity);
-                  bVal = parseInt(b.dataset.activity);
-                  break;
-                default:
-                  return 0;
-              }
-              
-              if (sortOrder === 'asc') {
-                return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-              } else {
-                return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-              }
-            });
-            
-            // Re-append sorted rows
-            rows.forEach(row => tbody.appendChild(row));
+            var sortBy = document.getElementById('sortBy').value;
+            var sortOrder = document.getElementById('sortOrder').value;
+            window.location.href = '/admin/users-detailed?sort=' + encodeURIComponent(sortBy) + '&order=' + encodeURIComponent(sortOrder);
           }
           
           // Checkbox functionality
