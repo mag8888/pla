@@ -1778,6 +1778,8 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
     const sortOrder = req.query.order as string || 'desc';
     
     // Get all users with their related data
+    // Optional search by username
+    const search = (req.query.search as string | undefined)?.trim();
     const users = await prisma.user.findMany({
       include: {
         partner: {
@@ -1788,6 +1790,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
         },
         orders: true
       },
+      where: search ? { username: { contains: search, mode: 'insensitive' } } : undefined,
       orderBy: {
         createdAt: sortOrder === 'desc' ? 'desc' : 'asc'
       }
@@ -1975,6 +1978,11 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           <div class="controls">
             <div class="sort-controls">
               <div class="sort-group">
+                <label>Найти по юзернейм:</label>
+                <input type="text" id="searchUsername" placeholder="@username" style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; font-size:14px;" />
+                <button onclick="searchByUsername()">🔎 Найти</button>
+              </div>
+              <div class="sort-group">
                 <label>Сортировать по:</label>
                 <select id="sortSelect">
                   <option value="activity" ${sortBy === 'activity' ? 'selected' : ''}>Активности</option>
@@ -2102,6 +2110,13 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             const order = document.getElementById('orderSelect').value;
             window.location.href = \`/admin/users-detailed?sort=\${sortBy}&order=\${order}\`;
           }
+          function searchByUsername(){
+            var q = document.getElementById('searchUsername').value.trim();
+            if(!q) return;
+            if(q.startsWith('@')) q = q.slice(1);
+            window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(q);
+          }
+          document.getElementById('searchUsername').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); searchByUsername(); }});
           
           function showHierarchy(userId) {
             window.open(\`/admin/partners-hierarchy?user=\${userId}\`, '_blank', 'width=800,height=600');
