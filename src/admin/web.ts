@@ -1760,19 +1760,60 @@ router.get('/', requireAdmin, async (req, res) => {
 
           // Global functions for user actions
           window.showUserPartners = function(userId, userName) {
+            console.log('showUserPartners called with:', userId, userName);
             window.open('/admin/users/' + userId + '/partners', '_blank', 'width=800,height=600');
           }
           
           window.showUserOrders = function(userId, userName) {
+            console.log('showUserOrders called with:', userId, userName);
             window.open('/admin/users/' + userId + '/orders', '_blank', 'width=1000,height=700');
           }
 
           window.showUserDetails = function(userId) {
+            console.log('showUserDetails called with:', userId);
             window.open('/admin/users/' + userId, '_blank', 'width=600,height=400');
           }
 
           window.showHierarchy = function(userId) {
+            console.log('showHierarchy called with:', userId);
             window.open('/admin/partners-hierarchy?user=' + userId, '_blank', 'width=800,height=600');
+          }
+
+          // Debug: Check if functions are properly defined
+          console.log('Functions defined:', {
+            showUserOrders: typeof window.showUserOrders,
+            showUserPartners: typeof window.showUserPartners,
+            showUserDetails: typeof window.showUserDetails,
+            showHierarchy: typeof window.showHierarchy
+          });
+
+          // Fallback: Define functions as global variables if window assignment didn't work
+          if (typeof showUserOrders === 'undefined') {
+            window.showUserOrders = function(userId, userName) {
+              console.log('Fallback showUserOrders called with:', userId, userName);
+              window.open('/admin/users/' + userId + '/orders', '_blank', 'width=1000,height=700');
+            };
+          }
+          
+          if (typeof showUserPartners === 'undefined') {
+            window.showUserPartners = function(userId, userName) {
+              console.log('Fallback showUserPartners called with:', userId, userName);
+              window.open('/admin/users/' + userId + '/partners', '_blank', 'width=800,height=600');
+            };
+          }
+          
+          if (typeof showUserDetails === 'undefined') {
+            window.showUserDetails = function(userId) {
+              console.log('Fallback showUserDetails called with:', userId);
+              window.open('/admin/users/' + userId, '_blank', 'width=600,height=400');
+            };
+          }
+          
+          if (typeof showHierarchy === 'undefined') {
+            window.showHierarchy = function(userId) {
+              console.log('Fallback showHierarchy called with:', userId);
+              window.open('/admin/partners-hierarchy?user=' + userId, '_blank', 'width=800,height=600');
+            };
           }
         </script>
       </body>
