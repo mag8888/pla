@@ -276,7 +276,7 @@ router.get('/', requireAdmin, async (req, res) => {
                         <div class="user-info">
                           <div class="user-avatar">${(user.firstName || 'U')[0].toUpperCase()}</div>
                           <div class="user-details">
-                            <h4><a href="javascript:void(0)" onclick="showUserDetails('${user.id}')" class="user-name-link" style="cursor: pointer; color: #007bff; text-decoration: none;">${user.firstName || 'Без имени'} ${user.lastName || ''}</a></h4>
+                            <h4><a href="javascript:void(0)" onclick="if(typeof showUserDetails === 'function') { showUserDetails('${user.id}'); } else { console.error('showUserDetails not defined'); window.open('/admin/users/${user.id}', '_blank', 'width=600,height=400'); }" class="user-name-link" style="cursor: pointer; color: #007bff; text-decoration: none;">${user.firstName || 'Без имени'} ${user.lastName || ''}</a></h4>
                             <p>@${user.username || 'без username'}</p>
                             <div style="display:flex; align-items:center; gap:6px;">
                               ${user.inviter ? `<p style=\"font-size: 11px; color: #6c757d; margin:0;\">Пригласил: @${user.inviter.username || user.inviter.firstName || 'неизвестно'}</p>` : `<p style=\"font-size: 11px; color: #6c757d; margin:0;\">Пригласитель: —</p>`}
@@ -297,13 +297,13 @@ router.get('/', requireAdmin, async (req, res) => {
                         ${user.bonus > 0 ? `<div style="font-size: 11px; color: #6c757d;">Бонусы: ${user.bonus.toFixed(2)} PZ</div>` : ''}
                       </td>
                       <td>
-                        <button class="partners-count-btn" onclick="showUserPartners('${user.id}', '${user.firstName || 'Пользователь'}')" style="background: none; border: none; cursor: pointer; padding: 0;">
+                        <button class="partners-count-btn" onclick="if(typeof showUserPartners === 'function') { showUserPartners('${user.id}', '${user.firstName || 'Пользователь'}'); } else { console.error('showUserPartners not defined'); window.open('/admin/users/${user.id}/partners', '_blank', 'width=800,height=600'); }" style="background: none; border: none; cursor: pointer; padding: 0;">
                           <div class="partners-count">${user.totalPartners} всего</div>
                           ${user.directPartners > 0 ? `<div style="font-size: 11px; color: #6c757d;">${user.directPartners} прямых</div>` : ''}
                         </button>
                       </td>
                       <td>
-                        <button class="orders-sum-btn" onclick="showUserOrders('${user.id}', '${user.firstName || 'Пользователь'}')" style="background: none; border: none; cursor: pointer; padding: 0; width: 100%; text-align: left;">
+                        <button class="orders-sum-btn" onclick="if(typeof showUserOrders === 'function') { showUserOrders('${user.id}', '${user.firstName || 'Пользователь'}'); } else { console.error('showUserOrders not defined'); window.open('/admin/users/${user.id}/orders', '_blank', 'width=1000,height=700'); }" style="background: none; border: none; cursor: pointer; padding: 0; width: 100%; text-align: left;">
                           <div class="orders-sum">${user.totalOrderSum.toFixed(2)} PZ</div>
                           <div class="orders-count status-${user.priorityStatus}" data-status="${user.priorityStatus}">
                             ${user.orders?.length || 0} заказов
@@ -320,10 +320,10 @@ router.get('/', requireAdmin, async (req, res) => {
                         </div>
                       </td>
                     <td>
-                      <button class="action-btn hierarchy" onclick="showHierarchy('${user.id}')">
+                      <button class="action-btn hierarchy" onclick="if(typeof showHierarchy === 'function') { showHierarchy('${user.id}'); } else { console.error('showHierarchy not defined'); window.open('/admin/partners-hierarchy?user=${user.id}', '_blank', 'width=800,height=600'); }">
                         🌳 Иерархия
                       </button>
-                      <button class="action-btn" onclick="showUserDetails('${user.id}')">
+                      <button class="action-btn" onclick="if(typeof showUserDetails === 'function') { showUserDetails('${user.id}'); } else { console.error('showUserDetails not defined'); window.open('/admin/users/${user.id}', '_blank', 'width=600,height=400'); }">
                           👁 Подробно
                         </button>
                         <button class="action-btn" onclick="openChangeInviter('${user.id}', '${user.firstName || 'Пользователь'}')">
@@ -2136,12 +2136,12 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       ${user.bonus > 0 ? `<div style="font-size: 11px; color: #6c757d;">Бонусы: ${user.bonus.toFixed(2)} PZ</div>` : ''}
                     </td>
                     <td>
-                      <button class="partners-count-btn" onclick="showUserPartners('${user.id}', '${user.firstName || 'Пользователь'}')" style="background: none; border: none; cursor: pointer; padding: 0;">
+                      <button class="partners-count-btn" onclick="if(typeof showUserPartners === 'function') { showUserPartners('${user.id}', '${user.firstName || 'Пользователь'}'); } else { console.error('showUserPartners not defined'); window.open('/admin/users/${user.id}/partners', '_blank', 'width=800,height=600'); }" style="background: none; border: none; cursor: pointer; padding: 0;">
                         <div class="partners-count">${user.directPartners} прямых</div>
                       </button>
                     </td>
                     <td>
-                      <button class="orders-sum-btn" onclick="showUserOrders('${user.id}', '${user.firstName || 'Пользователь'}')" style="background: none; border: none; cursor: pointer; padding: 0; width: 100%; text-align: left;">
+                      <button class="orders-sum-btn" onclick="if(typeof showUserOrders === 'function') { showUserOrders('${user.id}', '${user.firstName || 'Пользователь'}'); } else { console.error('showUserOrders not defined'); window.open('/admin/users/${user.id}/orders', '_blank', 'width=1000,height=700'); }" style="background: none; border: none; cursor: pointer; padding: 0; width: 100%; text-align: left;">
                         <div class="orders-sum">${user.totalOrderSum.toFixed(2)} PZ</div>
                         <div class="orders-count status-${user.priorityStatus}" data-status="${user.priorityStatus}">
                           ${user.orders?.length || 0} заказов
@@ -2158,10 +2158,10 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       </div>
                     </td>
                     <td>
-                      <button class="action-btn hierarchy" onclick="showHierarchy('${user.id}')">
+                      <button class="action-btn hierarchy" onclick="if(typeof showHierarchy === 'function') { showHierarchy('${user.id}'); } else { console.error('showHierarchy not defined'); window.open('/admin/partners-hierarchy?user=${user.id}', '_blank', 'width=800,height=600'); }">
                         🌳 Иерархия
                       </button>
-                      <button class="action-btn" onclick="showUserDetails('${user.id}')">
+                      <button class="action-btn" onclick="if(typeof showUserDetails === 'function') { showUserDetails('${user.id}'); } else { console.error('showUserDetails not defined'); window.open('/admin/users/${user.id}', '_blank', 'width=600,height=400'); }">
                         👁 Подробно
                       </button>
                       <button class="action-btn" onclick="openChangeInviter('${user.id}', '${user.firstName || 'Без имени'} ${user.lastName || ''}')">
