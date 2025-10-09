@@ -276,7 +276,7 @@ router.get('/', requireAdmin, async (req, res) => {
                         <div class="user-info">
                           <div class="user-avatar">${(user.firstName || 'U')[0].toUpperCase()}</div>
                           <div class="user-details">
-                            <h4><a href="/admin/users/${user.id}/card" class="user-name-link">${user.firstName || 'Без имени'} ${user.lastName || ''}</a></h4>
+                            <h4><a href="javascript:void(0)" onclick="showUserDetails('${user.id}')" class="user-name-link" style="cursor: pointer; color: #007bff; text-decoration: none;">${user.firstName || 'Без имени'} ${user.lastName || ''}</a></h4>
                             <p>@${user.username || 'без username'}</p>
                             <div style="display:flex; align-items:center; gap:6px;">
                               ${user.inviter ? `<p style=\"font-size: 11px; color: #6c757d; margin:0;\">Пригласил: @${user.inviter.username || user.inviter.firstName || 'неизвестно'}</p>` : `<p style=\"font-size: 11px; color: #6c757d; margin:0;\">Пригласитель: —</p>`}
@@ -2075,7 +2075,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       <div class="user-info">
                         <div class="user-avatar">${(user.firstName || 'U')[0].toUpperCase()}</div>
                         <div class="user-details">
-                          <h4>${user.firstName || 'Без имени'} ${user.lastName || ''}</h4>
+                          <h4><a href="javascript:void(0)" onclick="showUserDetails('${user.id}')" class="user-name-link" style="cursor: pointer; color: #007bff; text-decoration: none;">${user.firstName || 'Без имени'} ${user.lastName || ''}</a></h4>
                           <p>@${user.username || 'без username'}${user.inviter ? ` · пригласил: @${user.inviter.username || user.inviter.firstName || 'неизвестно'}` : ''}</p>
                         </div>
                       </div>
@@ -2087,17 +2087,21 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       ${user.bonus > 0 ? `<div style="font-size: 11px; color: #6c757d;">Бонусы: ${user.bonus.toFixed(2)} PZ</div>` : ''}
                     </td>
                     <td>
-                      <div class="partners-count">${user.directPartners} прямых</div>
+                      <button class="partners-count-btn" onclick="showUserPartners('${user.id}', '${user.firstName || 'Пользователь'}')" style="background: none; border: none; cursor: pointer; padding: 0;">
+                        <div class="partners-count">${user.directPartners} прямых</div>
+                      </button>
                     </td>
                     <td>
-                      <div class="orders-sum">${user.totalOrderSum.toFixed(2)} PZ</div>
-                      <div class="orders-count status-${user.priorityStatus}" data-status="${user.priorityStatus}">
-                        ${user.orders?.length || 0} заказов
-                        ${user.priorityStatus === 'new' ? ' 🔴' : ''}
-                        ${user.priorityStatus === 'processing' ? ' 🟡' : ''}
-                        ${user.priorityStatus === 'completed' ? ' 🟢' : ''}
-                        ${user.priorityStatus === 'cancelled' ? ' ⚫' : ''}
-                      </div>
+                      <button class="orders-sum-btn" onclick="showUserOrders('${user.id}', '${user.firstName || 'Пользователь'}')" style="background: none; border: none; cursor: pointer; padding: 0; width: 100%; text-align: left;">
+                        <div class="orders-sum">${user.totalOrderSum.toFixed(2)} PZ</div>
+                        <div class="orders-count status-${user.priorityStatus}" data-status="${user.priorityStatus}">
+                          ${user.orders?.length || 0} заказов
+                          ${user.priorityStatus === 'new' ? ' 🔴' : ''}
+                          ${user.priorityStatus === 'processing' ? ' 🟡' : ''}
+                          ${user.priorityStatus === 'completed' ? ' 🟢' : ''}
+                          ${user.priorityStatus === 'cancelled' ? ' ⚫' : ''}
+                        </div>
+                      </button>
                     </td>
                     <td>
                       <div style="font-size: 13px; color: #6c757d;">
