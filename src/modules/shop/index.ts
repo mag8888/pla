@@ -281,6 +281,20 @@ async function handleBuy(ctx: Context, productId: string) {
 
   await ctx.answerCbQuery();
   await ctx.reply('Заявка отправлена администратору. Мы свяжемся с вами в ближайшее время!');
+  
+  // Show delivery address button
+  await ctx.reply('📍 Укажите адрес доставки:', {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: '📍 Адрес доставки',
+            callback_data: 'delivery:address',
+          },
+        ],
+      ],
+    },
+  });
 }
 
 export const shopModule: BotModule = {
