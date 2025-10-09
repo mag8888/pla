@@ -364,30 +364,61 @@ export function registerCartActions(bot: Telegraf<Context>) {
     await ctx.answerCbQuery();
     await logUserAction(ctx, 'delivery:address');
     
-    await ctx.reply('📍 Выберите тип адреса доставки:', {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: '🇮🇩 Бали - район и вилла',
-              callback_data: 'delivery:bali',
-            },
+    const user = await ensureUser(ctx);
+    if (!user) {
+      await ctx.reply('❌ Ошибка. Попробуйте позже.');
+      return;
+    }
+
+    // Check if user already has a delivery address
+    if (user.deliveryAddress) {
+      const [addressType, ...addressParts] = user.deliveryAddress.split(': ');
+      const address = addressParts.join(': ');
+      
+      await ctx.reply(`📍 Ваш текущий адрес доставки:\n\nТип: ${addressType}\nАдрес: ${address}`, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '✏️ Изменить адрес',
+                callback_data: 'delivery:change',
+              },
+            ],
+            [
+              {
+                text: '✅ Использовать этот адрес',
+                callback_data: 'delivery:use_existing',
+              },
+            ],
           ],
-          [
-            {
-              text: '🇷🇺 РФ - город и адрес',
-              callback_data: 'delivery:russia',
-            },
+        },
+      });
+    } else {
+      await ctx.reply('📍 Выберите тип адреса доставки:', {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '🇮🇩 Бали - район и вилла',
+                callback_data: 'delivery:bali',
+              },
+            ],
+            [
+              {
+                text: '🇷🇺 РФ - город и адрес',
+                callback_data: 'delivery:russia',
+              },
+            ],
+            [
+              {
+                text: '✏️ Ввести свой вариант',
+                callback_data: 'delivery:custom',
+              },
+            ],
           ],
-          [
-            {
-              text: '✏️ Ввести свой вариант',
-              callback_data: 'delivery:custom',
-            },
-          ],
-        ],
-      },
-    });
+        },
+      });
+    }
   });
 
   bot.action('delivery:bali', async (ctx) => {
@@ -472,6 +503,43 @@ export function registerCartActions(bot: Telegraf<Context>) {
     
     await ctx.reply('✅ Спасибо! Адрес доставки сохранен. Мы учтем его при отправке заказа.');
   });
+
+  bot.action('delivery:change', async (ctx) => {
+    await ctx.answerCbQuery();
+    await logUserAction(ctx, 'delivery:change');
+    
+    await ctx.reply('📍 Выберите тип адреса доставки:', {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: '🇮🇩 Бали - район и вилла',
+              callback_data: 'delivery:bali',
+            },
+          ],
+          [
+            {
+              text: '🇷🇺 РФ - город и адрес',
+              callback_data: 'delivery:russia',
+            },
+          ],
+          [
+            {
+              text: '✏️ Ввести свой вариант',
+              callback_data: 'delivery:custom',
+            },
+          ],
+        ],
+      },
+    });
+  });
+
+  bot.action('delivery:use_existing', async (ctx) => {
+    await ctx.answerCbQuery();
+    await logUserAction(ctx, 'delivery:use_existing');
+    
+    await ctx.reply('✅ Отлично! Будем использовать ваш сохраненный адрес доставки.');
+  });
 }
 
 // Handle delivery address input
@@ -483,7 +551,16 @@ async function handleDeliveryAddress(ctx: Context, addressType: string, address:
       return;
     }
 
-    const addressText = `📍 Адрес доставки получен!\n\nТип: ${addressType}\nАдрес: ${address}`;
+    // Save address to database
+    const { prisma } = await import('../../lib/prisma.js');
+    const fullAddress = `${addressType}: ${address}`;
+    
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { deliveryAddress: fullAddress }
+    });
+
+    const addressText = `📍 Адрес доставки сохранен!\n\nТип: ${addressType}\nАдрес: ${address}`;
     
     await ctx.reply(addressText, {
       reply_markup: {

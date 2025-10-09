@@ -1827,6 +1827,74 @@ router.get('/', requireAdmin, async (req, res) => {
               window.open('/admin/partners-hierarchy?user=' + userId, '_blank', 'width=800,height=600');
             };
           }
+
+          // Edit delivery address function
+          window.editDeliveryAddress = function(userId) {
+            const modal = document.createElement('div');
+            modal.id = 'deliveryAddressModal';
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+            
+            const modalContent = '<div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px;">' +
+              '<h3>📍 Редактировать адрес доставки</h3>' +
+              '<div style="margin: 15px 0;">' +
+                '<label style="display: block; margin-bottom: 5px; font-weight: bold;">Тип адреса:</label>' +
+                '<select id="addressType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">' +
+                  '<option value="Бали">🇮🇩 Бали - район и вилла</option>' +
+                  '<option value="Россия">🇷🇺 РФ - город и адрес</option>' +
+                  '<option value="Произвольный">✏️ Произвольный адрес</option>' +
+                '</select>' +
+              '</div>' +
+              '<div style="margin: 15px 0;">' +
+                '<label style="display: block; margin-bottom: 5px; font-weight: bold;">Адрес:</label>' +
+                '<textarea id="addressText" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 80px; resize: vertical;" placeholder="Введите адрес доставки"></textarea>' +
+              '</div>' +
+              '<div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">' +
+                '<button onclick="closeDeliveryAddressModal()" style="padding: 8px 16px; border: 1px solid #ddd; background: #f8f9fa; border-radius: 4px; cursor: pointer;">Отмена</button>' +
+                '<button onclick="saveDeliveryAddress(\\'' + userId + '\\')" style="padding: 8px 16px; border: none; background: #28a745; color: white; border-radius: 4px; cursor: pointer;">💾 Сохранить</button>' +
+              '</div>' +
+            '</div>';
+            
+            modal.innerHTML = modalContent;
+            document.body.appendChild(modal);
+          };
+
+          window.closeDeliveryAddressModal = function() {
+            const modal = document.getElementById('deliveryAddressModal');
+            if (modal) {
+              modal.remove();
+            }
+          };
+
+          window.saveDeliveryAddress = async function(userId) {
+            const addressType = document.getElementById('addressType').value;
+            const addressText = document.getElementById('addressText').value.trim();
+            
+            if (!addressText) {
+              alert('Пожалуйста, введите адрес');
+              return;
+            }
+
+            try {
+              const response = await fetch('/admin/users/' + userId + '/delivery-address', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  addressType: addressType,
+                  address: addressText
+                })
+              });
+
+              if (response.ok) {
+                alert('Адрес доставки сохранен');
+                location.reload();
+              } else {
+                const error = await response.json();
+                alert('Ошибка: ' + (error.error || 'Не удалось сохранить адрес'));
+              }
+            } catch (error) {
+              alert('Ошибка сети: ' + error.message);
+            }
+          };
         </script>
       </body>
       </html>
@@ -2803,6 +2871,15 @@ router.get('/users/:userId', requireAdmin, async (req, res) => {
                 <div class="info-card">
                   <h4>Последняя активность</h4>
                   <p>${(user.updatedAt || user.createdAt).toLocaleString('ru-RU')}</p>
+                </div>
+                <div class="info-card">
+                  <h4>Адрес доставки</h4>
+                  <p>${(user as any).deliveryAddress || 'Не указан'}</p>
+                  ${(user as any).deliveryAddress ? `
+                    <button onclick="editDeliveryAddress('${user.id}')" class="btn" style="background: #17a2b8; margin-top: 5px;">✏️ Редактировать</button>
+                  ` : `
+                    <button onclick="editDeliveryAddress('${user.id}')" class="btn" style="background: #28a745; margin-top: 5px;">➕ Добавить</button>
+                  `}
                 </div>
               </div>
             </div>
@@ -5388,6 +5465,30 @@ router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('❌ User partners page error:', error);
     res.status(500).send('Ошибка загрузки партнеров пользователя');
+  }
+});
+
+// Update user delivery address
+router.post('/users/:userId/delivery-address', requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { addressType, address } = req.body;
+    
+    if (!addressType || !address) {
+      return res.status(400).json({ error: 'Тип адреса и адрес обязательны' });
+    }
+    
+    const fullAddress = `${addressType}: ${address}`;
+    
+    await prisma.user.update({
+      where: { id: userId },
+      data: { deliveryAddress: fullAddress } as any
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating delivery address:', error);
+    res.status(500).json({ error: 'Ошибка сохранения адреса' });
   }
 });
 
