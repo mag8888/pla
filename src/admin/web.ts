@@ -37,7 +37,7 @@ router.get('/login', (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Plazma Bot Admin</title>
+      <title>Plazma Bot Admin Panel</title>
       <meta charset="utf-8">
       <style>
         body { font-family: Arial, sans-serif; max-width: 400px; margin: 100px auto; padding: 20px; background: #f5f5f5; }
@@ -53,7 +53,7 @@ router.get('/login', (req, res) => {
     </head>
     <body>
       <div class="login-container">
-        <h2>🔧 Plazma Bot Admin</h2>
+        <h2>🔧 Plazma Bot Admin Panel</h2>
         <form method="post" action="/admin/login">
           <div class="form-group">
             <label>Пароль:</label>
@@ -451,7 +451,7 @@ router.get('/', requireAdmin, async (req, res) => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Админ-панель Plazma Water v2.0</title>
+        <title>Админ-панель Plazma Bot v2.0</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
@@ -739,7 +739,7 @@ router.get('/', requireAdmin, async (req, res) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🚀 Админ-панель Plazma Water v2.0</h1>
+            <h1>🚀 Админ-панель Plazma Bot v2.0</h1>
             <p>Единое управление ботом, пользователями и партнёрами</p>
           </div>
           
@@ -7457,7 +7457,7 @@ router.get('/admin/audio', requireAdmin, async (req, res) => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Управление аудиофайлами - Plazma Bot Admin</title>
+        <title>Управление аудиофайлами - Plazma Bot Admin Panel</title>
         <meta charset="utf-8">
         <style>
           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
