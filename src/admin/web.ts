@@ -6521,8 +6521,30 @@ function getStatusDisplayName(status: string) {
           .user-balance {
             margin-top: 15px; padding: 10px 20px; 
             background: rgba(255, 255, 255, 0.1); 
-            border-radius: 8px; display: inline-block;
+            border-radius: 8px; display: inline-flex;
+            align-items: center; gap: 10px;
             backdrop-filter: blur(10px);
+          }
+          
+          .balance-manage-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+          }
+          
+          .balance-manage-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
           }
           
           .balance-label {
@@ -6860,6 +6882,131 @@ function getStatusDisplayName(status: string) {
           .cancel-edit-btn:hover {
             background: #545b62;
           }
+          
+          /* Стили для модального окна управления балансом */
+          .balance-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+          }
+          
+          .balance-modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            overflow: hidden;
+          }
+          
+          .balance-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          
+          .balance-modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+          }
+          
+          .balance-modal-close {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+          }
+          
+          .balance-modal-close:hover {
+            opacity: 0.7;
+          }
+          
+          .balance-modal-body {
+            padding: 20px;
+          }
+          
+          .balance-form-group {
+            margin-bottom: 15px;
+          }
+          
+          .balance-form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #495057;
+          }
+          
+          .balance-select, .balance-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+          }
+          
+          .balance-select:focus, .balance-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+          }
+          
+          .balance-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 10px;
+          }
+          
+          .balance-modal-footer {
+            padding: 20px;
+            background: #f8f9fa;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+          }
+          
+          .balance-cancel-btn, .balance-apply-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+          }
+          
+          .balance-cancel-btn {
+            background: #6c757d;
+            color: white;
+          }
+          
+          .balance-cancel-btn:hover {
+            background: #545b62;
+          }
+          
+          .balance-apply-btn {
+            background: #28a745;
+            color: white;
+          }
+          
+          .balance-apply-btn:hover {
+            background: #218838;
+          }
         </style>
       </head>
       <body>
@@ -6870,6 +7017,9 @@ function getStatusDisplayName(status: string) {
             <div class="user-balance">
               <span class="balance-label">💰 Баланс:</span>
               <span class="balance-amount">${Number(user.balance || 0).toFixed(2)} PZ</span>
+              <button class="balance-manage-btn" onclick="openBalanceModal('${userId}')" title="Управление балансом">
+                <span>+</span>
+              </button>
             </div>
           </div>
           
@@ -7151,8 +7301,67 @@ function getStatusDisplayName(status: string) {
           // Закрытие модального окна при клике вне его
           window.onclick = function(event) {
             const modal = document.getElementById('editOrderModal');
+            const balanceModal = document.getElementById('balanceModal');
             if (event.target === modal) {
               closeEditOrderModal();
+            }
+            if (event.target === balanceModal) {
+              closeBalanceModal();
+            }
+          }
+          
+          // Открыть модальное окно управления балансом
+          function openBalanceModal(userId) {
+            const modal = document.getElementById('balanceModal');
+            modal.style.display = 'block';
+            document.getElementById('balanceUserId').value = userId;
+            document.getElementById('balanceAmount').value = '';
+            document.getElementById('balanceOperation').value = 'add';
+            document.getElementById('balanceError').style.display = 'none';
+          }
+          
+          // Закрыть модальное окно управления балансом
+          function closeBalanceModal() {
+            document.getElementById('balanceModal').style.display = 'none';
+          }
+          
+          // Применить изменение баланса
+          async function applyBalanceChange() {
+            const userId = document.getElementById('balanceUserId').value;
+            const amount = parseFloat(document.getElementById('balanceAmount').value);
+            const operation = document.getElementById('balanceOperation').value;
+            const errorDiv = document.getElementById('balanceError');
+            
+            if (!userId || !amount || amount <= 0) {
+              errorDiv.textContent = 'Введите корректную сумму';
+              errorDiv.style.display = 'block';
+              return;
+            }
+            
+            try {
+              const response = await fetch('/admin/users/' + userId + '/balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  amount: amount,
+                  operation: operation
+                })
+              });
+              
+              const result = await response.json();
+              
+              if (result.success) {
+                closeBalanceModal();
+                location.reload();
+              } else {
+                errorDiv.textContent = result.error || 'Ошибка изменения баланса';
+                errorDiv.style.display = 'block';
+              }
+            } catch (error) {
+              console.error('Error updating balance:', error);
+              errorDiv.textContent = 'Ошибка соединения';
+              errorDiv.style.display = 'block';
             }
           }
         </script>
@@ -7192,12 +7401,109 @@ function getStatusDisplayName(status: string) {
             </div>
           </div>
         </div>
+        
+        <!-- Модальное окно управления балансом -->
+        <div id="balanceModal" class="balance-modal">
+          <div class="balance-modal-content">
+            <div class="balance-modal-header">
+              <h2>💰 Управление балансом</h2>
+              <span class="balance-modal-close" onclick="closeBalanceModal()">&times;</span>
+            </div>
+            
+            <div class="balance-modal-body">
+              <input type="hidden" id="balanceUserId" value="">
+              
+              <div class="balance-form-group">
+                <label for="balanceOperation">Операция:</label>
+                <select id="balanceOperation" class="balance-select">
+                  <option value="add">➕ Пополнить баланс</option>
+                  <option value="subtract">➖ Списать с баланса</option>
+                </select>
+              </div>
+              
+              <div class="balance-form-group">
+                <label for="balanceAmount">Сумма (PZ):</label>
+                <input type="number" id="balanceAmount" class="balance-input" placeholder="0.00" step="0.01" min="0.01">
+              </div>
+              
+              <div id="balanceError" class="balance-error" style="display: none;"></div>
+            </div>
+            
+            <div class="balance-modal-footer">
+              <button class="balance-cancel-btn" onclick="closeBalanceModal()">Отмена</button>
+              <button class="balance-apply-btn" onclick="applyBalanceChange()">Применить</button>
+            </div>
+          </div>
+        </div>
       </body>
       </html>
     `);
   } catch (error) {
     console.error('❌ User orders page error:', error);
     res.status(500).send('Ошибка загрузки заказов пользователя');
+  }
+});
+
+// Update user balance
+router.post('/users/:userId/balance', requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { amount, operation } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.json({ success: false, error: 'Некорректная сумма' });
+    }
+    
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      return res.json({ success: false, error: 'Пользователь не найден' });
+    }
+    
+    const currentBalance = user.balance || 0;
+    let newBalance;
+    
+    if (operation === 'add') {
+      newBalance = currentBalance + amount;
+    } else if (operation === 'subtract') {
+      if (currentBalance < amount) {
+        return res.json({ success: false, error: 'Недостаточно средств на балансе' });
+      }
+      newBalance = currentBalance - amount;
+    } else {
+      return res.json({ success: false, error: 'Некорректная операция' });
+    }
+    
+    await prisma.user.update({
+      where: { id: userId },
+      data: { balance: newBalance }
+    });
+    
+    // Записываем в историю пользователя
+    await prisma.userHistory.create({
+      data: {
+        userId: userId,
+        action: operation === 'add' ? 'BALANCE_ADDED' : 'BALANCE_SUBTRACTED',
+        payload: {
+          amount: amount,
+          operation: operation,
+          previousBalance: currentBalance,
+          newBalance: newBalance
+        }
+      }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Баланс успешно ${operation === 'add' ? 'пополнен' : 'списан'}`,
+      newBalance: newBalance
+    });
+    
+  } catch (error) {
+    console.error('❌ Balance update error:', error);
+    res.json({ success: false, error: 'Ошибка обновления баланса' });
   }
 });
 
