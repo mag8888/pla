@@ -37,6 +37,7 @@ model User {
   histories       UserHistory[]
   partner         PartnerProfile?
   orders          OrderRequest[]
+  referrals       PartnerReferral[] @relation("UserReferrals") // Рефералы этого пользователя
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 }
@@ -128,6 +129,7 @@ model PartnerReferral {
   profile     PartnerProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
   profileId   String           @db.ObjectId
   referredId  String?          @db.ObjectId
+  referred    User?            @relation("UserReferrals", fields: [referredId], references: [id])
   contact     String?
   level       Int
   referralType PartnerProgramType @default(DIRECT) // Тип программы реферала

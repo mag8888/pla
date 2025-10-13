@@ -7869,13 +7869,9 @@ router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
         partner: {
           include: {
             referrals: {
-              where: { level: parseInt(level as string) },
+              where: { level: parseInt(level as string) || 1 },
               include: {
-                profile: {
-                  include: {
-                    user: true
-                  }
-                }
+                referred: true // Включаем информацию о приглашенном пользователе
               }
             }
           }
@@ -7889,7 +7885,10 @@ router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
     
     let partners: any[] = [];
     if (user.partner && user.partner.referrals) {
-      partners = user.partner.referrals.map((ref: any) => ref.profile.user);
+      // Получаем пользователей, которые были приглашены
+      partners = user.partner.referrals
+        .filter(ref => ref.referred) // Фильтруем только тех, у кого есть referred пользователь
+        .map((ref: any) => ref.referred);
     }
     
     res.json(partners);
