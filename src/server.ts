@@ -60,6 +60,15 @@ async function bootstrap() {
     app.get('/health', (_req, res) => {
       res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
     });
+    
+    app.get('/api/health', (_req, res) => {
+      res.status(200).json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        version: '1.0.0-original',
+        bot: 'active'
+      });
+    });
 
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
