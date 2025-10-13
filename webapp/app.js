@@ -667,9 +667,28 @@ async function loadProductCount() {
     }
 }
 
+// Load reviews count for reviews badge
+async function loadReviewsCount() {
+    try {
+        const response = await fetch(`${API_BASE}/reviews/count`);
+        if (response.ok) {
+            const data = await response.json();
+            const reviewsBadge = document.getElementById('reviews-badge');
+            if (reviewsBadge) {
+                reviewsBadge.textContent = data.totalReviews || '0';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading reviews count:', error);
+    }
+}
+
 function updateBadges() {
     // Update shop badge with total products count (not cart count)
     loadProductCount();
+    
+    // Update reviews badge with total reviews count
+    loadReviewsCount();
     
     // Update other badges based on data
     // This would be populated from actual data

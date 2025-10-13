@@ -297,6 +297,20 @@ router.get('/api/products/count', async (req, res) => {
   }
 });
 
+// Total reviews count endpoint
+router.get('/api/reviews/count', async (req, res) => {
+  try {
+    const { prisma } = await import('../lib/prisma.js');
+    const count = await prisma.review.count({
+      where: { isActive: true }
+    });
+    res.json({ totalReviews: count });
+  } catch (error) {
+    console.error('Error fetching total reviews count:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Reviews
 router.get('/api/reviews', async (req, res) => {
   try {
