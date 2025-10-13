@@ -5639,7 +5639,7 @@ router.post('/users/:userId/update-balance', requireAdmin, async (req, res) => {
   }
 });
 // Helper functions for user orders page
-function createUserOrderCard(order: any) {
+function createUserOrderCard(order: any, user: any) {
   // Handle both string and object types for itemsJson
   const items = typeof order.itemsJson === 'string' 
     ? JSON.parse(order.itemsJson || '[]') 
@@ -5667,6 +5667,20 @@ function createUserOrderCard(order: any) {
             </div>
           `).join('')}
         </div>
+        
+        ${user.deliveryAddress ? `
+          <div class="order-info-section">
+            <div class="info-label">📍 Адрес доставки:</div>
+            <div class="info-value">${user.deliveryAddress}</div>
+          </div>
+        ` : ''}
+        
+        ${order.message ? `
+          <div class="order-info-section">
+            <div class="info-label">💬 Комментарии:</div>
+            <div class="info-value">${order.message}</div>
+          </div>
+        ` : ''}
         
         <div class="order-total">
           Итого: ${totalAmount.toFixed(2)} PZ
@@ -6452,7 +6466,7 @@ function getStatusDisplayName(status: string) {
     // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { firstName: true, lastName: true, username: true, balance: true }
+      select: { firstName: true, lastName: true, username: true, balance: true, deliveryAddress: true }
     });
     
     if (!user) {
@@ -6568,6 +6582,22 @@ function getStatusDisplayName(status: string) {
           .order-total { 
             font-weight: bold; font-size: 16px; 
             color: #28a745; text-align: right; 
+          }
+          
+          .order-info-section {
+            margin: 15px 0; padding: 12px; 
+            background: #f8f9fa; border-radius: 6px; 
+            border-left: 3px solid #007bff;
+          }
+          
+          .info-label {
+            font-weight: 600; color: #495057; 
+            margin-bottom: 5px; font-size: 14px;
+          }
+          
+          .info-value {
+            color: #6c757d; font-size: 13px; 
+            line-height: 1.4; word-break: break-word;
           }
           
           .order-actions {
@@ -6845,7 +6875,7 @@ function getStatusDisplayName(status: string) {
                   🔴 Новые заказы (${ordersByStatus.NEW.length})
                 </div>
                 <div class="orders-grid">
-                  ${ordersByStatus.NEW.map(order => createUserOrderCard(order)).join('')}
+                  ${ordersByStatus.NEW.map(order => createUserOrderCard(order, user)).join('')}
                 </div>
               </div>
             ` : ''}
@@ -6856,7 +6886,7 @@ function getStatusDisplayName(status: string) {
                   🟡 Заказы в обработке (${ordersByStatus.PROCESSING.length})
                 </div>
                 <div class="orders-grid">
-                  ${ordersByStatus.PROCESSING.map(order => createUserOrderCard(order)).join('')}
+                  ${ordersByStatus.PROCESSING.map(order => createUserOrderCard(order, user)).join('')}
                 </div>
               </div>
             ` : ''}
@@ -6867,7 +6897,7 @@ function getStatusDisplayName(status: string) {
                   🟢 Завершенные заказы (${ordersByStatus.COMPLETED.length})
                 </div>
                 <div class="orders-grid">
-                  ${ordersByStatus.COMPLETED.map(order => createUserOrderCard(order)).join('')}
+                  ${ordersByStatus.COMPLETED.map(order => createUserOrderCard(order, user)).join('')}
                 </div>
               </div>
             ` : ''}
@@ -6878,7 +6908,7 @@ function getStatusDisplayName(status: string) {
                   ⚫ Отмененные заказы (${ordersByStatus.CANCELLED.length})
                 </div>
                 <div class="orders-grid">
-                  ${ordersByStatus.CANCELLED.map(order => createUserOrderCard(order)).join('')}
+                  ${ordersByStatus.CANCELLED.map(order => createUserOrderCard(order, user)).join('')}
                 </div>
               </div>
             ` : ''}
