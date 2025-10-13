@@ -17,7 +17,7 @@ let userData = null;
 let cartItems = [];
 
 // API Base URL - adjust based on your backend
-const API_BASE = '/api';
+const API_BASE = '/webapp/api';
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
@@ -242,9 +242,12 @@ async function loadAudioContent() {
 
 // Reviews content
 async function loadReviewsContent() {
-    try {
-        const response = await fetch(`${API_BASE}/reviews`);
-        const reviews = await response.json();
+  try {
+    const response = await fetch(`${API_BASE}/reviews`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const reviews = await response.json();
         
         let content = '<div class="content-section"><h3>Отзывы клиентов</h3>';
         
@@ -543,21 +546,33 @@ function showPartners() {
 
 // Utility functions
 async function loadUserData() {
-    try {
-        const response = await fetch(`${API_BASE}/user/profile`);
-        userData = await response.json();
-    } catch (error) {
-        console.error('Error loading user data:', error);
+  try {
+    const response = await fetch(`${API_BASE}/user/profile`);
+    if (response.ok) {
+      userData = await response.json();
+    } else if (response.status === 401) {
+      console.log('User not authenticated - this is normal for web preview');
+      userData = null;
     }
+  } catch (error) {
+    console.error('Error loading user data:', error);
+    userData = null;
+  }
 }
 
 async function loadCartItems() {
-    try {
-        const response = await fetch(`${API_BASE}/cart/items`);
-        cartItems = await response.json();
-    } catch (error) {
-        console.error('Error loading cart items:', error);
+  try {
+    const response = await fetch(`${API_BASE}/cart/items`);
+    if (response.ok) {
+      cartItems = await response.json();
+    } else if (response.status === 401) {
+      console.log('User not authenticated - this is normal for web preview');
+      cartItems = [];
     }
+  } catch (error) {
+    console.error('Error loading cart items:', error);
+    cartItems = [];
+  }
 }
 
 function updateBadges() {
