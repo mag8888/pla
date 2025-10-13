@@ -2151,6 +2151,163 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             word-break: break-word;
           }
           
+          /* Стили для кликабельных партнеров */
+          .clickable-partners {
+            transition: all 0.2s ease;
+          }
+          
+          .clickable-partners:hover {
+            background: #007bff !important;
+            color: white !important;
+            transform: scale(1.1);
+          }
+          
+          /* Стили для списка партнеров */
+          .partners-list {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+          }
+          
+          .partners-list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-bottom: 1px solid #f1f3f4;
+          }
+          
+          .partners-list-item:last-child {
+            border-bottom: none;
+          }
+          
+          /* Стили для модальных окон */
+          .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+          }
+          
+          .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+          }
+          
+          .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          
+          .modal-header h2 {
+            margin: 0;
+            color: #212529;
+            font-size: 18px;
+          }
+          
+          .modal-close {
+            font-size: 24px;
+            font-weight: bold;
+            color: #6c757d;
+            cursor: pointer;
+            line-height: 1;
+          }
+          
+          .modal-close:hover {
+            color: #dc3545;
+          }
+          
+          .modal-body {
+            padding: 20px;
+          }
+          
+          .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+          }
+          
+          /* Стили для формы сообщений */
+          .message-form-group {
+            margin-bottom: 20px;
+          }
+          
+          .message-form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #495057;
+          }
+          
+          .message-form-group input,
+          .message-form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+          }
+          
+          .message-form-group input:focus,
+          .message-form-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+          }
+          
+          .selected-users-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+          }
+          
+          .selected-user-tag {
+            background: #e9ecef;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+          }
+          
+          .char-count {
+            text-align: right;
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+          }
+          
+          .message-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            border: 1px solid #f5c6cb;
+          }
+          
           .user-info { display: flex; align-items: center; gap: 8px; }
           .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; }
           .user-details h4 { margin: 0; font-size: 14px; color: #212529; }
@@ -2248,6 +2405,10 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
               <table class="users-table">
                 <thead>
                   <tr>
+                    <th class="compact-cell">
+                      <input type="checkbox" id="selectAllUsers" onchange="toggleAllUsers(this.checked)" style="margin-right: 5px;">
+                      <button onclick="openMessageModal()" class="action-btn" style="font-size: 10px; padding: 2px 6px;">📧</button>
+                    </th>
                     <th class="compact-cell">Баланс</th>
                     <th class="compact-cell">Заказы</th>
                     <th class="compact-cell">Пригласитель</th>
@@ -2277,6 +2438,9 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                   
                   return `
                   <tr>
+                    <td class="compact-cell">
+                      <input type="checkbox" class="user-checkbox" value="${user.id}" onchange="updateSelectedUsers()" style="margin-right: 5px;">
+                    </td>
                     <td class="compact-cell cell-tooltip" data-tooltip="Баланс: ${user.balance.toFixed(2)} PZ${user.bonus > 0 ? ', Бонусы: ' + user.bonus.toFixed(2) + ' PZ' : ''}">
                       <div class="balance ${user.balance > 0 ? 'positive' : 'zero'}">
                         ${user.balance.toFixed(2)} PZ
@@ -2309,7 +2473,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       </div>
                     </td>
                     <td class="compact-cell cell-tooltip" data-tooltip="Партнеры 1-го уровня: ${level1Partners}">
-                      <div class="partners-count" style="display: inline-block;">${level1Partners}</div>
+                      <div class="partners-count clickable-partners" style="display: inline-block; cursor: pointer;" onclick="showPartnersList('${user.id}', '${user.firstName || 'Пользователь'}', 1)">${level1Partners}</div>
                     </td>
                     <td class="compact-cell cell-tooltip" data-tooltip="Партнеры 2-го уровня: ${level2Partners}">
                       <div class="partners-count" style="display: inline-block;">${level2Partners}</div>
@@ -2363,10 +2527,223 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             window.open('/admin/partners-hierarchy?user=' + userId, '_blank', 'width=800,height=600');
           };
           
+          // Функции для массового выбора пользователей
+          window.toggleAllUsers = function(checked) {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            checkboxes.forEach(checkbox => {
+              checkbox.checked = checked;
+            });
+            updateSelectedUsers();
+          };
+          
+          window.updateSelectedUsers = function() {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            const checkedCount = document.querySelectorAll('.user-checkbox:checked').length;
+            const selectAllCheckbox = document.getElementById('selectAllUsers');
+            
+            if (selectAllCheckbox) {
+              selectAllCheckbox.checked = checkedCount === checkboxes.length;
+              selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+            }
+          };
+          
+          // Функция для показа списка партнеров
+          window.showPartnersList = async function(userId, userName, level) {
+            try {
+              const response = await fetch('/admin/users/' + userId + '/partners?level=' + level, {
+                credentials: 'include'
+              });
+              
+              if (!response.ok) {
+                throw new Error('Ошибка загрузки партнеров');
+              }
+              
+              const partners = await response.json();
+              
+              // Создаем модальное окно для списка партнеров
+              const modal = document.createElement('div');
+              modal.id = 'partnersModal';
+              modal.innerHTML = 
+                '<div class="modal-overlay" onclick="closePartnersModal()">' +
+                  '<div class="modal-content" onclick="event.stopPropagation()">' +
+                    '<div class="modal-header">' +
+                      '<h2>👥 Партнеры ' + level + '-го уровня пользователя ' + userName + '</h2>' +
+                      '<span class="modal-close" onclick="closePartnersModal()">&times;</span>' +
+                    '</div>' +
+                    '<div class="modal-body">' +
+                      (partners.length === 0 ? 
+                        '<p>У этого пользователя нет партнеров данного уровня</p>' :
+                        partners.map(partner => 
+                          '<div class="partners-list-item">' +
+                            '<div class="user-avatar">' + (partner.firstName || 'U')[0].toUpperCase() + '</div>' +
+                            '<div>' +
+                              '<strong>' + (partner.firstName || 'Без имени') + ' ' + (partner.lastName || '') + '</strong>' +
+                              '<br>' +
+                              '<small>@' + (partner.username || 'без username') + '</small>' +
+                            '</div>' +
+                          '</div>'
+                        ).join('')
+                      ) +
+                    '</div>' +
+                  '</div>' +
+                '</div>';
+              
+              document.body.appendChild(modal);
+              
+            } catch (error) {
+              console.error('Error loading partners:', error);
+              alert('Ошибка загрузки списка партнеров');
+            }
+          };
+          
+          window.closePartnersModal = function() {
+            const modal = document.getElementById('partnersModal');
+            if (modal) {
+              modal.remove();
+            }
+          };
+          
+          // Функция для открытия модального окна отправки сообщений
+          window.openMessageModal = function() {
+            const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+            if (selectedCheckboxes.length === 0) {
+              alert('Выберите пользователей для отправки сообщения');
+              return;
+            }
+            
+            const selectedUserIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+            
+            const modal = document.createElement('div');
+            modal.id = 'messageModal';
+            modal.innerHTML = 
+              '<div class="modal-overlay" onclick="closeMessageModal()">' +
+                '<div class="modal-content" onclick="event.stopPropagation()">' +
+                  '<div class="modal-header">' +
+                    '<h2>📧 Отправить сообщение</h2>' +
+                    '<span class="modal-close" onclick="closeMessageModal()">&times;</span>' +
+                  '</div>' +
+                  '<div class="modal-body">' +
+                    '<div class="message-form-group">' +
+                      '<label>Выбранные пользователи (' + selectedUserIds.length + '):</label>' +
+                      '<div class="selected-users-list">' +
+                        selectedUserIds.map(id => {
+                          const checkbox = document.querySelector('input[value="' + id + '"]');
+                          const row = checkbox?.closest('tr');
+                          const nameCell = row?.querySelector('.user-details h4 a');
+                          const name = nameCell?.textContent || 'Пользователь';
+                          return '<span class="selected-user-tag">' + name + '</span>';
+                        }).join('') +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="message-form-group">' +
+                      '<label for="messageSubject">Тема сообщения:</label>' +
+                      '<input type="text" id="messageSubject" placeholder="Введите тему сообщения" maxlength="100">' +
+                    '</div>' +
+                    '<div class="message-form-group">' +
+                      '<label for="messageText">Текст сообщения:</label>' +
+                      '<textarea id="messageText" placeholder="Введите текст сообщения" rows="5" maxlength="1000"></textarea>' +
+                      '<div class="char-count">' +
+                        '<span id="charCount">0</span>/1000 символов' +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="message-form-group">' +
+                      '<label>' +
+                        '<input type="checkbox" id="saveAsTemplate">' +
+                        'Сохранить как шаблон' +
+                      '</label>' +
+                    '</div>' +
+                    '<div class="message-error" id="messageError" style="display: none;"></div>' +
+                  '</div>' +
+                  '<div class="modal-footer">' +
+                    '<button class="btn btn-secondary" onclick="closeMessageModal()">Отмена</button>' +
+                    '<button class="btn btn-primary" onclick="sendMessage()">Отправить</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            
+            document.body.appendChild(modal);
+            
+            // Добавляем счетчик символов
+            const textarea = document.getElementById('messageText');
+            const charCount = document.getElementById('charCount');
+            
+            textarea.addEventListener('input', function() {
+              charCount.textContent = this.value.length;
+            });
+          };
+          
+          window.closeMessageModal = function() {
+            const modal = document.getElementById('messageModal');
+            if (modal) {
+              modal.remove();
+            }
+          };
+          
+          window.sendMessage = async function() {
+            const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+            const selectedUserIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+            const subject = document.getElementById('messageSubject').value.trim();
+            const text = document.getElementById('messageText').value.trim();
+            const saveAsTemplate = document.getElementById('saveAsTemplate').checked;
+            const errorDiv = document.getElementById('messageError');
+            
+            // Валидация
+            if (!subject) {
+              showMessageError('Введите тему сообщения');
+              return;
+            }
+            
+            if (!text) {
+              showMessageError('Введите текст сообщения');
+              return;
+            }
+            
+            if (selectedUserIds.length === 0) {
+              showMessageError('Выберите получателей');
+              return;
+            }
+            
+            try {
+              errorDiv.style.display = 'none';
+              
+              const response = await fetch('/admin/messages/send', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                  userIds: selectedUserIds,
+                  subject: subject,
+                  text: text,
+                  saveAsTemplate: saveAsTemplate
+                })
+              });
+              
+              if (!response.ok) {
+                throw new Error('Ошибка отправки сообщения');
+              }
+              
+              const result = await response.json();
+              alert('Сообщение отправлено ' + result.successCount + ' пользователям');
+              closeMessageModal();
+              
+            } catch (error) {
+              console.error('Error sending message:', error);
+              showMessageError('Ошибка отправки сообщения: ' + error.message);
+            }
+          };
+          
+          window.showMessageError = function(message) {
+            const errorDiv = document.getElementById('messageError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+          };
+          
           function applySorting() {
             const sortBy = document.getElementById('sortSelect').value;
             const order = document.getElementById('orderSelect').value;
-            window.location.href = \`/admin/users-detailed?sort=\${sortBy}&order=\${order}\`;
+            window.location.href = '/admin/users-detailed?sort=' + sortBy + '&order=' + order;
           }
           function applyFilter(filter){
             const url = new URL(window.location.href);
@@ -7476,6 +7853,138 @@ function getStatusDisplayName(status: string) {
   } catch (error) {
     console.error('❌ User orders page error:', error);
     res.status(500).send('Ошибка загрузки заказов пользователя');
+  }
+});
+
+// Маршрут для получения списка партнеров пользователя
+router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { level } = req.query;
+    
+    // Получаем пользователя с его партнерским профилем
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        partner: {
+          include: {
+            referrals: {
+              where: { level: parseInt(level as string) },
+              include: {
+                profile: {
+                  include: {
+                    user: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    let partners: any[] = [];
+    if (user.partner && user.partner.referrals) {
+      partners = user.partner.referrals.map((ref: any) => ref.profile.user);
+    }
+    
+    res.json(partners);
+    
+  } catch (error) {
+    console.error('Error fetching partners:', error);
+    res.status(500).json({ error: 'Ошибка получения списка партнеров' });
+  }
+});
+
+// Маршрут для отправки сообщений пользователям
+router.post('/messages/send', requireAdmin, async (req, res) => {
+  try {
+    const { userIds, subject, text, saveAsTemplate } = req.body;
+    
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'Не указаны получатели' });
+    }
+    
+    if (!subject || !text) {
+      return res.status(400).json({ error: 'Не указаны тема или текст сообщения' });
+    }
+    
+    let successCount = 0;
+    const errors = [];
+    
+    // Отправляем сообщения каждому пользователю
+    for (const userId of userIds) {
+      try {
+        // Получаем пользователя
+        const user = await prisma.user.findUnique({
+          where: { id: userId }
+        });
+        
+        if (!user) {
+          errors.push(`Пользователь ${userId} не найден`);
+          continue;
+        }
+        
+        // TODO: Здесь должна быть логика отправки сообщения через Telegram Bot API
+        // Пока что просто логируем
+        console.log(`Отправка сообщения пользователю ${user.firstName} (@${user.username}):`, {
+          subject,
+          text
+        });
+        
+        // Сохраняем в историю
+        await prisma.userHistory.create({
+          data: {
+            userId: userId,
+            action: 'MESSAGE_SENT',
+            payload: {
+              subject,
+              text,
+              sentBy: 'admin'
+            }
+          }
+        });
+        
+        successCount++;
+        
+        } catch (error) {
+          console.error(`Error sending message to user ${userId}:`, error);
+          errors.push(`Ошибка отправки пользователю ${userId}: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+        }
+    }
+    
+    // Сохраняем шаблон если нужно
+    if (saveAsTemplate) {
+      try {
+        await prisma.userHistory.create({
+          data: {
+            userId: userIds[0], // Используем первого пользователя для шаблона
+            action: 'MESSAGE_TEMPLATE_SAVED',
+            payload: {
+              subject,
+              text,
+              savedBy: 'admin'
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error saving template:', error);
+      }
+    }
+    
+    res.json({
+      successCount,
+      totalCount: userIds.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
+    
+  } catch (error) {
+    console.error('Error sending messages:', error);
+    res.status(500).json({ error: 'Ошибка отправки сообщений' });
   }
 });
 
