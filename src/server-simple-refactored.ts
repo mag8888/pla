@@ -290,7 +290,11 @@ async function bootstrap() {
     setBotInstance(bot);
     await applyBotModules(bot);
     
+    // Запуск бота
+    await bot.launch();
+    
     console.log('✅ Bot modules applied');
+    console.log('✅ Bot launched successfully');
     console.log('✅ Refactored server ready');
 
     // Запуск сервера
@@ -320,12 +324,28 @@ async function bootstrap() {
 // Обработка завершения процесса
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
+  try {
+    const { getBotInstance } = await import('./lib/bot-instance.js');
+    const bot = await getBotInstance();
+    await bot.stop('SIGINT');
+    console.log('✅ Bot stopped');
+  } catch (error) {
+    console.error('❌ Error stopping bot:', error);
+  }
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n🛑 Shutting down gracefully...');
+  try {
+    const { getBotInstance } = await import('./lib/bot-instance.js');
+    const bot = await getBotInstance();
+    await bot.stop('SIGTERM');
+    console.log('✅ Bot stopped');
+  } catch (error) {
+    console.error('❌ Error stopping bot:', error);
+  }
   await prisma.$disconnect();
   process.exit(0);
 });
