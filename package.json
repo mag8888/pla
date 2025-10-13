@@ -5,15 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
+    "dev:refactored": "nodemon --watch src --exec ts-node src/server-refactored.ts",
+    "dev:simple": "nodemon --watch src --exec ts-node src/server-simple-refactored.ts",
     "start": "node dist/server.js",
+    "start:refactored": "node dist/server-refactored.js",
+    "start:simple": "node dist/server-simple-refactored.js",
     "build": "tsc --project tsconfig.json",
+    "build:refactored": "tsc --project tsconfig.json && echo 'Refactored version built successfully'",
+    "build:simple": "tsc --project tsconfig-simple.json && echo 'Simple refactored version built successfully'",
     "migrate:dev": "prisma db push",
     "migrate:deploy": "prisma db push",
     "prisma:generate": "prisma generate",
     "setup-webapp": "node scripts/setup-webapp.js",
     "setup-railway": "node scripts/setup-railway-webapp.js",
     "check-video": "node scripts/check-video-size.js",
-    "compress-video": "./scripts/compress-video.sh"
+    "compress-video": "./scripts/compress-video.sh",
+    "refactor:test": "npm run build:refactored && npm run start:refactored"
   },
   "dependencies": {
     "@adminjs/express": "^6.1.1",

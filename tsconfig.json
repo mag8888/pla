@@ -26,6 +26,12 @@
       ],
       "@lib/*": [
         "lib/*"
+      ],
+      "@types/*": [
+        "types/*"
+      ],
+      "@interfaces/*": [
+        "interfaces/*"
       ]
     },
     "strict": true,
@@ -34,7 +40,8 @@
   },
   "include": [
     "src",
-    "src/types/**/*"
+    "src/types/**/*",
+    "src/interfaces/**/*"
   ],
   "exclude": [
     "node_modules",
