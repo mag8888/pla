@@ -232,7 +232,11 @@ async function bootstrap() {
     setBotInstance(bot);
     await applyBotModules(bot);
     
+    // Запуск бота
+    await bot.launch();
+    
     console.log('✅ Bot modules applied');
+    console.log('✅ Bot launched successfully');
     console.log('✅ Server ready');
 
     // Запуск сервера
