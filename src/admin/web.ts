@@ -2101,15 +2101,17 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           .stat-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
           
           .table-container { overflow-x: auto; width: 100%; border: 1px solid #dee2e6; border-radius: 8px; }
-          .users-table { width: 100%; border-collapse: collapse; min-width: 1400px; }
-          .users-table th { background: #f8f9fa; padding: 8px 6px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; position: sticky; top: 0; z-index: 10; font-size: 12px; }
-          .users-table td { padding: 8px 6px; border-bottom: 1px solid #dee2e6; vertical-align: top; white-space: nowrap; font-size: 12px; }
+          .users-table { width: 100%; border-collapse: collapse; min-width: 100%; table-layout: fixed; }
+          .users-table th { background: #f8f9fa; padding: 6px 4px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; position: sticky; top: 0; z-index: 10; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+          .users-table td { padding: 6px 4px; border-bottom: 1px solid #dee2e6; vertical-align: top; white-space: nowrap; font-size: 11px; overflow: hidden; text-overflow: ellipsis; position: relative; }
           .users-table tr:hover { background: #f8f9fa; }
           
-          /* Sticky колонка пользователя */
+          /* Sticky колонка пользователя с улучшенным эффектом */
           .users-table th.user-cell, .users-table td.user-cell { 
-            position: sticky; left: 0; z-index: 5; 
-            background: #f8f9fa; border-right: 2px solid #dee2e6;
+            position: sticky; left: 0; z-index: 15; 
+            background: #f8f9fa; border-right: 3px solid #007bff;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            min-width: 140px; max-width: 140px;
           }
           .users-table tr:hover td.user-cell { background: #f8f9fa; }
           
@@ -2119,10 +2121,35 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           .table-container::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
           .table-container::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
           
-          /* Компактные стили для колонок */
-          .compact-cell { min-width: 70px; max-width: 100px; }
-          .user-cell { min-width: 160px; max-width: 180px; }
-          .actions-cell { min-width: 180px; }
+          /* Компактные стили для колонок - ограничение до 15 символов */
+          .compact-cell { min-width: 80px; max-width: 80px; width: 80px; }
+          .user-cell { min-width: 140px; max-width: 140px; width: 140px; }
+          .actions-cell { min-width: 120px; max-width: 120px; width: 120px; }
+          
+          /* Tooltip для полной информации */
+          .cell-tooltip {
+            position: relative;
+            cursor: help;
+          }
+          
+          .cell-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            max-width: 300px;
+            white-space: normal;
+            word-break: break-word;
+          }
           
           .user-info { display: flex; align-items: center; gap: 8px; }
           .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; }
@@ -2250,17 +2277,16 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                   
                   return `
                   <tr>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Баланс: ${user.balance.toFixed(2)} PZ${user.bonus > 0 ? ', Бонусы: ' + user.bonus.toFixed(2) + ' PZ' : ''}">
                       <div class="balance ${user.balance > 0 ? 'positive' : 'zero'}">
                         ${user.balance.toFixed(2)} PZ
                       </div>
-                      ${user.bonus > 0 ? `<div style="font-size: 11px; color: #6c757d;">Бонусы: ${user.bonus.toFixed(2)} PZ</div>` : ''}
                     </td>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Заказы: ${user.orders?.length || 0} шт., Сумма: ${user.totalOrderSum.toFixed(2)} PZ">
                       <button class="orders-sum-btn" onclick="if(typeof showUserOrders === 'function') { showUserOrders('${user.id}', '${user.firstName || 'Пользователь'}'); } else { console.error('showUserOrders not defined'); window.open('/admin/users/${user.id}/orders', '_blank', 'width=1000,height=700'); }" style="background: none; border: none; cursor: pointer; padding: 0; width: 100%; text-align: left;">
                         <div class="orders-sum">${user.totalOrderSum.toFixed(2)} PZ</div>
-                        <div class="orders-count status-${user.priorityStatus}" data-status="${user.priorityStatus}" title="Status: ${user.priorityStatus}">
-                          ${user.orders?.length || 0} заказов
+                        <div class="orders-count status-${user.priorityStatus}" data-status="${user.priorityStatus}">
+                          ${user.orders?.length || 0} шт
                           ${user.priorityStatus === 'new' ? ' 🔴' : ''}
                           ${user.priorityStatus === 'processing' ? ' 🟡' : ''}
                           ${user.priorityStatus === 'completed' ? ' 🟢' : ''}
@@ -2268,50 +2294,50 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                         </div>
                       </button>
                     </td>
-                    <td>
-                      <div style="font-size: 12px; color: #6c757d;">
-                        ${user.inviter ? `@${user.inviter.username || user.inviter.firstName || 'неизвестно'}` : '—'}
+                    <td class="compact-cell cell-tooltip" data-tooltip="Пригласитель: ${user.inviter ? '@' + (user.inviter.username || user.inviter.firstName || 'неизвестно') : 'Не указан'}">
+                      <div style="font-size: 10px; color: #6c757d;">
+                        ${user.inviter ? `@${(user.inviter.username || user.inviter.firstName || 'неизвестно').substring(0, 12)}${(user.inviter.username || user.inviter.firstName || '').length > 12 ? '...' : ''}` : '—'}
                       </div>
                     </td>
-                    <td>
+                    <td class="user-cell">
                       <div class="user-info">
                         <div class="user-avatar">${(user.firstName || 'U')[0].toUpperCase()}</div>
                         <div class="user-details">
-                          <h4><a href="javascript:void(0)" onclick="if(typeof showUserDetails === 'function') { showUserDetails('${user.id}'); } else { console.error('showUserDetails not defined'); window.open('/admin/users/${user.id}', '_blank', 'width=600,height=400'); }" class="user-name-link" style="cursor: pointer; color: #007bff; text-decoration: none;">${user.firstName || 'Без имени'} ${user.lastName || ''}</a></h4>
-                          <p>@${user.username || 'без username'}</p>
+                          <h4><a href="javascript:void(0)" onclick="if(typeof showUserDetails === 'function') { showUserDetails('${user.id}'); } else { console.error('showUserDetails not defined'); window.open('/admin/users/${user.id}', '_blank', 'width=600,height=400'); }" class="user-name-link" style="cursor: pointer; color: #007bff; text-decoration: none;" title="${user.firstName || 'Без имени'} ${user.lastName || ''}">${(user.firstName || 'Без имени').substring(0, 8)}${(user.firstName || '').length > 8 ? '...' : ''}</a></h4>
+                          <p title="@${user.username || 'без username'}">@${(user.username || 'без username').substring(0, 10)}${(user.username || '').length > 10 ? '...' : ''}</p>
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Партнеры 1-го уровня: ${level1Partners}">
                       <div class="partners-count" style="display: inline-block;">${level1Partners}</div>
                     </td>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Партнеры 2-го уровня: ${level2Partners}">
                       <div class="partners-count" style="display: inline-block;">${level2Partners}</div>
                     </td>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Партнеры 3-го уровня: ${level3Partners}">
                       <div class="partners-count" style="display: inline-block;">${level3Partners}</div>
                     </td>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Покупки (сумма): ${user.totalOrderSum.toFixed(2)} PZ">
                       <div class="orders-sum">${user.totalOrderSum.toFixed(2)} PZ</div>
                     </td>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Вознаграждение (общая сумма): ${totalEarnings.toFixed(2)} PZ">
                       <div class="orders-sum" style="color: #28a745;">${totalEarnings.toFixed(2)} PZ</div>
                     </td>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Выплаты: ${withdrawnEarnings.toFixed(2)} PZ">
                       <div class="orders-sum" style="color: #007bff;">${withdrawnEarnings.toFixed(2)} PZ</div>
                     </td>
-                    <td>
+                    <td class="compact-cell cell-tooltip" data-tooltip="Осталось выплатить: ${pendingEarnings.toFixed(2)} PZ">
                       <div class="orders-sum" style="color: ${pendingEarnings > 0 ? '#ffc107' : '#6c757d'};">${pendingEarnings.toFixed(2)} PZ</div>
                     </td>
-                    <td>
-                      <button class="action-btn hierarchy" onclick="if(typeof showHierarchy === 'function') { showHierarchy('${user.id}'); } else { console.error('showHierarchy not defined'); window.open('/admin/partners-hierarchy?user=${user.id}', '_blank', 'width=800,height=600'); }">
-                        🌳 Иерархия
+                    <td class="actions-cell">
+                      <button class="action-btn hierarchy" onclick="if(typeof showHierarchy === 'function') { showHierarchy('${user.id}'); } else { console.error('showHierarchy not defined'); window.open('/admin/partners-hierarchy?user=${user.id}', '_blank', 'width=800,height=600'); }" title="Иерархия партнеров">
+                        🌳
                       </button>
-                      <button class="action-btn" onclick="if(typeof showUserDetails === 'function') { showUserDetails('${user.id}'); } else { console.error('showUserDetails not defined'); window.open('/admin/users/${user.id}', '_blank', 'width=600,height=400'); }">
-                        👁 Подробно
+                      <button class="action-btn" onclick="if(typeof showUserDetails === 'function') { showUserDetails('${user.id}'); } else { console.error('showUserDetails not defined'); window.open('/admin/users/${user.id}', '_blank', 'width=600,height=400'); }" title="Подробная информация">
+                        👁
                       </button>
-                      <button class="action-btn" onclick="openChangeInviter('${user.id}', '${user.firstName || 'Без имени'} ${user.lastName || ''}')">
-                        🔄 Сменить пригласителя
+                      <button class="action-btn" onclick="openChangeInviter('${user.id}', '${user.firstName || 'Без имени'} ${user.lastName || ''}')" title="Сменить пригласителя">
+                        🔄
                       </button>
                     </td>
                   </tr>
