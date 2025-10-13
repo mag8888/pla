@@ -2100,10 +2100,22 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           .stat-number { font-size: 24px; font-weight: bold; color: #1976d2; }
           .stat-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
           
-          .users-table { width: 100%; border-collapse: collapse; }
-          .users-table th { background: #f8f9fa; padding: 15px 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; }
-          .users-table td { padding: 15px 12px; border-bottom: 1px solid #dee2e6; vertical-align: top; }
+          .table-container { overflow-x: auto; width: 100%; border: 1px solid #dee2e6; border-radius: 8px; }
+          .users-table { width: 100%; border-collapse: collapse; min-width: 1600px; }
+          .users-table th { background: #f8f9fa; padding: 12px 8px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; position: sticky; top: 0; z-index: 10; font-size: 13px; }
+          .users-table td { padding: 12px 8px; border-bottom: 1px solid #dee2e6; vertical-align: top; white-space: nowrap; font-size: 13px; }
           .users-table tr:hover { background: #f8f9fa; }
+          
+          /* Стили для горизонтального скролла */
+          .table-container::-webkit-scrollbar { height: 8px; }
+          .table-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+          .table-container::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+          .table-container::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+          
+          /* Компактные стили для колонок */
+          .compact-cell { min-width: 80px; max-width: 120px; }
+          .user-cell { min-width: 180px; max-width: 220px; }
+          .actions-cell { min-width: 200px; }
           
           .user-info { display: flex; align-items: center; gap: 12px; }
           .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; }
@@ -2198,39 +2210,44 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
               <p>Пользователи появятся здесь после регистрации</p>
             </div>
           ` : `
-            <table class="users-table">
-              <thead>
-                <tr>
-                  <th>Пользователь</th>
-                  <th>Баланс</th>
-                  <th>Партнёры</th>
-                  <th>Заказы</th>
-                  <th>Последняя активность</th>
-                  <th>Действия</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${sortedUsers.map(user => `
+            <div class="table-container">
+              <table class="users-table">
+                <thead>
                   <tr>
-                    <td>
-                      <div class="user-info">
-                        <div class="user-avatar">${(user.firstName || 'U')[0].toUpperCase()}</div>
-                        <div class="user-details">
-                          <h4><a href="javascript:void(0)" onclick="showUserDetails('${user.id}')" class="user-name-link" style="cursor: pointer; color: #007bff; text-decoration: none;">${user.firstName || 'Без имени'} ${user.lastName || ''}</a></h4>
-                          <p>@${user.username || 'без username'}${user.inviter ? ` · пригласил: @${user.inviter.username || user.inviter.firstName || 'неизвестно'}` : ''}</p>
-                        </div>
-                      </div>
-                    </td>
+                    <th class="compact-cell">Баланс</th>
+                    <th class="compact-cell">Заказы</th>
+                    <th class="compact-cell">Пригласитель</th>
+                    <th class="user-cell">Пользователь</th>
+                    <th class="compact-cell">Партнер 1го уровня</th>
+                    <th class="compact-cell">Партнер 2го уровня</th>
+                    <th class="compact-cell">Партнер 3го уровня</th>
+                    <th class="compact-cell">Покупки (сумма)</th>
+                    <th class="compact-cell">Вознаграждение (общая сумма)</th>
+                    <th class="compact-cell">Выплаты</th>
+                    <th class="compact-cell">Осталось выплатить</th>
+                    <th class="actions-cell">Действия</th>
+                  </tr>
+                </thead>
+              <tbody>
+                ${sortedUsers.map(user => {
+                  // Вычисляем данные для новых колонок
+                  const partnerProfile = user.partner;
+                  const totalEarnings = partnerProfile?.totalEarnings || 0;
+                  const withdrawnEarnings = partnerProfile?.withdrawnEarnings || 0;
+                  const pendingEarnings = totalEarnings - withdrawnEarnings;
+                  
+                  // Подсчет партнеров по уровням (упрощенная версия)
+                  const level1Partners = user.directPartners || 0;
+                  const level2Partners = 0; // TODO: реализовать подсчет партнеров 2го уровня
+                  const level3Partners = 0; // TODO: реализовать подсчет партнеров 3го уровня
+                  
+                  return `
+                  <tr>
                     <td>
                       <div class="balance ${user.balance > 0 ? 'positive' : 'zero'}">
                         ${user.balance.toFixed(2)} PZ
                       </div>
                       ${user.bonus > 0 ? `<div style="font-size: 11px; color: #6c757d;">Бонусы: ${user.bonus.toFixed(2)} PZ</div>` : ''}
-                    </td>
-                    <td>
-                      <button class="partners-count-btn" onclick="if(typeof showUserPartners === 'function') { showUserPartners('${user.id}', '${user.firstName || 'Пользователь'}'); } else { console.error('showUserPartners not defined'); window.open('/admin/users/${user.id}/partners', '_blank', 'width=800,height=600'); }" style="background: none; border: none; cursor: pointer; padding: 0;">
-                        <div class="partners-count">${user.directPartners} прямых</div>
-                      </button>
                     </td>
                     <td>
                       <button class="orders-sum-btn" onclick="if(typeof showUserOrders === 'function') { showUserOrders('${user.id}', '${user.firstName || 'Пользователь'}'); } else { console.error('showUserOrders not defined'); window.open('/admin/users/${user.id}/orders', '_blank', 'width=1000,height=700'); }" style="background: none; border: none; cursor: pointer; padding: 0; width: 100%; text-align: left;">
@@ -2245,9 +2262,39 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       </button>
                     </td>
                     <td>
-                      <div style="font-size: 13px; color: #6c757d;">
-                        ${user.lastActivity.toLocaleString('ru-RU')}
+                      <div style="font-size: 12px; color: #6c757d;">
+                        ${user.inviter ? `@${user.inviter.username || user.inviter.firstName || 'неизвестно'}` : '—'}
                       </div>
+                    </td>
+                    <td>
+                      <div class="user-info">
+                        <div class="user-avatar">${(user.firstName || 'U')[0].toUpperCase()}</div>
+                        <div class="user-details">
+                          <h4><a href="javascript:void(0)" onclick="showUserDetails('${user.id}')" class="user-name-link" style="cursor: pointer; color: #007bff; text-decoration: none;">${user.firstName || 'Без имени'} ${user.lastName || ''}</a></h4>
+                          <p>@${user.username || 'без username'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="partners-count" style="display: inline-block;">${level1Partners}</div>
+                    </td>
+                    <td>
+                      <div class="partners-count" style="display: inline-block;">${level2Partners}</div>
+                    </td>
+                    <td>
+                      <div class="partners-count" style="display: inline-block;">${level3Partners}</div>
+                    </td>
+                    <td>
+                      <div class="orders-sum">${user.totalOrderSum.toFixed(2)} PZ</div>
+                    </td>
+                    <td>
+                      <div class="orders-sum" style="color: #28a745;">${totalEarnings.toFixed(2)} PZ</div>
+                    </td>
+                    <td>
+                      <div class="orders-sum" style="color: #007bff;">${withdrawnEarnings.toFixed(2)} PZ</div>
+                    </td>
+                    <td>
+                      <div class="orders-sum" style="color: ${pendingEarnings > 0 ? '#ffc107' : '#6c757d'};">${pendingEarnings.toFixed(2)} PZ</div>
                     </td>
                     <td>
                       <button class="action-btn hierarchy" onclick="if(typeof showHierarchy === 'function') { showHierarchy('${user.id}'); } else { console.error('showHierarchy not defined'); window.open('/admin/partners-hierarchy?user=${user.id}', '_blank', 'width=800,height=600'); }">
@@ -2261,9 +2308,11 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       </button>
                     </td>
                   </tr>
-                `).join('')}
+                `;
+                }).join('')}
               </tbody>
             </table>
+            </div>
           `}
           
           <div style="padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
