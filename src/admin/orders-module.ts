@@ -656,8 +656,14 @@ router.post('/orders/:orderId/pay', requireAdmin, async (req, res) => {
       data: { status: 'COMPLETED' }
     });
     
-    // Calculate and distribute referral bonuses
-    await distributeReferralBonuses(order.userId || '', totalAmount);
+    // Calculate and distribute referral bonuses using dual system
+    try {
+      const { calculateDualSystemBonuses } = await import('../services/partner-service.js');
+      await calculateDualSystemBonuses(order.userId || '', totalAmount, orderId);
+    } catch (bonusError) {
+      console.error('❌ Referral bonus distribution error:', bonusError);
+      // Don't fail the payment if bonus distribution fails
+    }
     
     // Log the payment
     await prisma.userHistory.create({
@@ -687,61 +693,6 @@ router.post('/orders/:orderId/pay', requireAdmin, async (req, res) => {
 });
 
 // Distribute referral bonuses
-async function distributeReferralBonuses(userId: string, orderAmount: number) {
-  try {
-    console.log(`🎁 Distributing referral bonuses for user ${userId}, order amount: ${orderAmount} PZ`);
-    
-    // Find who invited this user
-    const referralRecord = await prisma.partnerReferral.findFirst({
-      where: { referredId: userId },
-      include: {
-        profile: {
-          include: { user: true }
-        }
-      }
-    });
-    
-    if (!referralRecord) {
-      console.log(`ℹ️ No referral found for user ${userId}`);
-      return;
-    }
-    
-    const inviterProfile = referralRecord.profile;
-    const bonusAmount = Math.round(orderAmount * 0.1 * 100) / 100; // 10% bonus
-    
-    console.log(`🎁 Calculating bonus: ${orderAmount} * 0.1 = ${bonusAmount} PZ for inviter ${inviterProfile.userId}`);
-    
-    // Add bonus to inviter's balance
-    await prisma.partnerTransaction.create({
-      data: {
-        profileId: inviterProfile.id,
-        type: 'CREDIT',
-        amount: bonusAmount,
-        description: `Реферальный бонус за заказ пользователя ${userId}`,
-      }
-    });
-    
-    // Recalculate inviter's total bonuses
-    await recalculatePartnerBonuses(inviterProfile.id);
-    
-    // Log the bonus
-    await prisma.userHistory.create({
-      data: {
-        userId: inviterProfile.userId,
-        action: 'referral_bonus_received',
-        payload: {
-          amount: bonusAmount,
-          fromUserId: userId,
-          orderAmount: orderAmount
-        }
-      }
-    });
-    
-    console.log(`✅ Referral bonus ${bonusAmount} PZ distributed to ${inviterProfile.userId}`);
-    
-  } catch (error) {
-    console.error('❌ Referral bonus distribution error:', error);
-  }
-}
+// Старая функция distributeReferralBonuses удалена - теперь используется calculateDualSystemBonuses из partner-service.ts
 
 export { router as ordersModule };

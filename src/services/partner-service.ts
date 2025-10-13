@@ -331,8 +331,34 @@ async function findAllPartnerChain(orderUserId: string) {
 }
 
 // Новая функция для расчета бонусов по двойной системе
-export async function calculateDualSystemBonuses(orderUserId: string, orderAmount: number) {
+export async function calculateDualSystemBonuses(orderUserId: string, orderAmount: number, orderId?: string) {
   console.log(`🎯 Calculating dual system bonuses for order ${orderAmount} PZ by user ${orderUserId}`);
+  
+  // Проверяем, не были ли уже начислены бонусы за этот заказ
+  if (orderId) {
+    // Ищем все записи о бонусах для этого пользователя
+    const existingBonuses = await prisma.userHistory.findMany({
+      where: {
+        userId: orderUserId,
+        action: 'REFERRAL_BONUS'
+      }
+    });
+    
+    // Проверяем, есть ли уже бонусы за этот заказ
+    const hasExistingBonus = existingBonuses.some(bonus => {
+      try {
+        const payload = bonus.payload as any;
+        return payload && payload.orderId === orderId;
+      } catch (e) {
+        return false;
+      }
+    });
+    
+    if (hasExistingBonus) {
+      console.log(`⚠️ Bonuses already distributed for order ${orderId}, skipping...`);
+      return [];
+    }
+  }
   
   // Находим всех партнеров в цепочке, которые могут получить бонусы
   const allPartnerReferrals = await findAllPartnerChain(orderUserId);
@@ -412,6 +438,7 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
             orderAmount,
             level: referral.level,
             referredUserId: orderUserId,
+            orderId: orderId || null,
             type: 'DUAL_SYSTEM'
           }
         }

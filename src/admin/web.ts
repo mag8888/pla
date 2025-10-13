@@ -8161,12 +8161,16 @@ router.post('/orders/:orderId/pay', requireAdmin, async (req, res) => {
     }
 
     // Distribute referral bonuses after successful payment using dual system
+    // NOTE: Бонусы уже распределяются в orders-module.ts, поэтому здесь закомментировано
+    // чтобы избежать дублирования уведомлений
+    /*
     try {
       await calculateDualSystemBonuses(order.user.id, totalAmount);
     } catch (bonusError) {
       console.error('❌ Referral bonus distribution error:', bonusError);
       // Don't fail the payment if bonus distribution fails
     }
+    */
     
     res.json({ 
       success: true, 
