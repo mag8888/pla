@@ -150,13 +150,13 @@ async function loadShopContent() {
         let content = '<div class="content-section"><h3>Каталог товаров</h3>';
         
         if (categories && categories.length > 0) {
-            content += '<div class="product-grid">';
+            content += '<div class="shop-categories">';
             categories.forEach(category => {
                 content += `
-                    <div class="product-card" onclick="showCategoryProducts('${category.id}')">
+                    <div class="shop-category" onclick="showCategoryProducts('${category.id}')">
                         <h4>${category.name}</h4>
                         <p>${category.description || 'Товары категории'}</p>
-                        <div class="product-price">Открыть</div>
+                        <button onclick="event.stopPropagation(); showCategoryProducts('${category.id}')">Открыть</button>
                     </div>
                 `;
             });
@@ -542,6 +542,104 @@ function showReferralLink() {
 function showPartners() {
     showSuccess('Загрузка списка партнёров...');
     // Здесь можно добавить логику показа партнёров
+}
+
+// Show category products
+async function showCategoryProducts(categoryId) {
+    try {
+        const response = await fetch(`${API_BASE}/categories/${categoryId}/products`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const products = await response.json();
+        
+        let content = `
+            <div class="content-section">
+                <button class="btn-back-to-catalog" onclick="showShop()">
+                    ← Назад к каталогу
+                </button>
+                <h3>Товары категории</h3>
+        `;
+        
+        if (products && products.length > 0) {
+            content += '<div class="products-grid">';
+            products.forEach(product => {
+                content += `
+                    <div class="product-tile">
+                        <h4>${product.title}</h4>
+                        <div class="product-description">${product.summary || product.description || 'Описание товара'}</div>
+                        <div class="product-actions">
+                            <button class="btn-add-to-cart" onclick="addToCart('${product.id}')">
+                                🛒 В корзину
+                            </button>
+                            <button class="btn-buy" onclick="buyProduct('${product.id}')">
+                                🛍 Купить
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            content += '</div>';
+        } else {
+            content += '<p>В этой категории пока нет товаров</p>';
+        }
+        
+        content += '</div>';
+        
+        // Show the products section
+        showSection('shop', 'Товары', content);
+    } catch (error) {
+        console.error('Error loading category products:', error);
+        showError('Ошибка загрузки товаров');
+    }
+}
+
+// Add to cart function
+async function addToCart(productId) {
+    try {
+        const response = await fetch(`${API_BASE}/cart/add`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ productId, quantity: 1 })
+        });
+        
+        if (response.ok) {
+            showSuccess('Товар добавлен в корзину!');
+            loadCartItems(); // Refresh cart
+        } else {
+            showError('Ошибка добавления в корзину');
+        }
+    } catch (error) {
+        console.error('Error adding to cart:', error);
+        showError('Ошибка добавления в корзину');
+    }
+}
+
+// Buy product function
+async function buyProduct(productId) {
+    try {
+        const response = await fetch(`${API_BASE}/orders/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                items: [{ productId, quantity: 1 }],
+                message: 'Покупка через веб-приложение'
+            })
+        });
+        
+        if (response.ok) {
+            showSuccess('Заказ создан! Ожидайте подтверждения.');
+        } else {
+            showError('Ошибка создания заказа');
+        }
+    } catch (error) {
+        console.error('Error buying product:', error);
+        showError('Ошибка создания заказа');
+    }
 }
 
 // Utility functions

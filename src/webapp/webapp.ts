@@ -153,86 +153,41 @@ router.get('/api/cart/items', async (req, res) => {
   }
 });
 
-router.post('/api/cart/add', async (req, res) => {
+// Partner operations
+router.get('/api/partner/dashboard', async (req, res) => {
   try {
     const telegramUser = getTelegramUser(req);
     if (!telegramUser) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { productId } = req.body;
-    if (!productId) {
-      return res.status(400).json({ error: 'Product ID is required' });
-    }
-
     const { prisma } = await import('../lib/prisma.js');
     const user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
+      where: { telegramId: telegramUser.id.toString() },
+      include: { partner: true }
     });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    await addProductToCart(user.id, productId);
-    res.json({ success: true });
+    if (!user.partner) {
+      return res.json({ 
+        isActive: false, 
+        message: 'Партнерская программа не активирована' 
+      });
+    }
+
+    res.json({
+      isActive: user.partner.isActive,
+      balance: user.partner.balance,
+      bonus: user.partner.bonus,
+      referralCode: user.partner.referralCode,
+      totalPartners: user.partner.totalPartners,
+      directPartners: user.partner.directPartners
+    });
   } catch (error) {
-    console.error('Error adding to cart:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Orders
-router.post('/api/orders/create', async (req, res) => {
-  try {
-    const telegramUser = getTelegramUser(req);
-    if (!telegramUser) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { productId } = req.body;
-    if (!productId) {
-      return res.status(400).json({ error: 'Product ID is required' });
-    }
-
-    const { prisma } = await import('../lib/prisma.js');
-    const user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const product = await getProductById(productId);
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-
-    const cartItems = await getCartItems(user.id);
-    const itemsPayload = cartItems.map((item: any) => ({
-      productId: item.productId,
-      title: item.product.title,
-      price: Number(item.product.price),
-      quantity: item.quantity,
-    }));
-
-    itemsPayload.push({
-      productId: product.id,
-      title: product.title,
-      price: Number(product.price),
-      quantity: 1,
-    });
-
-    await createOrderRequest({
-      userId: user.id,
-      message: `Покупка через веб-приложение. Основной товар: ${product.title}`,
-      items: itemsPayload,
-    });
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error creating order:', error);
+    console.error('Error getting partner dashboard:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -248,17 +203,17 @@ router.get('/api/reviews', async (req, res) => {
   }
 });
 
-// Partner program
-router.post('/api/partner/activate', async (req, res) => {
+// Cart add endpoint
+router.post('/api/cart/add', async (req, res) => {
   try {
     const telegramUser = getTelegramUser(req);
     if (!telegramUser) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { type } = req.body;
-    if (!type || !Object.values(PartnerProgramType).includes(type)) {
-      return res.status(400).json({ error: 'Invalid program type' });
+    const { productId, quantity = 1 } = req.body;
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required' });
     }
 
     const { prisma } = await import('../lib/prisma.js');
@@ -270,26 +225,46 @@ router.post('/api/partner/activate', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const profile = await getOrCreatePartnerProfile(user.id, type);
-    res.json({ 
-      success: true, 
-      profile: {
-        id: profile.id,
-        referralCode: profile.referralCode,
-        programType: profile.programType
-      }
+    // Check if item already exists in cart
+    const existingItem = await prisma.cartItem.findFirst({
+      where: { userId: user.id, productId }
     });
+
+    if (existingItem) {
+      // Update quantity
+      await prisma.cartItem.update({
+        where: { id: existingItem.id },
+        data: { quantity: existingItem.quantity + quantity }
+      });
+    } else {
+      // Add new item
+      await prisma.cartItem.create({
+        data: {
+          userId: user.id,
+          productId,
+          quantity
+        }
+      });
+    }
+
+    res.json({ success: true });
   } catch (error) {
-    console.error('Error activating partner program:', error);
+    console.error('Error adding to cart:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-router.get('/api/partner/dashboard', async (req, res) => {
+// Order create endpoint
+router.post('/api/orders/create', async (req, res) => {
   try {
     const telegramUser = getTelegramUser(req);
     if (!telegramUser) {
       return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { items, message = '' } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Items are required' });
     }
 
     const { prisma } = await import('../lib/prisma.js');
@@ -301,25 +276,20 @@ router.get('/api/partner/dashboard', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const dashboard = await getPartnerDashboard(user.id);
-    if (!dashboard) {
-      return res.status(404).json({ error: 'Partner profile not found' });
-    }
-
-    res.json({
-      profile: {
-        id: dashboard.profile.id,
-        balance: dashboard.profile.balance,
-        bonus: dashboard.profile.bonus,
-        referralCode: dashboard.profile.referralCode,
-        programType: dashboard.profile.programType,
-        isActive: (dashboard.profile as any).isActive,
-        expiresAt: (dashboard.profile as any).expiresAt
-      },
-      stats: dashboard.stats
+    // Create order
+    const order = await prisma.orderRequest.create({
+      data: {
+        userId: user.id,
+        message,
+        itemsJson: items,
+        status: 'NEW',
+        contact: `@${telegramUser.username || 'user'}` || `ID: ${telegramUser.id}`
+      }
     });
+
+    res.json({ success: true, orderId: order.id });
   } catch (error) {
-    console.error('Error getting partner dashboard:', error);
+    console.error('Error creating order:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
