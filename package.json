@@ -11,7 +11,9 @@
     "migrate:deploy": "prisma db push",
     "prisma:generate": "prisma generate",
     "setup-webapp": "node scripts/setup-webapp.js",
-    "setup-railway": "node scripts/setup-railway-webapp.js"
+    "setup-railway": "node scripts/setup-railway-webapp.js",
+    "check-video": "node scripts/check-video-size.js",
+    "compress-video": "./scripts/compress-video.sh"
   },
   "dependencies": {
     "@adminjs/express": "^6.1.1",

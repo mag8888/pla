@@ -45,6 +45,11 @@ async function bootstrap() {
       cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
     }));
 
+    // Root redirect to webapp
+    app.get('/', (req, res) => {
+      res.redirect('/webapp');
+    });
+
     // Web admin panel
     app.use('/admin', adminWebRouter);
     
