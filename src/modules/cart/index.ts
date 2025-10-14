@@ -4,6 +4,7 @@ import { Context } from '../../bot/context.js';
 import { logUserAction, ensureUser } from '../../services/user-history.js';
 import { getCartItems, cartItemsToText, clearCart, increaseProductQuantity, decreaseProductQuantity, removeProductFromCart } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
+import { prisma } from '../../lib/prisma.js';
 
 export const cartModule: BotModule = {
   async register(bot: Telegraf<Context>) {
@@ -262,14 +263,20 @@ export function registerCartActions(bot: Telegraf<Context>) {
       
       await ctx.reply('✅ Заказ отправлен! Мы свяжемся с вами в ближайшее время.');
       
-      // Show delivery address button
-      await ctx.reply('📍 Укажите адрес доставки:', {
+      // Show contact sharing button first
+      await ctx.reply('📞 Для быстрой связи поделитесь своим номером телефона:', {
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: '📍 Адрес доставки',
-                callback_data: 'delivery:address',
+                text: '📞 Поделиться контактом',
+                callback_data: 'contact:share',
+              },
+            ],
+            [
+              {
+                text: '⏭️ Пропустить',
+                callback_data: 'contact:skip',
               },
             ],
           ],
@@ -539,6 +546,92 @@ export function registerCartActions(bot: Telegraf<Context>) {
     await logUserAction(ctx, 'delivery:use_existing');
     
     await ctx.reply('✅ Отлично! Будем использовать ваш сохраненный адрес доставки.');
+  });
+
+  // Contact sharing handlers
+  bot.action('contact:share', async (ctx) => {
+    await ctx.answerCbQuery();
+    await logUserAction(ctx, 'contact:share');
+    
+    await ctx.reply('📞 Нажмите кнопку ниже, чтобы поделиться своим номером телефона:', {
+      reply_markup: {
+        keyboard: [
+          [
+            {
+              text: '📞 Поделиться номером телефона',
+              request_contact: true,
+            },
+          ],
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      },
+    });
+  });
+
+  bot.action('contact:skip', async (ctx) => {
+    await ctx.answerCbQuery();
+    await logUserAction(ctx, 'contact:skip');
+    
+    await ctx.reply('✅ Хорошо, переходим к указанию адреса доставки.');
+    
+    // Ask for delivery address
+    await ctx.reply('📍 Укажите адрес доставки:', {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: '📍 Адрес доставки',
+              callback_data: 'delivery:address',
+            },
+          ],
+        ],
+      },
+    });
+  });
+
+  // Handle contact sharing
+  bot.on('contact', async (ctx) => {
+    await logUserAction(ctx, 'contact:received');
+    
+    const user = await ensureUser(ctx);
+    if (!user) {
+      await ctx.reply('❌ Ошибка обработки контакта. Попробуйте позже.');
+      return;
+    }
+
+    const contact = ctx.message.contact;
+    const phoneNumber = contact.phone_number;
+    
+    try {
+      // Save phone number to user profile
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { phone: phoneNumber },
+      });
+      
+      console.log(`📞 Contact received from user ${user.id}: ${phoneNumber}`);
+      
+      await ctx.reply('✅ Спасибо! Ваш номер телефона сохранен.');
+      
+      // Now ask for delivery address
+      await ctx.reply('📍 Теперь укажите адрес доставки:', {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '📍 Адрес доставки',
+                callback_data: 'delivery:address',
+              },
+            ],
+          ],
+        },
+      });
+      
+    } catch (error) {
+      console.error('❌ Error saving contact:', error);
+      await ctx.reply('❌ Ошибка сохранения номера телефона. Попробуйте позже.');
+    }
   });
 }
 

@@ -282,14 +282,20 @@ async function handleBuy(ctx: Context, productId: string) {
   await ctx.answerCbQuery();
   await ctx.reply('Заявка отправлена администратору. Мы свяжемся с вами в ближайшее время!');
   
-  // Show delivery address button
-  await ctx.reply('📍 Укажите адрес доставки:', {
+  // Show contact sharing button first
+  await ctx.reply('📞 Для быстрой связи поделитесь своим номером телефона:', {
     reply_markup: {
       inline_keyboard: [
         [
           {
-            text: '📍 Адрес доставки',
-            callback_data: 'delivery:address',
+            text: '📞 Поделиться контактом',
+            callback_data: 'contact:share',
+          },
+        ],
+        [
+          {
+            text: '⏭️ Пропустить',
+            callback_data: 'contact:skip',
           },
         ],
       ],
