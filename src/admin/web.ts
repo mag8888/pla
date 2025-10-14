@@ -7989,12 +7989,31 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           continue;
         }
         
-        // TODO: Здесь должна быть логика отправки сообщения через Telegram Bot API
-        // Пока что просто логируем
-        console.log(`Отправка сообщения пользователю ${user.firstName} (@${user.username}):`, {
-          subject,
-          text
-        });
+        // Отправляем сообщение через Telegram Bot API
+        try {
+          const { getBotInstance } = await import('../lib/bot-instance.js');
+          const bot = await getBotInstance();
+          
+          // Формируем сообщение
+          const messageText = `📧 ${subject}\n\n${text}`;
+          
+          // Отправляем сообщение
+          await bot.telegram.sendMessage(user.telegramId, messageText, {
+            parse_mode: 'Markdown'
+          });
+          
+          console.log(`✅ Сообщение отправлено пользователю ${user.firstName} (@${user.username || 'без username'})`);
+          successCount++;
+          
+        } catch (telegramError) {
+          console.error(`❌ Ошибка отправки сообщения пользователю ${user.firstName} (@${user.username || 'без username'}):`, telegramError);
+          
+          // Добавляем ошибку в список для отчета
+          const errorMessage = telegramError instanceof Error ? telegramError.message : String(telegramError);
+          errors.push(`${user.firstName} (@${user.username || 'без username'}): ${errorMessage}`);
+          
+          // Продолжаем обработку других пользователей даже при ошибке
+        }
         
         // Сохраняем в историю
         await prisma.userHistory.create({
@@ -8009,9 +8028,7 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           }
         });
         
-        successCount++;
-        
-        } catch (error) {
+      } catch (error) {
           console.error(`Error sending message to user ${userId}:`, error);
           errors.push(`Ошибка отправки пользователю ${userId}: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
         }
