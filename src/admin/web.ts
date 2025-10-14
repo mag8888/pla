@@ -7997,16 +7997,18 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           // Формируем сообщение
           const messageText = `📧 ${subject}\n\n${text}`;
           
+          console.log(`📤 Отправка сообщения пользователю ${user.firstName} (ID: ${user.telegramId}):`, messageText);
+          
           // Отправляем сообщение
-          await bot.telegram.sendMessage(user.telegramId, messageText, {
+          const result = await bot.telegram.sendMessage(user.telegramId, messageText, {
             parse_mode: 'Markdown'
           });
           
-          console.log(`✅ Сообщение отправлено пользователю ${user.firstName} (@${user.username || 'без username'})`);
+          console.log(`✅ Сообщение успешно отправлено пользователю ${user.firstName} (@${user.username || 'без username'}), message_id: ${result.message_id}`);
           successCount++;
           
         } catch (telegramError) {
-          console.error(`❌ Ошибка отправки сообщения пользователю ${user.firstName} (@${user.username || 'без username'}):`, telegramError);
+          console.error(`❌ Ошибка отправки сообщения пользователю ${user.firstName} (@${user.username || 'без username'}) (ID: ${user.telegramId}):`, telegramError);
           
           // Добавляем ошибку в список для отчета
           const errorMessage = telegramError instanceof Error ? telegramError.message : String(telegramError);
