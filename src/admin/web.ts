@@ -7996,6 +7996,13 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
         
         console.log(`✅ Пользователь найден: ${user.firstName} (telegramId: ${user.telegramId})`);
         
+        // Проверяем, есть ли telegramId у пользователя
+        if (!user.telegramId || user.telegramId === 'null' || user.telegramId === 'undefined') {
+          console.log(`❌ У пользователя ${user.firstName} отсутствует или неверный telegramId: ${user.telegramId}`);
+          errors.push(`${user.firstName} (@${user.username || 'без username'}): отсутствует telegramId`);
+          continue;
+        }
+        
         // Отправляем сообщение через Telegram Bot API
         try {
           const { getBotInstance } = await import('../lib/bot-instance.js');
