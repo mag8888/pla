@@ -3078,9 +3078,22 @@ router.post('/send-messages', requireAdmin, async (req, res) => {
         
         // Send message via Telegram bot
         try {
-          await bot.telegram.sendMessage(user.telegramId, messageText, {
-            parse_mode: 'Markdown'
-          });
+          // Экранируем Markdown символы
+          const escapeMarkdown = (text: string) => {
+            return text.replace(/([_*\[\]()~`>#+=|{}.!-])/g, '\\$1');
+          };
+          
+          const escapedMessageText = escapeMarkdown(messageText);
+          
+          try {
+            await bot.telegram.sendMessage(user.telegramId, escapedMessageText, {
+              parse_mode: 'Markdown'
+            });
+          } catch (markdownError) {
+            console.log(`⚠️ Markdown отправка не удалась, пробуем без Markdown: ${markdownError instanceof Error ? markdownError.message : String(markdownError)}`);
+            // Если Markdown не работает, отправляем без форматирования
+            await bot.telegram.sendMessage(user.telegramId, messageText);
+          }
           
           // Add buttons if requested
           if (includeButtons && (button1.text || button2.text)) {
@@ -8008,15 +8021,27 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           const { getBotInstance } = await import('../lib/bot-instance.js');
           const bot = await getBotInstance();
           
-          // Формируем сообщение
-          const messageText = `📧 ${subject}\n\n${text}`;
+          // Формируем сообщение с экранированием Markdown символов
+          const escapeMarkdown = (text: string) => {
+            return text.replace(/([_*\[\]()~`>#+=|{}.!-])/g, '\\$1');
+          };
+          
+          const messageText = `📧 ${escapeMarkdown(subject)}\n\n${escapeMarkdown(text)}`;
           
           console.log(`📤 Отправка сообщения пользователю ${user.firstName} (ID: ${user.telegramId}):`, messageText);
           
           // Отправляем сообщение
-          const result = await bot.telegram.sendMessage(user.telegramId, messageText, {
-            parse_mode: 'Markdown'
-          });
+          let result;
+          try {
+            result = await bot.telegram.sendMessage(user.telegramId, messageText, {
+              parse_mode: 'Markdown'
+            });
+          } catch (markdownError) {
+            console.log(`⚠️ Markdown отправка не удалась, пробуем без Markdown: ${markdownError instanceof Error ? markdownError.message : String(markdownError)}`);
+            // Если Markdown не работает, отправляем без форматирования
+            const plainText = `📧 ${subject}\n\n${text}`;
+            result = await bot.telegram.sendMessage(user.telegramId, plainText);
+          }
           
           console.log(`✅ Сообщение успешно отправлено пользователю ${user.firstName} (@${user.username || 'без username'}), message_id: ${result.message_id}`);
           successCount++;
