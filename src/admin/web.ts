@@ -1918,10 +1918,14 @@ router.get('/', requireAdmin, async (req, res) => {
                     <button class="btn-close" onclick="closeInstruction()">×</button>
                   </div>
                   <div class="instruction-body">
-                    <div class="instruction-text">\${instructionText.replace(/\\n/g, '<br>')}</div>
+                    <div class="instruction-text" id="instructionText" style="display: none;">\${instructionText.replace(/\\n/g, '<br>')}</div>
+                    <div class="instruction-edit" id="instructionEdit" style="display: block;">
+                      <textarea id="instructionTextarea" placeholder="Введите инструкцию по применению товара..." style="width: 100%; height: 200px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;">\${instructionText}</textarea>
+                    </div>
                   </div>
                   <div class="instruction-footer">
-                    <button class="btn btn-edit" onclick="editInstruction('\${productId}')" style="background: #28a745; margin-right: 8px;">✏️ Редактировать</button>
+                    <button class="btn btn-save" onclick="saveInstruction('\${productId}')" style="background: #28a745; margin-right: 8px;">💾 Сохранить</button>
+                    <button class="btn btn-cancel" onclick="cancelInstruction()" style="background: #6c757d; margin-right: 8px;">❌ Отмена</button>
                     <button class="btn btn-delete" onclick="deleteInstruction('\${productId}')" style="background: #dc3545; margin-right: 8px;">🗑️ Удалить</button>
                     <button class="btn btn-secondary" onclick="closeInstruction()">Закрыть</button>
                   </div>
@@ -1982,6 +1986,43 @@ router.get('/', requireAdmin, async (req, res) => {
                 alert('Ошибка: ' + (error instanceof Error ? error.message : String(error)));
               });
             }
+          };
+          
+          window.saveInstruction = function(productId) {
+            const textarea = document.getElementById('instructionTextarea');
+            const instructionText = textarea.value.trim();
+            
+            if (!instructionText) {
+              alert('Пожалуйста, введите инструкцию');
+              return;
+            }
+            
+            // Send request to save instruction
+            fetch('/admin/products/' + productId + '/save-instruction', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({ instruction: instructionText })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('Инструкция успешно сохранена!');
+                closeInstruction();
+                location.reload();
+              } else {
+                alert('Ошибка: ' + (data.error || 'Не удалось сохранить инструкцию'));
+              }
+            })
+            .catch(error => {
+              alert('Ошибка: ' + (error instanceof Error ? error.message : String(error)));
+            });
+          };
+          
+          window.cancelInstruction = function() {
+            closeInstruction();
           };
         </script>
       </body>
@@ -5213,10 +5254,14 @@ router.get('/products', requireAdmin, async (req, res) => {
                     <button class="btn-close" onclick="closeInstruction()">×</button>
                   </div>
                   <div class="instruction-body">
-                    <div class="instruction-text">\${instructionText.replace(/\\n/g, '<br>')}</div>
+                    <div class="instruction-text" id="instructionText" style="display: none;">\${instructionText.replace(/\\n/g, '<br>')}</div>
+                    <div class="instruction-edit" id="instructionEdit" style="display: block;">
+                      <textarea id="instructionTextarea" placeholder="Введите инструкцию по применению товара..." style="width: 100%; height: 200px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;">\${instructionText}</textarea>
+                    </div>
                   </div>
                   <div class="instruction-footer">
-                    <button class="btn btn-edit" onclick="editInstruction('\${productId}')" style="background: #28a745; margin-right: 8px;">✏️ Редактировать</button>
+                    <button class="btn btn-save" onclick="saveInstruction('\${productId}')" style="background: #28a745; margin-right: 8px;">💾 Сохранить</button>
+                    <button class="btn btn-cancel" onclick="cancelInstruction()" style="background: #6c757d; margin-right: 8px;">❌ Отмена</button>
                     <button class="btn btn-delete" onclick="deleteInstruction('\${productId}')" style="background: #dc3545; margin-right: 8px;">🗑️ Удалить</button>
                     <button class="btn btn-secondary" onclick="closeInstruction()">Закрыть</button>
                   </div>
@@ -5277,6 +5322,43 @@ router.get('/products', requireAdmin, async (req, res) => {
                 alert('Ошибка: ' + (error instanceof Error ? error.message : String(error)));
               });
             }
+          };
+          
+          window.saveInstruction = function(productId) {
+            const textarea = document.getElementById('instructionTextarea');
+            const instructionText = textarea.value.trim();
+            
+            if (!instructionText) {
+              alert('Пожалуйста, введите инструкцию');
+              return;
+            }
+            
+            // Send request to save instruction
+            fetch('/admin/products/' + productId + '/save-instruction', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({ instruction: instructionText })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('Инструкция успешно сохранена!');
+                closeInstruction();
+                location.reload();
+              } else {
+                alert('Ошибка: ' + (data.error || 'Не удалось сохранить инструкцию'));
+              }
+            })
+            .catch(error => {
+              alert('Ошибка: ' + (error instanceof Error ? error.message : String(error)));
+            });
+          };
+          
+          window.cancelInstruction = function() {
+            closeInstruction();
           };
         </script>
       </body>
@@ -9270,6 +9352,33 @@ router.post('/products/:productId/delete-instruction', requireAdmin, async (req,
   } catch (error) {
     console.error('Delete instruction error:', error);
     res.status(500).json({ success: false, error: 'Ошибка удаления инструкции' });
+  }
+});
+
+// Save instruction endpoint
+router.post('/products/:productId/save-instruction', requireAdmin, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { instruction } = req.body;
+    
+    if (!instruction || !instruction.trim()) {
+      return res.status(400).json({ success: false, error: 'Инструкция не может быть пустой' });
+    }
+    
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      return res.status(404).json({ success: false, error: 'Товар не найден' });
+    }
+    
+    await prisma.product.update({
+      where: { id: productId },
+      data: { instruction: instruction.trim() }
+    });
+    
+    res.json({ success: true, message: 'Инструкция успешно сохранена' });
+  } catch (error) {
+    console.error('Save instruction error:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сохранения инструкции' });
   }
 });
 
