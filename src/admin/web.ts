@@ -9042,15 +9042,5 @@ router.post('/admin/audio/delete', requireAdmin, async (req, res) => {
 // Mount orders module
 // router.use('/', ordersModule);
 
-// Global functions for instruction modal
-declare global {
-  function showInstruction(productId: string, instructionText: string): void;
-  function closeInstruction(): void;
-}
-
-
-// Make functions globally available
-(window as any).showInstruction = showInstruction;
-(window as any).closeInstruction = closeInstruction;
 
 export { router as adminWebRouter };
