@@ -2147,6 +2147,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
           .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
           .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 16px; }
+          .back-btn:hover { background: rgba(255,255,255,0.3) !important; transform: translateY(-2px); }
           
           .controls { padding: 20px; background: #f8f9fa; border-bottom: 1px solid #e9ecef; }
           .sort-controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
@@ -2399,8 +2400,15 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>👥 Детальная информация о пользователях</h1>
-            <p>Полная статистика, балансы, партнёры и заказы</p>
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h1>👥 Детальная информация о пользователях</h1>
+                <p>Полная статистика, балансы, партнёры и заказы</p>
+              </div>
+              <a href="/admin" class="back-btn" style="background: rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.3); transition: all 0.3s ease;">
+                ← Назад к панели
+              </a>
+            </div>
           </div>
           
           <div class="controls">
