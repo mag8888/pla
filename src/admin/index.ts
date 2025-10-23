@@ -31,6 +31,7 @@ export async function setupAdminPanel(app: Application) {
         '/admin/assets/styles.css'
       ],
       scripts: [
+        '/admin/assets/no-redirect.js',
         '/admin/assets/ultra-blocker.js',
         '/admin/assets/scripts.js'
       ]
@@ -399,25 +400,38 @@ export async function setupAdminPanel(app: Application) {
     },
   );
 
-  // УЛЬТРА АГРЕССИВНОЕ отключение автоматического редиректа
+  // ПОЛНОЕ ОТКЛЮЧЕНИЕ редиректа - просто блокируем без редиректа
   adminRouter.use((req, res, next) => {
-    console.log('🚫 AdminJS Request:', req.method, req.path);
+    console.log('🚫 AdminJS Request:', req.method, req.path, req.query);
     
-    // Блокируем ВСЕ переходы на детальные страницы
+    // Блокируем ВСЕ переходы на детальные страницы - БЕЗ РЕДИРЕКТА
     if (req.path.includes('/show/') || 
         req.path.includes('/edit/') || 
         req.path.includes('/users-detailed') ||
-        req.path.includes('/detailed')) {
+        req.path.includes('/detailed') ||
+        req.path.includes('/show') ||
+        req.path.includes('/edit')) {
       console.log('🚫 BLOCKED DETAIL PAGE:', req.path);
-      const resourceName = req.path.split('/')[2] || 'users';
-      return res.redirect(`/admin/resources/${resourceName}`);
+      return res.status(404).send('Detail pages disabled');
     }
     
-    // Блокируем все запросы с параметрами сортировки, которые могут вызывать редирект
+    // Блокируем все запросы с параметрами сортировки - БЕЗ РЕДИРЕКТА
     if (req.query.sort || req.query.order) {
       console.log('🚫 BLOCKED SORT REQUEST:', req.path, req.query);
-      const resourceName = req.path.split('/').pop() || 'users';
-      return res.redirect(`/admin/resources/${resourceName}`);
+      return res.status(404).send('Sort requests disabled');
+    }
+    
+    // Блокируем все запросы к детальным страницам пользователей - БЕЗ РЕДИРЕКТА
+    if (req.path.includes('users') && (req.path.includes('show') || req.path.includes('edit'))) {
+      console.log('🚫 BLOCKED USER DETAIL:', req.path);
+      return res.status(404).send('User detail pages disabled');
+    }
+    
+    // Блокируем все AJAX запросы к детальным страницам
+    if (req.headers['x-requested-with'] === 'XMLHttpRequest' && 
+        (req.path.includes('/show/') || req.path.includes('/edit/'))) {
+      console.log('🚫 BLOCKED AJAX DETAIL:', req.path);
+      return res.status(403).json({ error: 'Detail pages disabled' });
     }
     
     next();
