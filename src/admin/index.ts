@@ -77,7 +77,22 @@ export async function setupAdminPanel(app: Application) {
       {
         resource: { model: prisma.product, client: prisma },
         options: {
+          navigation: {
+            name: 'Товары',
+            icon: 'Package',
+          },
+          listProperties: ['title', 'categoryId', 'price', 'isActive'],
+          showProperties: ['title', 'summary', 'description', 'imageUrl', 'price', 'stock', 'isActive', 'availableInRussia', 'availableInBali', 'categoryId', 'createdAt', 'updatedAt'],
+          editProperties: ['title', 'summary', 'description', 'imageUrl', 'price', 'stock', 'isActive', 'availableInRussia', 'availableInBali', 'categoryId'],
+          filterProperties: ['title', 'isActive', 'availableInRussia', 'availableInBali'],
+          sort: {
+            sortBy: 'title',
+            direction: 'asc',
+          },
           properties: {
+            title: {
+              isTitle: true,
+            },
             description: {
               type: 'richtext',
             },
@@ -85,13 +100,28 @@ export async function setupAdminPanel(app: Application) {
               type: 'number',
             },
           },
-          listProperties: ['title', 'categoryId', 'price', 'isActive'],
         },
       },
       {
         resource: { model: prisma.review, client: prisma },
         options: {
+          navigation: {
+            name: 'Отзывы',
+            icon: 'Star',
+          },
           listProperties: ['name', 'isActive', 'isPinned', 'createdAt'],
+          showProperties: ['name', 'photoUrl', 'content', 'link', 'isPinned', 'isActive', 'createdAt', 'updatedAt'],
+          editProperties: ['name', 'photoUrl', 'content', 'link', 'isPinned', 'isActive'],
+          filterProperties: ['name', 'isActive', 'isPinned'],
+          sort: {
+            sortBy: 'createdAt',
+            direction: 'desc',
+          },
+          properties: {
+            name: {
+              isTitle: true,
+            },
+          },
         },
       },
       {
@@ -109,8 +139,22 @@ export async function setupAdminPanel(app: Application) {
       {
         resource: { model: prisma.user, client: prisma },
         options: {
+          navigation: {
+            name: 'Пользователи',
+            icon: 'User',
+          },
           listProperties: ['telegramId', 'firstName', 'username', 'phone', 'deliveryAddress', 'createdAt'],
+          showProperties: ['telegramId', 'firstName', 'lastName', 'username', 'phone', 'deliveryAddress', 'balance', 'selectedRegion', 'createdAt', 'updatedAt'],
+          editProperties: ['firstName', 'lastName', 'username', 'phone', 'deliveryAddress', 'balance', 'selectedRegion'],
+          filterProperties: ['telegramId', 'firstName', 'username', 'phone'],
+          sort: {
+            sortBy: 'createdAt',
+            direction: 'desc',
+          },
           properties: {
+            telegramId: {
+              isTitle: true, // Делаем telegramId заголовком
+            },
             phone: {
               isVisible: {
                 list: true,
@@ -139,8 +183,22 @@ export async function setupAdminPanel(app: Application) {
       {
         resource: { model: prisma.orderRequest, client: prisma },
         options: {
+          navigation: {
+            name: 'Заказы',
+            icon: 'ShoppingCart',
+          },
           listProperties: ['id', 'userId', 'status', 'contact', 'createdAt'],
+          showProperties: ['id', 'userId', 'status', 'contact', 'message', 'itemsJson', 'createdAt'],
+          editProperties: ['status', 'contact', 'message'],
+          filterProperties: ['status', 'contact'],
+          sort: {
+            sortBy: 'createdAt',
+            direction: 'desc',
+          },
           properties: {
+            id: {
+              isTitle: true, // Делаем id заголовком
+            },
             itemsJson: {
               type: 'textarea',
               isVisible: {
@@ -148,6 +206,9 @@ export async function setupAdminPanel(app: Application) {
                 edit: true,
                 show: true,
                 filter: false,
+              },
+              props: {
+                rows: 4,
               },
             },
             message: {
@@ -158,6 +219,9 @@ export async function setupAdminPanel(app: Application) {
                 show: true,
                 filter: false,
               },
+              props: {
+                rows: 3,
+              },
             },
           },
         },
@@ -165,12 +229,24 @@ export async function setupAdminPanel(app: Application) {
       {
         resource: { model: prisma.botContent, client: prisma },
         options: {
+          navigation: {
+            name: 'Контент бота',
+            icon: 'Text',
+          },
           listProperties: ['key', 'title', 'category', 'language', 'isActive', 'updatedAt'],
+          showProperties: ['key', 'title', 'content', 'description', 'category', 'language', 'isActive', 'createdAt', 'updatedAt'],
+          editProperties: ['key', 'title', 'content', 'description', 'category', 'language', 'isActive'],
+          filterProperties: ['key', 'title', 'category', 'language', 'isActive'],
+          sort: {
+            sortBy: 'updatedAt',
+            direction: 'desc',
+          },
           properties: {
             key: {
               isVisible: {
                 list: true, edit: true, show: true, filter: true,
               },
+              isTitle: true, // Делаем key заголовком для лучшей навигации
             },
             title: {
               isVisible: {
@@ -182,26 +258,51 @@ export async function setupAdminPanel(app: Application) {
               isVisible: {
                 list: false, edit: true, show: true, filter: false,
               },
+              props: {
+                rows: 8,
+              },
             },
             description: {
               type: 'textarea',
               isVisible: {
                 list: false, edit: true, show: true, filter: false,
               },
+              props: {
+                rows: 3,
+              },
             },
             category: {
               isVisible: {
                 list: true, edit: true, show: true, filter: true,
               },
+              availableValues: [
+                { value: 'messages', label: 'Сообщения' },
+                { value: 'descriptions', label: 'Описания' },
+                { value: 'buttons', label: 'Кнопки' },
+              ],
             },
             language: {
               isVisible: {
                 list: true, edit: true, show: true, filter: true,
               },
+              availableValues: [
+                { value: 'ru', label: 'Русский' },
+                { value: 'en', label: 'English' },
+              ],
             },
             isActive: {
               isVisible: {
                 list: true, edit: true, show: true, filter: true,
+              },
+            },
+            createdAt: {
+              isVisible: {
+                list: false, edit: false, show: true, filter: false,
+              },
+            },
+            updatedAt: {
+              isVisible: {
+                list: true, edit: false, show: true, filter: false,
               },
             },
           },
