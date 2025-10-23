@@ -401,6 +401,8 @@ async function buyProduct(productId) {
 
 async function activatePartnerProgram(type) {
     try {
+        console.log('🤝 Activating partner program:', type);
+        
         const response = await fetch(`${API_BASE}/partner/activate`, {
             method: 'POST',
             headers: {
@@ -410,9 +412,20 @@ async function activatePartnerProgram(type) {
         });
         
         if (response.ok) {
-            showSuccess('Партнёрская программа активирована!');
+            const data = await response.json();
+            console.log('✅ Partner program activated:', data);
+            showSuccess(data.message || 'Партнёрская программа активирована!');
+            
+            // If we have a referral code, show it
+            if (data.referralCode) {
+                setTimeout(() => {
+                    showSuccess(`Ваш реферальный код: ${data.referralCode}`);
+                }, 1000);
+            }
         } else {
-            showError('Ошибка активации программы');
+            const errorData = await response.json();
+            console.error('Partner activation failed:', errorData);
+            showError(`Ошибка активации программы: ${errorData.error || 'Неизвестная ошибка'}`);
         }
     } catch (error) {
         console.error('Error activating partner program:', error);
@@ -472,14 +485,52 @@ function playAudio(matrixId) {
     // Здесь можно добавить логику воспроизведения аудио
 }
 
-function showVideo() {
-    showSuccess('Открытие видео...');
-    // Здесь можно добавить логику показа видео
+async function showVideo() {
+    try {
+        console.log('🎥 Getting video URL...');
+        
+        // Получаем ссылку на видео с сервера
+        const response = await fetch(`${API_BASE}/video/url`);
+        if (response.ok) {
+            const data = await response.json();
+            const videoUrl = data.videoUrl;
+            
+            console.log('✅ Video URL received:', videoUrl);
+            
+            if (tg && tg.openLink) {
+                // Открываем видео в Telegram
+                tg.openLink(videoUrl);
+            } else if (tg && tg.openTelegramLink) {
+                // Альтернативный способ открытия ссылки
+                tg.openTelegramLink(videoUrl);
+            } else {
+                // Fallback - открываем в новом окне/вкладке
+                window.open(videoUrl, '_blank');
+            }
+        } else {
+            console.error('Failed to get video URL:', response.status);
+            showError('Ошибка получения ссылки на видео');
+        }
+    } catch (error) {
+        console.error('Error getting video URL:', error);
+        showError('Ошибка открытия видео');
+    }
 }
 
 function openTelegram() {
-    showSuccess('Открытие Telegram...');
-    // Здесь можно добавить ссылку на Telegram канал
+    // Ссылка на Telegram канал (замените на реальную)
+    const telegramUrl = 'https://t.me/your_channel_username'; // Замените на реальную ссылку
+    
+    if (tg && tg.openLink) {
+        // Открываем Telegram канал в Telegram
+        tg.openLink(telegramUrl);
+    } else if (tg && tg.openTelegramLink) {
+        // Альтернативный способ открытия ссылки
+        tg.openTelegramLink(telegramUrl);
+    } else {
+        // Fallback - открываем в новом окне/вкладке
+        window.open(telegramUrl, '_blank');
+    }
 }
 
 function sendMessage() {
@@ -575,6 +626,8 @@ async function showCategoryProducts(categoryId) {
 // Add to cart function
 async function addToCart(productId) {
     try {
+        console.log('🛒 Adding to cart:', productId);
+        
         const response = await fetch(`${API_BASE}/cart/add`, {
             method: 'POST',
             headers: {
@@ -587,7 +640,9 @@ async function addToCart(productId) {
             showSuccess('Товар добавлен в корзину!');
             loadCartItems(); // Refresh cart
         } else {
-            showError('Ошибка добавления в корзину');
+            const errorData = await response.json();
+            console.error('Cart add failed:', errorData);
+            showError(`Ошибка добавления в корзину: ${errorData.error || 'Неизвестная ошибка'}`);
         }
     } catch (error) {
         console.error('Error adding to cart:', error);
@@ -611,13 +666,228 @@ async function buyProduct(productId) {
         
         if (response.ok) {
             showSuccess('Заказ создан! Ожидайте подтверждения.');
+            // После создания заказа запрашиваем телефон и адрес
+            await requestContactAndAddress();
         } else {
-            showError('Ошибка создания заказа');
+            const errorData = await response.json();
+            console.error('Order creation failed:', errorData);
+            showError(`Ошибка создания заказа: ${errorData.error || 'Неизвестная ошибка'}`);
         }
     } catch (error) {
         console.error('Error buying product:', error);
         showError('Ошибка создания заказа');
     }
+}
+
+// Contact and address collection functions
+async function requestContactAndAddress() {
+    // Сначала проверяем, есть ли у пользователя уже сохраненные данные
+    const user = await loadUserData();
+    
+    if (user && user.phone && user.deliveryAddress) {
+        // У пользователя есть и телефон и адрес - показываем подтверждение
+        await showAddressConfirmation(user.deliveryAddress);
+    } else if (user && user.phone) {
+        // Есть только телефон - запрашиваем адрес
+        await requestDeliveryAddress();
+    } else {
+        // Нет ни телефона, ни адреса - запрашиваем телефон
+        await requestPhoneNumber();
+    }
+}
+
+async function requestPhoneNumber() {
+    const content = `
+        <div class="content-section">
+            <h3>📞 Номер телефона</h3>
+            <p>Для быстрой связи поделитесь своим номером телефона:</p>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn" onclick="shareContact()">
+                    📞 Поделиться контактом
+                </button>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn btn-secondary" onclick="enterPhoneManually()">
+                    ✏️ Ввести номер вручную
+                </button>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn btn-secondary" onclick="skipPhone()">
+                    ⏭️ Пропустить
+                </button>
+            </div>
+        </div>
+    `;
+    
+    showProductsSection(content);
+}
+
+async function requestDeliveryAddress() {
+    const content = `
+        <div class="content-section">
+            <h3>📍 Адрес доставки</h3>
+            <p>Укажите адрес для доставки заказа:</p>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn" onclick="selectAddressType('bali')">
+                    🇮🇩 Бали - район и вилла
+                </button>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn btn-secondary" onclick="selectAddressType('russia')">
+                    🇷🇺 РФ - город и адрес
+                </button>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn btn-secondary" onclick="selectAddressType('custom')">
+                    ✏️ Ввести свой вариант
+                </button>
+            </div>
+        </div>
+    `;
+    
+    showProductsSection(content);
+}
+
+async function showAddressConfirmation(address) {
+    const content = `
+        <div class="content-section">
+            <h3>📍 Подтверждение адреса</h3>
+            <p>Вам доставить на этот адрес?</p>
+            
+            <div style="background: linear-gradient(135deg, #2d2d2d 0%, #3d3d3d 100%); 
+                        border: 1px solid rgba(255, 255, 255, 0.1); 
+                        border-radius: 12px; 
+                        padding: 16px; 
+                        margin: 20px 0;">
+                <p style="color: #ffffff; font-weight: bold;">${address}</p>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn" onclick="confirmAddress('${address}')">
+                    ✅ Да, доставить сюда
+                </button>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn btn-secondary" onclick="changeAddress()">
+                    ✏️ Изменить адрес
+                </button>
+            </div>
+        </div>
+    `;
+    
+    showProductsSection(content);
+}
+
+// Contact sharing functions
+async function shareContact() {
+    if (tg && tg.requestContact) {
+        try {
+            const contact = await tg.requestContact();
+            if (contact && contact.phone_number) {
+                await savePhoneNumber(contact.phone_number);
+                await requestDeliveryAddress();
+            }
+        } catch (error) {
+            console.error('Error requesting contact:', error);
+            showError('Ошибка получения контакта');
+        }
+    } else {
+        // Fallback to manual input if Telegram API is not available
+        await enterPhoneManually();
+    }
+}
+
+async function enterPhoneManually() {
+    const phone = prompt('Введите номер телефона:');
+    if (phone) {
+        await savePhoneNumber(phone);
+        await requestDeliveryAddress();
+    }
+}
+
+async function skipPhone() {
+    await requestDeliveryAddress();
+}
+
+async function savePhoneNumber(phone) {
+    try {
+        const response = await fetch(`${API_BASE}/user/phone`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ phone })
+        });
+        
+        if (response.ok) {
+            showSuccess('Номер телефона сохранен!');
+        } else {
+            showError('Ошибка сохранения номера');
+        }
+    } catch (error) {
+        console.error('Error saving phone:', error);
+        showError('Ошибка сохранения номера');
+    }
+}
+
+// Address functions
+async function selectAddressType(type) {
+    let promptText = '';
+    switch (type) {
+        case 'bali':
+            promptText = 'Укажите адрес для Бали:\nНапишите район и название виллы (например: "Семиньяк, Villa Seminyak Resort")';
+            break;
+        case 'russia':
+            promptText = 'Укажите адрес для России:\nНапишите ваш город и точный адрес (например: "Москва, ул. Тверская, д. 10, кв. 5")';
+            break;
+        case 'custom':
+            promptText = 'Введите свой вариант адреса:\nНапишите полный адрес доставки в произвольной форме.';
+            break;
+    }
+    
+    const address = prompt(promptText);
+    if (address) {
+        await saveDeliveryAddress(type, address);
+    }
+}
+
+async function saveDeliveryAddress(type, address) {
+    try {
+        const fullAddress = `${type}: ${address}`;
+        const response = await fetch(`${API_BASE}/user/address`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ address: fullAddress })
+        });
+        
+        if (response.ok) {
+            showSuccess('Адрес сохранен!');
+            closeSection();
+        } else {
+            showError('Ошибка сохранения адреса');
+        }
+    } catch (error) {
+        console.error('Error saving address:', error);
+        showError('Ошибка сохранения адреса');
+    }
+}
+
+async function confirmAddress(address) {
+    showSuccess('Адрес подтвержден! Заказ будет доставлен по указанному адресу.');
+    closeSection();
+}
+
+async function changeAddress() {
+    await requestDeliveryAddress();
 }
 
 // Utility functions
@@ -638,11 +908,16 @@ async function loadUserData() {
 
 async function loadCartItems() {
   try {
+    console.log('🛒 Loading cart items...');
     const response = await fetch(`${API_BASE}/cart/items`);
     if (response.ok) {
       cartItems = await response.json();
+      console.log('✅ Cart items loaded:', cartItems.length);
     } else if (response.status === 401) {
       console.log('User not authenticated - this is normal for web preview');
+      cartItems = [];
+    } else {
+      console.error('Failed to load cart items:', response.status);
       cartItems = [];
     }
   } catch (error) {
@@ -711,6 +986,11 @@ function showError(message) {
         tg.showAlert(message);
     } else {
         alert(message);
+    }
+    
+    // Close any open sections on error
+    if (currentSection) {
+        closeSection();
     }
 }
 

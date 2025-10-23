@@ -252,7 +252,21 @@ export function registerCartActions(bot: Telegraf<Context>) {
       console.log('✅ CART CHECKOUT: Order request created successfully');
 
       const cartText = cartItemsToText(cartItems);
-      const orderText = `🛍️ Новый заказ от ${ctx.from?.first_name || 'Пользователь'}\n\n${cartText}\n\n📞 Свяжитесь с покупателем: @${ctx.from?.username || 'нет username'}`;
+      
+      // Get user data for phone and address
+      const userData = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+      
+      let contactInfo = `📞 Свяжитесь с покупателем: @${ctx.from?.username || 'нет username'}`;
+      if (userData?.phone) {
+        contactInfo += `\n📱 Телефон: ${userData.phone}`;
+      }
+      if (userData?.deliveryAddress) {
+        contactInfo += `\n📍 Адрес доставки: ${userData.deliveryAddress}`;
+      }
+      
+      const orderText = `🛍️ Новый заказ от ${ctx.from?.first_name || 'Пользователь'}\n\n${cartText}\n\n${contactInfo}`;
 
       // Send order to all admins
       const { sendToAllAdmins } = await import('../../config/env.js');
@@ -263,25 +277,62 @@ export function registerCartActions(bot: Telegraf<Context>) {
       
       await ctx.reply('✅ Заказ отправлен! Мы свяжемся с вами в ближайшее время.');
       
-      // Show contact sharing button first
-      await ctx.reply('📞 Для быстрой связи поделитесь своим номером телефона:', {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: '📞 Поделиться контактом',
-                callback_data: 'contact:share',
-              },
+      // Check if user has phone and address
+      if (userData?.phone && userData?.deliveryAddress) {
+        // User has both phone and address - show confirmation
+        await ctx.reply(`📍 Вам доставить на этот адрес?\n\n${userData.deliveryAddress}`, {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '✅ Да, доставить сюда',
+                  callback_data: 'delivery:confirm_existing',
+                },
+              ],
+              [
+                {
+                  text: '✏️ Изменить адрес',
+                  callback_data: 'delivery:change',
+                },
+              ],
             ],
-            [
-              {
-                text: '⏭️ Пропустить',
-                callback_data: 'contact:skip',
-              },
+          },
+        });
+      } else if (userData?.phone) {
+        // User has phone but no address - ask for address
+        await ctx.reply('📍 Теперь укажите адрес доставки:', {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '📍 Адрес доставки',
+                  callback_data: 'delivery:address',
+                },
+              ],
             ],
-          ],
-        },
-      });
+          },
+        });
+      } else {
+        // User has no phone - ask for contact first
+        await ctx.reply('📞 Для быстрой связи поделитесь своим номером телефона:', {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '📞 Поделиться контактом',
+                  callback_data: 'contact:share',
+                },
+              ],
+              [
+                {
+                  text: '⏭️ Пропустить',
+                  callback_data: 'contact:skip',
+                },
+              ],
+            ],
+          },
+        });
+      }
     } catch (error) {
       console.error('❌ CART CHECKOUT: Error processing checkout:', error);
       await ctx.reply('❌ Ошибка оформления заказа. Попробуйте позже.');
@@ -546,6 +597,13 @@ export function registerCartActions(bot: Telegraf<Context>) {
     await logUserAction(ctx, 'delivery:use_existing');
     
     await ctx.reply('✅ Отлично! Будем использовать ваш сохраненный адрес доставки.');
+  });
+
+  bot.action('delivery:confirm_existing', async (ctx) => {
+    await ctx.answerCbQuery();
+    await logUserAction(ctx, 'delivery:confirm_existing');
+    
+    await ctx.reply('✅ Отлично! Заказ будет доставлен по указанному адресу.');
   });
 
   // Contact sharing handlers

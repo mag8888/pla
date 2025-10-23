@@ -109,7 +109,25 @@ export async function setupAdminPanel(app: Application) {
       {
         resource: { model: prisma.user, client: prisma },
         options: {
-          listProperties: ['telegramId', 'firstName', 'username', 'createdAt'],
+          listProperties: ['telegramId', 'firstName', 'username', 'phone', 'deliveryAddress', 'createdAt'],
+          properties: {
+            phone: {
+              isVisible: {
+                list: true,
+                edit: true,
+                show: true,
+                filter: true,
+              },
+            },
+            deliveryAddress: {
+              isVisible: {
+                list: true,
+                edit: true,
+                show: true,
+                filter: true,
+              },
+            },
+          },
         },
       },
       {
@@ -121,7 +139,27 @@ export async function setupAdminPanel(app: Application) {
       {
         resource: { model: prisma.orderRequest, client: prisma },
         options: {
-          listProperties: ['id', 'status', 'createdAt'],
+          listProperties: ['id', 'userId', 'status', 'contact', 'createdAt'],
+          properties: {
+            itemsJson: {
+              type: 'textarea',
+              isVisible: {
+                list: false,
+                edit: true,
+                show: true,
+                filter: false,
+              },
+            },
+            message: {
+              type: 'textarea',
+              isVisible: {
+                list: false,
+                edit: true,
+                show: true,
+                filter: false,
+              },
+            },
+          },
         },
       },
     ],

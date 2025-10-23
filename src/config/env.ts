@@ -17,6 +17,7 @@ export const env = {
   adminEmail: requireEnv('ADMIN_EMAIL'),
   adminPassword: requireEnv('ADMIN_PASSWORD'),
   publicBaseUrl: process.env.PUBLIC_BASE_URL || 'http://localhost:3000',
+  videoUrl: process.env.VIDEO_URL || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Ссылка на видео по умолчанию
 };
 
 // Helper function to get all admin chat IDs
