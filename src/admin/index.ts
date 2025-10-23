@@ -42,6 +42,9 @@ export async function setupAdminPanel(app: Application) {
         component: 'Dashboard'
       }
     },
+    settings: {
+      defaultPerPage: 10,
+    },
     resources: [
       {
         resource: { model: prisma.category, client: prisma },
@@ -300,6 +303,10 @@ export async function setupAdminPanel(app: Application) {
               isAccessible: true,
               isVisible: true,
             },
+          },
+          parent: {
+            name: 'Контент бота',
+            icon: 'Text',
           },
           properties: {
             key: {

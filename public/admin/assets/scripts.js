@@ -1,21 +1,40 @@
 // Отключение автоматического перехода на детальную страницу
 document.addEventListener('DOMContentLoaded', function() {
-  // Убираем обработчики клика со строк таблицы
-  const tableRows = document.querySelectorAll('.adminjs-table tbody tr');
-  tableRows.forEach(row => {
-    // Убираем все обработчики событий
-    row.onclick = null;
-    row.style.cursor = 'default';
-    row.style.pointerEvents = 'none';
-    
-    // Убираем обработчики с ячеек
-    const cells = row.querySelectorAll('td');
-    cells.forEach(cell => {
-      cell.onclick = null;
-      cell.style.cursor = 'default';
-      cell.style.pointerEvents = 'none';
+  console.log('🚫 AdminJS redirect blocker loaded');
+  
+  // Функция для отключения клика по строкам
+  function disableRowClicks() {
+    const tableRows = document.querySelectorAll('.adminjs-table tbody tr');
+    tableRows.forEach(row => {
+      // Убираем все обработчики событий
+      row.onclick = null;
+      row.style.cursor = 'default';
+      row.style.pointerEvents = 'none';
+      
+      // Убираем обработчики с ячеек
+      const cells = row.querySelectorAll('td');
+      cells.forEach(cell => {
+        cell.onclick = null;
+        cell.style.cursor = 'default';
+        cell.style.pointerEvents = 'none';
+        
+        // Убираем все ссылки в ячейках
+        const links = cell.querySelectorAll('a');
+        links.forEach(link => {
+          link.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          };
+          link.style.pointerEvents = 'none';
+          link.style.cursor = 'default';
+        });
+      });
     });
-  });
+  }
+  
+  // Отключаем клики сразу
+  disableRowClicks();
   
   // Более агрессивное отключение
   const observer = new MutationObserver(function(mutations) {
@@ -50,17 +69,44 @@ document.addEventListener('DOMContentLoaded', function() {
     button.style.cursor = 'pointer';
   });
   
-  // Отключаем переход по клику на строку
+  // Агрессивное отключение всех переходов
   document.addEventListener('click', function(e) {
     const target = e.target;
     const row = target.closest('.adminjs-table tbody tr');
     
     if (row && !target.closest('.adminjs-button')) {
+      console.log('🚫 Blocked click on table row');
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       return false;
     }
   });
+  
+  // Отключаем все переходы по ссылкам в таблицах
+  document.addEventListener('click', function(e) {
+    if (e.target.tagName === 'A' && e.target.closest('.adminjs-table')) {
+      console.log('🚫 Blocked link click in table');
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return false;
+    }
+  });
+  
+  // Перехватываем все попытки навигации
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+  
+  history.pushState = function(...args) {
+    console.log('🚫 Blocked pushState:', args);
+    return;
+  };
+  
+  history.replaceState = function(...args) {
+    console.log('🚫 Blocked replaceState:', args);
+    return;
+  };
   
   // Улучшаем навигацию
   const navigationItems = document.querySelectorAll('.adminjs-navigation-item');
