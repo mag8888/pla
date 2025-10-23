@@ -2,8 +2,10 @@ import { Telegraf, Markup } from 'telegraf';
 import { Context } from '../../bot/context.js';
 import { BotModule } from '../../bot/types.js';
 import { logUserAction } from '../../services/user-history.js';
+import { getBotContent } from '../../services/bot-content-service.js';
 
-const aboutText = `💧 <b>О PLAZMA WATER</b>
+// Fallback текст, если контент не найден в БД
+const fallbackAboutText = `💧 <b>О PLAZMA WATER</b>
 
 ✨ <b>Plazma Water</b> — это революционная форма витаминов и микроэлементов в плазменной наноформе.
 
@@ -25,6 +27,9 @@ export const aboutModule: BotModule = {
 };
 
 export async function showAbout(ctx: Context) {
+  // Получаем контент из базы данных
+  const aboutText = await getBotContent('about_text') || fallbackAboutText;
+  
   const keyboard = Markup.inlineKeyboard([
     [
       Markup.button.url('📱 VK', 'https://vk.com/iplazma'),

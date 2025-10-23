@@ -1,4 +1,5 @@
 import { prisma } from './prisma.js';
+import { initializeBotContent } from '../services/bot-content-service.js';
 
 export async function ensureInitialData() {
   try {
@@ -13,6 +14,9 @@ export async function ensureInitialData() {
         },
       });
     }
+
+    // Инициализируем контент бота
+    await initializeBotContent();
   } catch (error) {
     console.warn('Failed to initialize data:', error);
     // Continue without initial data if DB connection fails

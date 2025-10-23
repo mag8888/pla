@@ -162,6 +162,51 @@ export async function setupAdminPanel(app: Application) {
           },
         },
       },
+      {
+        resource: { model: prisma.botContent, client: prisma },
+        options: {
+          listProperties: ['key', 'title', 'category', 'language', 'isActive', 'updatedAt'],
+          properties: {
+            key: {
+              isVisible: {
+                list: true, edit: true, show: true, filter: true,
+              },
+            },
+            title: {
+              isVisible: {
+                list: true, edit: true, show: true, filter: true,
+              },
+            },
+            content: {
+              type: 'textarea',
+              isVisible: {
+                list: false, edit: true, show: true, filter: false,
+              },
+            },
+            description: {
+              type: 'textarea',
+              isVisible: {
+                list: false, edit: true, show: true, filter: false,
+              },
+            },
+            category: {
+              isVisible: {
+                list: true, edit: true, show: true, filter: true,
+              },
+            },
+            language: {
+              isVisible: {
+                list: true, edit: true, show: true, filter: true,
+              },
+            },
+            isActive: {
+              isVisible: {
+                list: true, edit: true, show: true, filter: true,
+              },
+            },
+          },
+        },
+      },
     ],
   });
 

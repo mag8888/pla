@@ -4,6 +4,7 @@ import { Context } from '../../bot/context.js';
 import { BotModule } from '../../bot/types.js';
 import { ensureUser, logUserAction } from '../../services/user-history.js';
 import { buildReferralLink, getOrCreatePartnerProfile, getPartnerDashboard, getPartnerList } from '../../services/partner-service.js';
+import { getBotContent } from '../../services/bot-content-service.js';
 import { prisma } from '../../lib/prisma.js';
 
 // Тип для партнерского реферала с включенными данными
@@ -37,7 +38,8 @@ const PARTNERS_LEVEL_1_ACTION = 'partner:level:1';
 const PARTNERS_LEVEL_2_ACTION = 'partner:level:2';
 const PARTNERS_LEVEL_3_ACTION = 'partner:level:3';
 
-const programIntro = `✨ Описание партнёрской программы
+// Fallback тексты, если контент не найден в БД
+const fallbackProgramIntro = `✨ Описание партнёрской программы
 
 👋 Станьте партнёром Plazma Water!
 Вы можете рекомендовать друзьям здоровье и получать пассивный доход.
@@ -66,7 +68,7 @@ const cardTemplate = (params: {
 ${params.transactions.length > 0 ? `	•	📊 История начислений:\n${params.transactions.join('\n')}` : '	•	📊 История начислений: [список транзакций]'}
 ${params.activationStatus || ''}`;
 
-const directPlanText = `Прямая комиссия — 25%
+const fallbackDirectPlanText = `Прямая комиссия — 25%
 Делитесь ссылкой → получаете 25% от всех покупок друзей.
 
 💡 Условия бонуса:
@@ -75,7 +77,7 @@ const directPlanText = `Прямая комиссия — 25%
 
 📲 Выбирайте удобный формат и начинайте зарабатывать уже сегодня!`;
 
-const multiPlanText = `Многоуровневая система — 15% + 5% + 5%
+const fallbackMultiPlanText = `Многоуровневая система — 15% + 5% + 5%
 	•	15% с покупок ваших друзей (1-й уровень)
 	•	5% с покупок их друзей (2-й уровень)
 	•	5% с покупок следующего уровня (3-й уровень)
@@ -596,11 +598,13 @@ export const partnerModule: BotModule = {
 
     bot.action(DIRECT_PLAN_ACTION, async (ctx) => {
       console.log('💰 Partner: Direct plan button pressed');
+      const directPlanText = await getBotContent('direct_plan_text') || fallbackDirectPlanText;
       await handlePlanSelection(ctx, PartnerProgramType.DIRECT, directPlanText);
     });
 
     bot.action(MULTI_PLAN_ACTION, async (ctx) => {
       console.log('💰 Partner: Multi-level plan button pressed');
+      const multiPlanText = await getBotContent('multi_plan_text') || fallbackMultiPlanText;
       await handlePlanSelection(ctx, PartnerProgramType.MULTI_LEVEL, multiPlanText);
     });
 
@@ -666,6 +670,8 @@ export const partnerModule: BotModule = {
 };
 
 export async function showPartnerIntro(ctx: Context) {
+  // Получаем контент из базы данных
+  const programIntro = await getBotContent('partner_intro') || fallbackProgramIntro;
   await ctx.reply(programIntro, planKeyboard());
 }
 

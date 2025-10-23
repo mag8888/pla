@@ -4,6 +4,7 @@ import { Context } from '../../bot/context.js';
 import { logUserAction, ensureUser } from '../../services/user-history.js';
 import { getCartItems, cartItemsToText, clearCart, increaseProductQuantity, decreaseProductQuantity, removeProductFromCart } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
+import { getBotContent } from '../../services/bot-content-service.js';
 import { prisma } from '../../lib/prisma.js';
 
 export const cartModule: BotModule = {
@@ -72,7 +73,8 @@ export async function showCart(ctx: Context) {
     console.log('🛍️ Cart: Found cart items:', cartItems.length);
     
     if (cartItems.length === 0) {
-      await ctx.reply('🛍️ Ваша корзина пуста\n\nДобавьте товары из магазина!', {
+      const emptyCartMessage = await getBotContent('cart_empty_message') || '🛍️ Ваша корзина пуста\n\nДобавьте товары из магазина!';
+      await ctx.reply(emptyCartMessage, {
         reply_markup: {
           inline_keyboard: [
             [
@@ -229,7 +231,8 @@ export function registerCartActions(bot: Telegraf<Context>) {
       const cartItems = await getCartItems(userId);
       
       if (cartItems.length === 0) {
-        await ctx.reply('🛍️ Ваша корзина пуста');
+        const emptyCartMessage = await getBotContent('cart_empty_message') || '🛍️ Ваша корзина пуста';
+        await ctx.reply(emptyCartMessage);
         return;
       }
 
@@ -275,7 +278,8 @@ export function registerCartActions(bot: Telegraf<Context>) {
       // Clear cart after successful order
       await clearCart(userId);
       
-      await ctx.reply('✅ Заказ отправлен! Мы свяжемся с вами в ближайшее время.');
+      const orderSuccessMessage = await getBotContent('order_success_message') || '✅ Заказ отправлен! Мы свяжемся с вами в ближайшее время.';
+      await ctx.reply(orderSuccessMessage);
       
       // Check if user has phone and address
       if (userData?.phone && userData?.deliveryAddress) {
