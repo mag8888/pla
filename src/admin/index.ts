@@ -166,6 +166,111 @@ export async function setupAdminPanel(app: Application) {
               },
             },
           },
+          actions: {
+            list: {
+              isAccessible: true,
+              isVisible: true,
+            },
+            show: {
+              isAccessible: true,
+              isVisible: true,
+            },
+            edit: {
+              isAccessible: true,
+              isVisible: true,
+            },
+            delete: {
+              isAccessible: true,
+              isVisible: true,
+            },
+            new: {
+              isAccessible: true,
+              isVisible: true,
+            },
+            instruction: {
+              isAccessible: true,
+              isVisible: true,
+              component: false,
+              handler: async (request: any, response: any, context: any) => {
+                const { record } = context;
+                const product = await prisma.product.findUnique({
+                  where: { id: record.params.id }
+                });
+                
+                if (product && product.instruction) {
+                  return response.send(`
+                    <!DOCTYPE html>
+                    <html lang="ru">
+                    <head>
+                      <meta charset="UTF-8">
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                      <title>Инструкция - ${product.title}</title>
+                      <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+                        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+                        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+                        .back-btn { background: rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.3); transition: all 0.3s ease; display: inline-block; margin-top: 15px; }
+                        .back-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+                        .content { padding: 30px; }
+                        .instruction-text { color: #333; line-height: 1.6; font-size: 14px; white-space: pre-wrap; }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="container">
+                        <div class="header">
+                          <h1>📋 Инструкция по применению</h1>
+                          <p>${product.title}</p>
+                          <a href="/admin/resources/products" class="back-btn">← Назад к товарам</a>
+                        </div>
+                        <div class="content">
+                          <div class="instruction-text">${product.instruction}</div>
+                        </div>
+                      </div>
+                    </body>
+                    </html>
+                  `);
+                } else {
+                  return response.send(`
+                    <!DOCTYPE html>
+                    <html lang="ru">
+                    <head>
+                      <meta charset="UTF-8">
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                      <title>Инструкция не найдена</title>
+                      <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+                        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+                        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+                        .back-btn { background: rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; border: 1px solid rgba(255,255,255,0.3); transition: all 0.3s ease; display: inline-block; margin-top: 15px; }
+                        .back-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+                        .content { padding: 30px; text-align: center; }
+                        .empty-state { color: #666; font-size: 16px; }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="container">
+                        <div class="header">
+                          <h1>📋 Инструкция не найдена</h1>
+                          <p>${product?.title || 'Неизвестный товар'}</p>
+                          <a href="/admin/resources/products" class="back-btn">← Назад к товарам</a>
+                        </div>
+                        <div class="content">
+                          <div class="empty-state">
+                            <h3>Инструкция не добавлена</h3>
+                            <p>Для этого товара еще не добавлена инструкция по применению.</p>
+                            <p>Вы можете добавить инструкцию, отредактировав товар.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </body>
+                    </html>
+                  `);
+                }
+              }
+            },
+          },
         },
       },
       {
