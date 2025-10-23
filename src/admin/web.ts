@@ -1907,7 +1907,7 @@ router.get('/', requireAdmin, async (req, res) => {
           };
           
           // Instruction modal functions
-          function showInstruction(productId, instructionText) {
+          window.showInstruction = function(productId, instructionText) {
             const modal = document.createElement('div');
             modal.className = 'instruction-modal';
             modal.innerHTML = \`
@@ -1936,9 +1936,9 @@ router.get('/', requireAdmin, async (req, res) => {
                 content.style.transform = 'scale(1)';
               }
             }, 10);
-          }
+          };
           
-          function closeInstruction() {
+          window.closeInstruction = function() {
             const modal = document.querySelector('.instruction-modal');
             if (modal) {
               const content = modal.querySelector('.instruction-content');
@@ -1949,7 +1949,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 modal.remove();
               }, 200);
             }
-          }
+          };
         </script>
       </body>
       </html>
