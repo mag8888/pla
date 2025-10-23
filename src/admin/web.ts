@@ -1931,7 +1931,7 @@ router.get('/', requireAdmin, async (req, res) => {
             
             // Add animation
             setTimeout(() => {
-              const content = modal.querySelector('.instruction-content') as HTMLElement;
+              const content = modal.querySelector('.instruction-content');
               if (content) {
                 content.style.transform = 'scale(1)';
               }
@@ -1941,7 +1941,7 @@ router.get('/', requireAdmin, async (req, res) => {
           function closeInstruction() {
             const modal = document.querySelector('.instruction-modal');
             if (modal) {
-              const content = modal.querySelector('.instruction-content') as HTMLElement;
+              const content = modal.querySelector('.instruction-content');
               if (content) {
                 content.style.transform = 'scale(0.8)';
               }
