@@ -12,6 +12,7 @@ const CATEGORY_ACTION_PREFIX = 'shop:cat:';
 const PRODUCT_MORE_PREFIX = 'shop:prod:more:';
 const PRODUCT_CART_PREFIX = 'shop:prod:cart:';
 const PRODUCT_BUY_PREFIX = 'shop:prod:buy:';
+const PRODUCT_INSTRUCTION_PREFIX = 'shop:prod:instruction:';
 const REGION_SELECT_PREFIX = 'shop:region:';
 
 export async function showRegionSelection(ctx: Context) {
@@ -156,6 +157,9 @@ async function sendProductCards(ctx: Context, categoryId: string, region?: strin
       if (product.description) {
         buttons.push(Markup.button.callback('📖 Подробнее', `${PRODUCT_MORE_PREFIX}${product.id}`));
       }
+      if (product.instruction) {
+        buttons.push(Markup.button.callback('📋 Инструкция', `${PRODUCT_INSTRUCTION_PREFIX}${product.id}`));
+      }
       buttons.push(Markup.button.callback('🛒 В корзину', `${PRODUCT_CART_PREFIX}${product.id}`));
       buttons.push(Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product.id}`));
 
@@ -214,6 +218,18 @@ async function handleProductMore(ctx: Context, productId: string) {
   await logUserAction(ctx, 'shop:product-details', { productId });
   await ctx.answerCbQuery();
   await ctx.reply(`ℹ️ ${product.title}\n\n${product.description}`);
+}
+
+async function handleProductInstruction(ctx: Context, productId: string) {
+  const product = await getProductById(productId);
+  if (!product || !product.instruction) {
+    await ctx.answerCbQuery('Инструкция не найдена');
+    return;
+  }
+
+  await logUserAction(ctx, 'shop:product-instruction', { productId });
+  await ctx.answerCbQuery();
+  await ctx.reply(`📋 Инструкция по применению\n\n${product.title}\n\n${product.instruction}`);
 }
 
 async function handleBuy(ctx: Context, productId: string) {
@@ -359,6 +375,12 @@ export const shopModule: BotModule = {
       const match = ctx.match as RegExpExecArray;
       const productId = match[1];
       await handleProductMore(ctx, productId);
+    });
+
+    bot.action(new RegExp(`^${PRODUCT_INSTRUCTION_PREFIX}(.+)$`), async (ctx) => {
+      const match = ctx.match as RegExpExecArray;
+      const productId = match[1];
+      await handleProductInstruction(ctx, productId);
     });
 
     bot.action(new RegExp(`^${PRODUCT_CART_PREFIX}(.+)$`), async (ctx) => {
