@@ -415,23 +415,23 @@ export async function setupAdminPanel(app: Application) {
       return res.status(404).send('Detail pages disabled');
     }
     
-    // Специальная блокировка для users-detailed с параметрами
-    if (req.path === '/users-detailed' || req.path.includes('users-detailed')) {
-      console.log('🚫 BLOCKED USERS-DETAILED:', req.path, req.query);
-      return res.status(404).send('Users detailed page disabled');
-    }
+    // Специальная блокировка для users-detailed с параметрами - ОТКЛЮЧЕНА
+    // if (req.path === '/users-detailed' || req.path.includes('users-detailed')) {
+    //   console.log('🚫 BLOCKED USERS-DETAILED:', req.path, req.query);
+    //   return res.status(404).send('Users detailed page disabled');
+    // }
     
-    // Блокируем все запросы с параметрами сортировки к users-detailed
-    if (req.path.includes('users-detailed') && (req.query.sort || req.query.order)) {
-      console.log('🚫 BLOCKED USERS-DETAILED SORT:', req.path, req.query);
-      return res.status(404).send('Users detailed page disabled');
-    }
+    // Блокируем все запросы с параметрами сортировки к users-detailed - ОТКЛЮЧЕНА
+    // if (req.path.includes('users-detailed') && (req.query.sort || req.query.order)) {
+    //   console.log('🚫 BLOCKED USERS-DETAILED SORT:', req.path, req.query);
+    //   return res.status(404).send('Users detailed page disabled');
+    // }
     
-    // Блокируем все запросы с параметрами сортировки - БЕЗ РЕДИРЕКТА
-    if (req.query.sort || req.query.order) {
-      console.log('🚫 BLOCKED SORT REQUEST:', req.path, req.query);
-      return res.status(404).send('Sort requests disabled');
-    }
+    // Блокируем все запросы с параметрами сортировки - БЕЗ РЕДИРЕКТА - ОТКЛЮЧЕНА
+    // if (req.query.sort || req.query.order) {
+    //   console.log('🚫 BLOCKED SORT REQUEST:', req.path, req.query);
+    //   return res.status(404).send('Sort requests disabled');
+    // }
     
     // Блокируем все запросы к детальным страницам пользователей - БЕЗ РЕДИРЕКТА
     if (req.path.includes('users') && (req.path.includes('show') || req.path.includes('edit'))) {
