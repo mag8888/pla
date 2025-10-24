@@ -4,6 +4,7 @@ import { BotModule } from '../../bot/types.js';
 import { logUserAction, ensureUser } from '../../services/user-history.js';
 import { upsertPartnerReferral, recordPartnerTransaction } from '../../services/partner-service.js';
 import { prisma } from '../../lib/prisma.js';
+import { env } from '../../config/env.js';
 
 const greeting = `👋 Добро пожаловать!
 Plazma Water — жидкие витамины и минералы в наноформе.
@@ -343,6 +344,60 @@ export function mainKeyboard() {
 
 export const navigationModule: BotModule = {
   async register(bot: Telegraf<Context>) {
+    // Handle help command
+    bot.command('help', async (ctx) => {
+      await logUserAction(ctx, 'command:help');
+      await ctx.reply(
+        '🆘 <b>Справка по боту</b>\n\n' +
+        'Доступные команды:\n' +
+        '/start - Запустить бота и открыть главное меню\n' +
+        '/help - Показать эту справку\n' +
+        '/shop - Открыть магазин товаров\n' +
+        '/partner - Партнерская программа\n' +
+        '/audio - Звуковые матрицы\n' +
+        '/reviews - Отзывы клиентов\n' +
+        '/about - О PLASMA Water\n' +
+        '/support - Поддержка 24/7\n' +
+        '/app - Открыть веб-приложение\n\n' +
+        'Или используйте кнопки меню для навигации!',
+        { parse_mode: 'HTML' }
+      );
+    });
+
+    // Handle support command
+    bot.command('support', async (ctx) => {
+      await logUserAction(ctx, 'command:support');
+      await showSupport(ctx);
+    });
+
+    // Handle app command - open webapp
+    bot.command('app', async (ctx) => {
+      await logUserAction(ctx, 'command:app');
+      await ctx.reply(
+        '🌐 <b>Веб-приложение Plazma Water</b>\n\n' +
+        'Откройте веб-приложение для удобного просмотра товаров и оформления заказов:',
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '🚀 Открыть приложение',
+                  web_app: { url: `${env.webappUrl}/webapp` }
+                }
+              ],
+              [
+                {
+                  text: '📱 Как пользоваться',
+                  callback_data: 'nav:app:help'
+                }
+              ]
+            ]
+          }
+        }
+      );
+    });
+
     bot.start(async (ctx) => {
       await logUserAction(ctx, 'command:start');
       
@@ -541,6 +596,29 @@ export const navigationModule: BotModule = {
       await ctx.answerCbQuery();
       await logUserAction(ctx, 'ui:mode_classic', { source: 'navigation-card' });
       await exitAppInterface(ctx);
+    });
+
+    // Handle app help
+    bot.action('nav:app:help', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'app:help');
+      await ctx.reply(
+        '📱 <b>Как пользоваться веб-приложением</b>\n\n' +
+        '🌐 <b>Что такое веб-приложение?</b>\n' +
+        'Это полнофункциональный интернет-магазин, который открывается прямо в Telegram.\n\n' +
+        '✨ <b>Возможности:</b>\n' +
+        '• Просмотр каталога товаров\n' +
+        '• Добавление в корзину\n' +
+        '• Оформление заказов\n' +
+        '• Просмотр отзывов\n' +
+        '• Партнерская программа\n\n' +
+        '🚀 <b>Как открыть:</b>\n' +
+        '1. Нажмите кнопку "🚀 Открыть приложение"\n' +
+        '2. Приложение откроется в Telegram\n' +
+        '3. Используйте как обычный сайт\n\n' +
+        '💡 <b>Совет:</b> Веб-приложение работает быстрее и удобнее для покупок!',
+        { parse_mode: 'HTML' }
+      );
     });
 
 

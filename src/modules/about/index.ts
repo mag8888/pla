@@ -19,6 +19,12 @@ const fallbackAboutText = `💧 <b>О PLAZMA WATER</b>
 
 export const aboutModule: BotModule = {
   async register(bot: Telegraf<Context>) {
+    // Handle about command
+    bot.command('about', async (ctx) => {
+      await logUserAction(ctx, 'command:about');
+      await showAbout(ctx);
+    });
+
     bot.hears(['ℹ️ О PLAZMA'], async (ctx) => {
       await logUserAction(ctx, 'menu:about');
       await showAbout(ctx);

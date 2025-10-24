@@ -350,6 +350,13 @@ async function handleBuy(ctx: Context, productId: string) {
 export const shopModule: BotModule = {
   async register(bot: Telegraf<Context>) {
     console.log('🛍️ Registering shop module...');
+
+    // Handle shop command
+    bot.command('shop', async (ctx) => {
+      await logUserAction(ctx, 'command:shop');
+      await showRegionSelection(ctx);
+    });
+
     bot.hears(['Магазин', 'Каталог', '🛒 Магазин'], async (ctx) => {
       console.log('🛍️ Shop button pressed by user:', ctx.from?.id);
       
