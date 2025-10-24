@@ -367,8 +367,7 @@ async function addToCart(productId) {
         
         if (response.ok) {
             showSuccess('Товар добавлен в корзину!');
-            loadCartItems();
-            updateBadges();
+            loadCartItems(); // This will call updateCartBadge()
         } else {
             showError('Ошибка добавления в корзину');
         }
@@ -835,7 +834,7 @@ async function addToCart(productId) {
         
         if (response.ok) {
             showSuccess('Товар добавлен в корзину!');
-            loadCartItems(); // Refresh cart
+            loadCartItems(); // This will call updateCartBadge()
         } else {
             const errorData = await response.json();
             console.error('Cart add failed:', errorData);
@@ -1117,9 +1116,13 @@ async function loadCartItems() {
       console.error('Failed to load cart items:', response.status);
       cartItems = [];
     }
+    
+    // Update cart badge after loading items
+    updateCartBadge();
   } catch (error) {
     console.error('Error loading cart items:', error);
     cartItems = [];
+    updateCartBadge();
   }
 }
 
@@ -1155,9 +1158,37 @@ async function loadReviewsCount() {
     }
 }
 
+function updateCartBadge() {
+    try {
+        // Calculate total sum of cart items
+        let totalSum = 0;
+        if (cartItems && cartItems.length > 0) {
+            totalSum = cartItems.reduce((sum, item) => {
+                return sum + (item.product.price * item.quantity);
+            }, 0);
+        }
+        
+        // Update shop badge with total sum
+        const shopBadge = document.getElementById('shop-badge');
+        if (shopBadge) {
+            if (totalSum > 0) {
+                shopBadge.textContent = `$${totalSum.toFixed(2)}`;
+                shopBadge.style.background = '#4CAF50'; // Green for non-zero
+            } else {
+                shopBadge.textContent = '0';
+                shopBadge.style.background = ''; // Default color for zero
+            }
+        }
+        
+        console.log(`💰 Cart total: $${totalSum.toFixed(2)}`);
+    } catch (error) {
+        console.error('Error updating cart badge:', error);
+    }
+}
+
 function updateBadges() {
-    // Update shop badge with total products count (not cart count)
-    loadProductCount();
+    // Update shop badge with cart total sum
+    updateCartBadge();
     
     // Update reviews badge with total reviews count
     loadReviewsCount();
