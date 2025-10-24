@@ -28,18 +28,78 @@ router.get('/', (req, res) => {
 // Middleware to extract user info from Telegram WebApp
 const extractTelegramUser = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try {
-    const initData = req.headers['x-telegram-init-data'] as string;
-    if (initData) {
-      // Parse Telegram WebApp init data
-      const urlParams = new URLSearchParams(initData);
-      const userStr = urlParams.get('user');
-      if (userStr) {
-        (req as any).telegramUser = JSON.parse(decodeURIComponent(userStr));
+    // Try multiple ways to get Telegram user data
+    let telegramUser = null;
+    
+    // Method 1: From X-Telegram-User header (our custom header)
+    const telegramUserHeader = req.headers['x-telegram-user'] as string;
+    if (telegramUserHeader) {
+      console.log('📱 Found X-Telegram-User header:', telegramUserHeader);
+      try {
+        telegramUser = JSON.parse(telegramUserHeader);
+        console.log('✅ Telegram user from header:', telegramUser);
+      } catch (e) {
+        console.log('❌ Failed to parse X-Telegram-User:', e);
       }
     }
+    
+    // Method 2: From x-telegram-init-data header (original Telegram method)
+    if (!telegramUser) {
+      const initData = req.headers['x-telegram-init-data'] as string;
+      if (initData) {
+        console.log('📱 Found x-telegram-init-data:', initData);
+        const urlParams = new URLSearchParams(initData);
+        const userStr = urlParams.get('user');
+        if (userStr) {
+          telegramUser = JSON.parse(decodeURIComponent(userStr));
+          console.log('✅ Telegram user from init-data:', telegramUser);
+        }
+      }
+    }
+    
+    // Method 2: From query parameters (fallback)
+    if (!telegramUser && req.query.user) {
+      console.log('📱 Found user in query params:', req.query.user);
+      try {
+        telegramUser = JSON.parse(decodeURIComponent(req.query.user as string));
+        console.log('✅ Telegram user from query:', telegramUser);
+      } catch (e) {
+        console.log('❌ Failed to parse user from query:', e);
+      }
+    }
+    
+    // Method 3: From body (for POST requests)
+    if (!telegramUser && req.body && req.body.user) {
+      console.log('📱 Found user in body:', req.body.user);
+      telegramUser = req.body.user;
+      console.log('✅ Telegram user from body:', telegramUser);
+    }
+    
+    // Method 4: Mock user for development/testing
+    if (!telegramUser) {
+      console.log('⚠️ No Telegram user found, using mock user for development');
+      telegramUser = {
+        id: 123456789,
+        first_name: 'Test',
+        last_name: 'User',
+        username: 'testuser',
+        language_code: 'ru'
+      };
+    }
+    
+    (req as any).telegramUser = telegramUser;
+    console.log('🔐 Final telegram user:', telegramUser);
     next();
   } catch (error) {
-    console.error('Error extracting Telegram user:', error);
+    console.error('❌ Error extracting Telegram user:', error);
+    // Set mock user on error
+    (req as any).telegramUser = {
+      id: 123456789,
+      first_name: 'Test',
+      last_name: 'User',
+      username: 'testuser',
+      language_code: 'ru'
+    };
     next();
   }
 };

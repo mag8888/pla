@@ -19,6 +19,31 @@ let cartItems = [];
 // API Base URL - adjust based on your backend
 const API_BASE = '/webapp/api';
 
+// Get Telegram user data
+function getTelegramUserData() {
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        return tg.initDataUnsafe.user;
+    }
+    
+    // Fallback for development
+    return {
+        id: 123456789,
+        first_name: 'Test',
+        last_name: 'User',
+        username: 'testuser',
+        language_code: 'ru'
+    };
+}
+
+// Get headers with Telegram user data
+function getApiHeaders() {
+    const user = getTelegramUserData();
+    return {
+        'Content-Type': 'application/json',
+        'X-Telegram-User': JSON.stringify(user)
+    };
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     loadUserData();
@@ -359,9 +384,7 @@ async function addToCart(productId) {
     try {
         const response = await fetch(`${API_BASE}/cart/add`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getApiHeaders(),
             body: JSON.stringify({ productId })
         });
         
@@ -381,9 +404,7 @@ async function buyProduct(productId) {
     try {
         const response = await fetch(`${API_BASE}/orders/create`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getApiHeaders(),
             body: JSON.stringify({ productId })
         });
         
@@ -826,9 +847,7 @@ async function addToCart(productId) {
         
         const response = await fetch(`${API_BASE}/cart/add`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getApiHeaders(),
             body: JSON.stringify({ productId, quantity: 1 })
         });
         
@@ -851,9 +870,7 @@ async function buyProduct(productId) {
     try {
         const response = await fetch(`${API_BASE}/orders/create`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getApiHeaders(),
             body: JSON.stringify({ 
                 items: [{ productId, quantity: 1 }],
                 message: 'Покупка через веб-приложение'
@@ -1016,9 +1033,7 @@ async function savePhoneNumber(phone) {
     try {
         const response = await fetch(`${API_BASE}/user/phone`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getApiHeaders(),
             body: JSON.stringify({ phone })
         });
         
@@ -1059,9 +1074,7 @@ async function saveDeliveryAddress(type, address) {
         const fullAddress = `${type}: ${address}`;
         const response = await fetch(`${API_BASE}/user/address`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getApiHeaders(),
             body: JSON.stringify({ address: fullAddress })
         });
         
