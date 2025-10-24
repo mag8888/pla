@@ -77,7 +77,7 @@ export async function checkPartnerActivation(userId: string): Promise<boolean> {
 export function buildReferralLink(code: string, programType: 'DIRECT' | 'MULTI_LEVEL') {
   // Create Telegram bot link with referral parameter based on program type
   const prefix = programType === 'DIRECT' ? 'ref_direct' : 'ref_multi';
-  return `https://t.me/iplazmabot?start=${prefix}_${code}`;
+  return `https://t.me/plazma_water_bot?start=${prefix}_${code}`;
 }
 
 export async function getPartnerDashboard(userId: string) {
