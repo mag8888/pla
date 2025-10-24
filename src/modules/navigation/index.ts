@@ -121,7 +121,7 @@ async function showGiftMessage(ctx: Context) {
         [
           {
             text: '📖 ГИД по плазменному здоровью',
-            url: 'https://t.me/iplasmanano/509',
+            url: 'https://t.me/plazma_water_bot',
           },
         ],
       ],

@@ -46,7 +46,7 @@ export async function showAbout(ctx: Context) {
     ],
     [
       Markup.button.url('🌐 Каталог', 'https://iplazma.tilda.ws/'),
-      Markup.button.url('💬 Telegram', 'https://t.me/iplasmanano')
+      Markup.button.url('💬 Telegram', 'https://t.me/plazma_water_bot')
     ]
   ]);
 
