@@ -93,6 +93,24 @@ async function bootstrap() {
     // Set global bot instance for admin panel
     setBotInstance(bot);
 
+    // Register bot commands
+    try {
+      await bot.telegram.setMyCommands([
+        { command: 'start', description: 'Запустить бота и открыть главное меню' },
+        { command: 'help', description: 'Показать справку по использованию бота' },
+        { command: 'shop', description: 'Открыть магазин товаров' },
+        { command: 'partner', description: 'Партнерская программа' },
+        { command: 'audio', description: 'Звуковые матрицы' },
+        { command: 'reviews', description: 'Отзывы клиентов' },
+        { command: 'about', description: 'О PLASMA Water' },
+        { command: 'support', description: 'Поддержка 24/7' },
+        { command: 'app', description: 'Открыть веб-приложение' }
+      ]);
+      console.log('Bot commands registered successfully');
+    } catch (error) {
+      console.error('Failed to register bot commands:', error);
+    }
+
     console.log('Starting bot in long polling mode...');
     
     // Clear any existing webhook first
