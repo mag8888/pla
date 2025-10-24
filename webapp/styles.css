@@ -464,6 +464,11 @@ body {
     flex: 1;
     padding: 28px 24px 120px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+    margin: 0 auto;
 }
 
 .hidden {
@@ -580,6 +585,7 @@ body {
     max-width: 100%;
     margin-left: auto;
     margin-right: auto;
+    width: 100%;
 }
 
 .shop-category,
@@ -934,18 +940,26 @@ body {
     margin-bottom: 16px;
 }
 
-/* Center content in mini-app */
-.section-body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 0 16px;
-}
+/* Center content in mini-app - styles moved to main .section-body */
 
 .content-section {
     width: 100%;
     max-width: 600px;
     margin: 0 auto;
+}
+
+/* Fix scrolling for mobile devices */
+.section-overlay {
+    -webkit-overflow-scrolling: touch;
+}
+
+.section-body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Ensure products grid is scrollable */
+.products-grid {
+    min-height: auto;
+    overflow: visible;
 }
