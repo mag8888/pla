@@ -790,6 +790,7 @@ async function showCategoryProducts(categoryId) {
             products.forEach(product => {
                 content += `
                     <div class="product-tile">
+                        ${product.imageUrl ? `<div class="product-image"><img src="${product.imageUrl}" alt="${product.title}" onerror="this.style.display='none'"></div>` : '<div class="product-image-placeholder">📦</div>'}
                         <h4>${product.title}</h4>
                         <div class="product-description">${product.summary || product.description || 'Описание товара'}</div>
                         <div class="product-actions">
