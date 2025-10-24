@@ -22,6 +22,13 @@ enum Region {
   BALI
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
 model User {
   id              String          @id @default(auto()) @map("_id") @db.ObjectId
   telegramId      String          @unique
@@ -38,6 +45,7 @@ model User {
   partner         PartnerProfile?
   orders          OrderRequest[]
   referrals       PartnerReferral[] @relation("UserReferrals") // Рефералы этого пользователя
+  payments        Payment[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 }
@@ -184,4 +192,18 @@ model BotContent {
   language    String   @default("ru") // Язык контента
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  user        User          @relation(fields: [userId], references: [id])
+  orderId     String        @unique
+  invoiceId   String        @unique
+  amount      Float
+  currency    String        @default("RUB")
+  status      PaymentStatus @default(PENDING)
+  paymentUrl  String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }

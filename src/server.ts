@@ -11,6 +11,7 @@ import { prisma } from './lib/prisma.js';
 import { ensureInitialData } from './lib/bootstrap.js';
 import { adminWebRouter } from './admin/web.js';
 import { webappRouter } from './webapp/webapp.js';
+import lavaWebhook from './webhooks/lava.js';
 import { setBotInstance } from './lib/bot-instance.js';
 
 async function bootstrap() {
@@ -55,6 +56,9 @@ async function bootstrap() {
     
     // Webapp routes
     app.use('/webapp', webappRouter);
+    
+    // Lava webhook routes
+    app.use('/webhook', lavaWebhook);
 
     const port = Number(process.env.PORT ?? 3000);
     app.get('/health', (_req, res) => {

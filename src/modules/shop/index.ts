@@ -5,6 +5,7 @@ import { ensureUser, logUserAction } from '../../services/user-history.js';
 import { getActiveCategories, getCategoryById, getProductById, getProductsByCategory } from '../../services/shop-service.js';
 import { addProductToCart, cartItemsToText, getCartItems } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
+import { showPaymentMethods, createPayment } from '../payment/index.js';
 import { env } from '../../config/env.js';
 import { prisma } from '../../lib/prisma.js';
 
@@ -324,27 +325,9 @@ async function handleBuy(ctx: Context, productId: string) {
   await sendToAllAdmins(ctx, `${message}\n\nЗдравствуйте, хочу приобрести товар…`);
 
   await ctx.answerCbQuery();
-  await ctx.reply('Заявка отправлена администратору. Мы свяжемся с вами в ближайшее время!');
   
-  // Show contact sharing button first
-  await ctx.reply('📞 Для быстрой связи поделитесь своим номером телефона:', {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: '📞 Поделиться контактом',
-            callback_data: 'contact:share',
-          },
-        ],
-        [
-          {
-            text: '⏭️ Пропустить',
-            callback_data: 'contact:skip',
-          },
-        ],
-      ],
-    },
-  });
+  // Показываем способы оплаты
+  await showPaymentMethods(ctx);
 }
 
 export const shopModule: BotModule = {
@@ -436,6 +419,44 @@ export const shopModule: BotModule = {
       await logUserAction(ctx, 'shop:cart');
       const { showCart } = await import('../cart/index.js');
       await showCart(ctx);
+    });
+
+    // Handle payment methods
+    bot.action('payment:card', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'payment:card');
+      // TODO: Implement card payment
+      await ctx.reply('💳 Оплата картой будет доступна в ближайшее время');
+    });
+
+    bot.action('payment:crypto', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'payment:crypto');
+      // TODO: Implement crypto payment
+      await ctx.reply('₿ Криптовалютная оплата будет доступна в ближайшее время');
+    });
+
+    bot.action('payment:mobile', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'payment:mobile');
+      // TODO: Implement mobile payment
+      await ctx.reply('📱 Мобильная оплата будет доступна в ближайшее время');
+    });
+
+    // Handle payment status checks
+    bot.action(/^payment:check:(.+)$/, async (ctx) => {
+      const match = ctx.match as RegExpExecArray;
+      const paymentId = match[1];
+      const { checkPaymentStatus } = await import('../payment/index.js');
+      await checkPaymentStatus(ctx, paymentId);
+    });
+
+    // Handle payment cancellation
+    bot.action(/^payment:cancel:(.+)$/, async (ctx) => {
+      const match = ctx.match as RegExpExecArray;
+      const paymentId = match[1];
+      const { cancelPayment } = await import('../payment/index.js');
+      await cancelPayment(ctx, paymentId);
     });
 
   },
