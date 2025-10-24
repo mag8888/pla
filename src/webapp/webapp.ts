@@ -438,6 +438,30 @@ router.post('/api/partner/activate', async (req, res) => {
   }
 });
 
+// Get product by ID endpoint
+router.get('/api/products/:id', async (req, res) => {
+  try {
+    const { prisma } = await import('../lib/prisma.js');
+    const productId = req.params.id;
+    
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: {
+        category: true
+      }
+    });
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json(product);
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Total products count endpoint
 router.get('/api/products/count', async (req, res) => {
   try {
