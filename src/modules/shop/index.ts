@@ -284,7 +284,7 @@ async function handleBuy(ctx: Context, productId: string) {
       price: Number(product.price)
     },
     quantity: 1
-  });
+  } as any);
   
   const summaryText = cartItemsToText(allItems);
 
