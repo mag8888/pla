@@ -4,6 +4,10 @@ export interface SessionData {
   currentCategoryId?: number | null;
   lastProductId?: number | null;
   uiMode?: 'classic' | 'app';
+  replyingTo?: {
+    userTelegramId: string;
+    userName: string;
+  };
 }
 
 export interface Context extends TelegrafContext {

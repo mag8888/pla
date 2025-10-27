@@ -77,11 +77,10 @@ async function handleSupportMessage(ctx: Context) {
   // Log the support message
   await logUserAction(ctx, 'support:message_sent', { messageLength: messageText.length });
 
-  // Send to admins
-  const { sendToAllAdmins } = await import('../../config/env.js');
+  // Send to specific admin @Aurelia_8888
   const { getBotInstance } = await import('../../lib/bot-instance.js');
   
-  const bot = getBotInstance();
+  const bot = await getBotInstance();
   if (bot) {
     const adminMessage = `📨 <b>Сообщение в поддержку</b>\n\n` +
       `👤 <b>Пользователь:</b> ${user.firstName || 'Не указано'} ${user.lastName || ''}\n` +
@@ -91,12 +90,26 @@ async function handleSupportMessage(ctx: Context) {
       `⏰ <b>Время:</b> ${new Date().toLocaleString('ru-RU')}`;
 
     try {
-      await sendToAllAdmins(bot, adminMessage);
+      // Send to specific admin with reply button
+      const aureliaAdminId = '7077195545'; // @Aurelia_8888
+      await bot.telegram.sendMessage(aureliaAdminId, adminMessage, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '💬 Ответить пользователю',
+                callback_data: `admin_reply:${user.telegramId}:${user.firstName || 'Пользователь'}`
+              }
+            ]
+          ]
+        }
+      });
       
       // Confirm to user
       await ctx.reply('✅ Ваше сообщение отправлено в службу поддержки. Мы ответим как можно скорее!');
     } catch (error) {
-      console.error('Failed to send support message to admins:', error);
+      console.error('Failed to send support message to admin:', error);
       await ctx.reply('❌ Произошла ошибка при отправке сообщения. Попробуйте позже.');
     }
   }
@@ -661,6 +674,50 @@ export const navigationModule: BotModule = {
       );
     });
 
+    // Handle admin reply to user support messages
+    bot.action(/^admin_reply:(.+):(.+)$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      
+      const matches = ctx.match;
+      const userTelegramId = matches[1];
+      const userName = matches[2];
+      
+      // Store the reply context in session for the admin
+      if (!ctx.session) ctx.session = {};
+      ctx.session.replyingTo = {
+        userTelegramId,
+        userName
+      };
+      
+      await ctx.reply(
+        `📝 <b>Ответ пользователю ${userName}</b>\n\n` +
+        `💭 Напишите ваш ответ следующим сообщением, и он будет отправлен пользователю.`,
+        { 
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '❌ Отменить ответ',
+                  callback_data: 'cancel_admin_reply'
+                }
+              ]
+            ]
+          }
+        }
+      );
+    });
+
+    // Handle cancel admin reply
+    bot.action('cancel_admin_reply', async (ctx) => {
+      await ctx.answerCbQuery();
+      
+      if (ctx.session && ctx.session.replyingTo) {
+        delete ctx.session.replyingTo;
+        await ctx.reply('❌ Ответ отменен.');
+      }
+    });
+
     // Handle text messages for support
     bot.on('text', async (ctx) => {
       // Only process if user is in support mode or sent a support message
@@ -672,6 +729,35 @@ export const navigationModule: BotModule = {
       
       const buttonTexts = ['🛒 Магазин', '💰 Партнёрка', '🎵 Звуковые матрицы Гаряева', '⭐ Отзывы', 'ℹ️ О PLASMA', 'Меню', 'Главное меню', 'Назад'];
       if (buttonTexts.includes(messageText)) return;
+
+      // Check if this is admin @Aurelia_8888 replying to a user
+      const aureliaAdminId = '7077195545';
+      if (ctx.from?.id?.toString() === aureliaAdminId && ctx.session?.replyingTo) {
+        const { userTelegramId, userName } = ctx.session.replyingTo;
+        
+        try {
+          // Send admin's reply to the user
+          await ctx.telegram.sendMessage(
+            userTelegramId,
+            `💬 <b>Ответ службы поддержки:</b>\n\n${messageText}`,
+            { parse_mode: 'HTML' }
+          );
+          
+          // Confirm to admin
+          await ctx.reply(
+            `✅ <b>Ответ отправлен пользователю ${userName}</b>\n\n` +
+            `💬 Ваше сообщение: "${messageText}"`,
+            { parse_mode: 'HTML' }
+          );
+          
+          // Clear the reply context
+          delete ctx.session.replyingTo;
+        } catch (error) {
+          console.error('Failed to send admin reply to user:', error);
+          await ctx.reply('❌ Не удалось отправить ответ пользователю. Возможно, пользователь заблокировал бота.');
+        }
+        return;
+      }
 
       // Check if this looks like a support message (not a short response to bot)
       if (messageText.length > 3) {
