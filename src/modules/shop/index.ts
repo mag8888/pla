@@ -222,7 +222,7 @@ async function handleAddToCart(ctx: Context, productId: string) {
   const totalQuantity = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const totalSum = cartItems.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 0)), 0);
   
-  const cartButtonText = `🛒 Корзина (${totalQuantity} товар${totalQuantity > 1 ? (totalQuantity > 4 ? 'ов' : 'а') : ''}, ${totalSum.toFixed(2)} PZ)`;
+  const cartButtonText = `🛒 Корзина (${totalQuantity} 💧, ${totalSum.toFixed(2)} PZ)`;
   
   await ctx.reply(`«${product.title}» добавлен(а) в корзину.`, {
     reply_markup: {
