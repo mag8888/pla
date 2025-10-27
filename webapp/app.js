@@ -427,7 +427,7 @@ async function activatePartnerProgram(type) {
         const referralCode = 'PLAZMA' + Math.random().toString(36).substr(2, 6).toUpperCase();
         
         // Создаем реферальную ссылку
-        const referralLink = `https://t.me/plazma_water_bot?start=${referralCode}`;
+        const referralLink = `https://t.me/iplazmabot?start=${referralCode}`;
         
         // Текст как в боте
         let message = '';
