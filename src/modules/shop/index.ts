@@ -66,11 +66,11 @@ export async function showCategories(ctx: Context, region?: string) {
     const regionText = region === 'RUSSIA' ? 'Россия' : region === 'BALI' ? 'Бали' : 'Все регионы';
     
     // Get cart items count
-    const userId = ctx.from?.id?.toString();
+    const user = await ensureUser(ctx);
     let cartItemsCount = 0;
-    if (userId) {
+    if (user) {
       try {
-        const cartItems = await getCartItems(userId);
+        const cartItems = await getCartItems(user.id);
         cartItemsCount = cartItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
       } catch (error) {
         console.warn('Failed to get cart items count:', error);

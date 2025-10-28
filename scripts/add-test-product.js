@@ -39,7 +39,7 @@ async function addTestProduct() {
         availableInRussia: true,
         availableInBali: true,
         categoryId: category.id,
-        imageUrl: 'https://via.placeholder.com/400x300/4CAF50/FFFFFF?text=TEST+PRODUCT',
+        imageUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&crop=center',
         instruction: 'Инструкция по применению тестового товара:\n\n1. Это тестовый товар\n2. Не предназначен для реального использования\n3. Создан для тестирования платежей\n4. Стоимость: $0.10'
       }
     });
