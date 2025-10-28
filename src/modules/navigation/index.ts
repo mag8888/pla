@@ -364,11 +364,14 @@ async function collectMenuStats(ctx: Context): Promise<MenuStats> {
   const userId = ctx.from?.id?.toString();
   if (userId) {
     try {
-      const { getCartItems } = await import('../../services/cart-service.js');
-      const cartItems = await getCartItems(userId);
-      const totalQuantity = cartItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
-      if (totalQuantity > 0) {
-        stats.cart = String(totalQuantity);
+      const user = await ensureUser(ctx);
+      if (user) {
+        const { getCartItems } = await import('../../services/cart-service.js');
+        const cartItems = await getCartItems(user.id);
+        const totalQuantity = cartItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+        if (totalQuantity > 0) {
+          stats.cart = String(totalQuantity);
+        }
       }
     } catch (error) {
       console.warn('🧭 Navigation: Failed to collect cart stats', error);
