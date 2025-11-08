@@ -21,8 +21,14 @@ export const aboutModule: BotModule = {
   async register(bot: Telegraf<Context>) {
     // Handle about command
     bot.command('about', async (ctx) => {
-      await logUserAction(ctx, 'command:about');
-      await showAbout(ctx);
+      try {
+        console.log('ℹ️ About: /about command triggered by', ctx.from?.id);
+        await logUserAction(ctx, 'command:about');
+        await showAbout(ctx);
+      } catch (error) {
+        console.error('ℹ️ About: Failed to process /about command', error);
+        await ctx.reply('❌ Не удалось показать информацию о проекте. Попробуйте позже.');
+      }
     });
 
     bot.hears(['ℹ️ О PLAZMA'], async (ctx) => {
@@ -33,22 +39,27 @@ export const aboutModule: BotModule = {
 };
 
 export async function showAbout(ctx: Context) {
-  // Получаем контент из базы данных
-  const aboutText = await getBotContent('about_text') || fallbackAboutText;
-  
-  const keyboard = Markup.inlineKeyboard([
-    [
-      Markup.button.url('📱 VK', 'https://vk.com/iplazma'),
-      Markup.button.url('📸 Instagram', 'https://www.instagram.com/iplazmanano/')
-    ],
-    [
-      Markup.button.url('🆘 Поддержка', 'https://t.me/diglukhov?text=Здрасвуйте у меня вопрос по PLAZMA')
-    ],
-    [
-      Markup.button.url('🌐 Каталог', 'https://iplazma.tilda.ws/'),
-      Markup.button.url('💬 Telegram', 'https://t.me/iplazmabot')
-    ]
-  ]);
+  try {
+    // Получаем контент из базы данных
+    const aboutText = (await getBotContent('about_text')) || fallbackAboutText;
+    
+    const keyboard = Markup.inlineKeyboard([
+      [
+        Markup.button.url('📱 VK', 'https://vk.com/iplazma'),
+        Markup.button.url('📸 Instagram', 'https://www.instagram.com/iplazmanano/')
+      ],
+      [
+        Markup.button.url('🆘 Поддержка', 'https://t.me/diglukhov?text=Здрасвуйте у меня вопрос по PLAZMA')
+      ],
+      [
+        Markup.button.url('🌐 Каталог', 'https://iplazma.tilda.ws/'),
+        Markup.button.url('💬 Telegram', 'https://t.me/iplazmabot')
+      ]
+    ]);
 
-  await ctx.reply(aboutText, { ...keyboard, parse_mode: 'HTML' });
+    await ctx.reply(aboutText, { ...keyboard, parse_mode: 'HTML' });
+  } catch (error) {
+    console.error('ℹ️ About: Failed to show about info', error);
+    await ctx.reply('❌ Не удалось загрузить информацию. Попробуйте позже.');
+  }
 }

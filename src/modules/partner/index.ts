@@ -597,8 +597,14 @@ export const partnerModule: BotModule = {
   async register(bot: Telegraf<Context>) {
     // Handle partner command
     bot.command('partner', async (ctx) => {
-      await logUserAction(ctx, 'command:partner');
-      await showPartnerIntro(ctx);
+      try {
+        console.log('💰 Partner: /partner command triggered by', ctx.from?.id);
+        await logUserAction(ctx, 'command:partner');
+        await showPartnerIntro(ctx);
+      } catch (error) {
+        console.error('💰 Partner: Failed to process /partner command', error);
+        await ctx.reply('❌ Не удалось открыть партнёрский раздел. Попробуйте позже.');
+      }
     });
 
     bot.hears(['Партнёрка', 'Партнерка', '💰 Партнёрка'], async (ctx) => {
