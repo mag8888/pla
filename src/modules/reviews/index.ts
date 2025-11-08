@@ -9,7 +9,6 @@ export const reviewsModule: BotModule = {
     // Handle reviews command
     bot.command('reviews', async (ctx) => {
       try {
-        console.log('⭐ Reviews: /reviews command triggered by', ctx.from?.id);
         await logUserAction(ctx, 'command:reviews');
         await showReviews(ctx);
       } catch (error) {
@@ -19,8 +18,13 @@ export const reviewsModule: BotModule = {
     });
 
     bot.hears(['Отзывы', '⭐ Отзывы'], async (ctx) => {
-      await logUserAction(ctx, 'menu:reviews');
-      await showReviews(ctx);
+      try {
+        await logUserAction(ctx, 'menu:reviews');
+        await showReviews(ctx);
+      } catch (error) {
+        console.error('⭐ Reviews: Failed to process reviews menu', error);
+        await ctx.reply('❌ Не удалось загрузить отзывы. Попробуйте позже.');
+      }
     });
   },
 };
@@ -48,6 +52,6 @@ export async function showReviews(ctx: Context) {
     }
   } catch (error) {
     console.error('⭐ Reviews: Failed to show reviews', error);
-    await ctx.reply('❌ Не удалось показать отзывы. Попробуйте позже.');
+    await ctx.reply('❌ Ошибка при загрузке отзывов. Попробуйте позже.');
   }
 }

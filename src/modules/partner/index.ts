@@ -234,24 +234,24 @@ async function handlePlanSelection(
   message: string
 ): Promise<boolean> {
   console.log('💰 Partner: handlePlanSelection called with type:', programType);
-
+  
   try {
-    const user = await ensureUser(ctx);
-    if (!user) {
-      console.log('💰 Partner: Failed to ensure user');
-      await ctx.reply('Не удалось активировать программу. Попробуйте позже.');
+  const user = await ensureUser(ctx);
+  if (!user) {
+    console.log('💰 Partner: Failed to ensure user');
+    await ctx.reply('Не удалось активировать программу. Попробуйте позже.');
       return false;
-    }
+  }
 
-    console.log('💰 Partner: User ensured, creating profile');
-    const profile = await getOrCreatePartnerProfile(user.id, programType);
-    console.log('💰 Partner: Profile created:', profile.referralCode);
-
-    await logUserAction(ctx, 'partner:select-program', { programType });
-
-    const referralLink = buildReferralLink(profile.referralCode, programType);
-    console.log('💰 Partner: Generated referral link:', referralLink);
-
+  console.log('💰 Partner: User ensured, creating profile');
+  const profile = await getOrCreatePartnerProfile(user.id, programType);
+  console.log('💰 Partner: Profile created:', profile.referralCode);
+  
+  await logUserAction(ctx, 'partner:select-program', { programType });
+  
+  const referralLink = buildReferralLink(profile.referralCode, programType);
+  console.log('💰 Partner: Generated referral link:', referralLink);
+  
     await ctx.reply(
       `${message}\n\nВаша ссылка: ${referralLink}`,
       partnerActionsKeyboard()
@@ -598,7 +598,6 @@ export const partnerModule: BotModule = {
     // Handle partner command
     bot.command('partner', async (ctx) => {
       try {
-        console.log('💰 Partner: /partner command triggered by', ctx.from?.id);
         await logUserAction(ctx, 'command:partner');
         await showPartnerIntro(ctx);
       } catch (error) {
@@ -608,10 +607,15 @@ export const partnerModule: BotModule = {
     });
 
     bot.hears(['Партнёрка', 'Партнерка', '💰 Партнёрка'], async (ctx) => {
-      console.log('💰 Partner: Button pressed');
-      await logUserAction(ctx, 'menu:partners');
-      console.log('💰 Partner: Sending program intro');
-      await showPartnerIntro(ctx);
+      try {
+        console.log('💰 Partner: Button pressed');
+        await logUserAction(ctx, 'menu:partners');
+        console.log('💰 Partner: Sending program intro');
+        await showPartnerIntro(ctx);
+      } catch (error) {
+        console.error('💰 Partner: Failed to process partner menu', error);
+        await ctx.reply('❌ Не удалось открыть партнёрский раздел. Попробуйте позже.');
+      }
     });
 
     bot.action(DASHBOARD_ACTION, async (ctx) => {
@@ -697,9 +701,13 @@ export const partnerModule: BotModule = {
 };
 
 export async function showPartnerIntro(ctx: Context) {
-  // Получаем контент из базы данных
-  const programIntro = await getBotContent('partner_intro') || fallbackProgramIntro;
-  await ctx.reply(programIntro, planKeyboard());
+  try {
+    const programIntro = (await getBotContent('partner_intro')) || fallbackProgramIntro;
+    await ctx.reply(programIntro, planKeyboard());
+  } catch (error) {
+    console.error('💰 Partner: Failed to load intro content', error);
+    await ctx.reply(fallbackProgramIntro, planKeyboard());
+  }
 }
 
 async function showPartnerDetails(ctx: Context) {

@@ -22,25 +22,28 @@ export const aboutModule: BotModule = {
     // Handle about command
     bot.command('about', async (ctx) => {
       try {
-        console.log('ℹ️ About: /about command triggered by', ctx.from?.id);
         await logUserAction(ctx, 'command:about');
         await showAbout(ctx);
       } catch (error) {
         console.error('ℹ️ About: Failed to process /about command', error);
-        await ctx.reply('❌ Не удалось показать информацию о проекте. Попробуйте позже.');
+        await ctx.reply('❌ Не удалось загрузить информацию. Попробуйте позже.');
       }
     });
 
     bot.hears(['ℹ️ О PLAZMA'], async (ctx) => {
-      await logUserAction(ctx, 'menu:about');
-      await showAbout(ctx);
+      try {
+        await logUserAction(ctx, 'menu:about');
+        await showAbout(ctx);
+      } catch (error) {
+        console.error('ℹ️ About: Failed to process about menu', error);
+        await ctx.reply('❌ Не удалось загрузить информацию. Попробуйте позже.');
+      }
     });
   },
 };
 
 export async function showAbout(ctx: Context) {
   try {
-    // Получаем контент из базы данных
     const aboutText = (await getBotContent('about_text')) || fallbackAboutText;
     
     const keyboard = Markup.inlineKeyboard([
@@ -59,7 +62,7 @@ export async function showAbout(ctx: Context) {
 
     await ctx.reply(aboutText, { ...keyboard, parse_mode: 'HTML' });
   } catch (error) {
-    console.error('ℹ️ About: Failed to show about info', error);
-    await ctx.reply('❌ Не удалось загрузить информацию. Попробуйте позже.');
+    console.error('ℹ️ About: Failed to load about content', error);
+    await ctx.reply(fallbackAboutText, { parse_mode: 'HTML' });
   }
 }
