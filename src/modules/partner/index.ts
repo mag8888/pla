@@ -228,27 +228,40 @@ async function showDashboard(ctx: Context) {
   await ctx.reply(message, partnerActionsKeyboard());
 }
 
-async function handlePlanSelection(ctx: Context, programType: PartnerProgramType, message: string) {
+async function handlePlanSelection(
+  ctx: Context,
+  programType: PartnerProgramType,
+  message: string
+): Promise<boolean> {
   console.log('💰 Partner: handlePlanSelection called with type:', programType);
-  
-  const user = await ensureUser(ctx);
-  if (!user) {
-    console.log('💰 Partner: Failed to ensure user');
-    await ctx.reply('Не удалось активировать программу. Попробуйте позже.');
-    return;
-  }
 
-  console.log('💰 Partner: User ensured, creating profile');
-  const profile = await getOrCreatePartnerProfile(user.id, programType);
-  console.log('💰 Partner: Profile created:', profile.referralCode);
-  
-  await logUserAction(ctx, 'partner:select-program', { programType });
-  await ctx.answerCbQuery('Программа активирована');
-  
-  const referralLink = buildReferralLink(profile.referralCode, programType);
-  console.log('💰 Partner: Generated referral link:', referralLink);
-  
-  await ctx.reply(`${message}\n\nВаша ссылка: ${referralLink}`, partnerActionsKeyboard());
+  try {
+    const user = await ensureUser(ctx);
+    if (!user) {
+      console.log('💰 Partner: Failed to ensure user');
+      await ctx.reply('Не удалось активировать программу. Попробуйте позже.');
+      return false;
+    }
+
+    console.log('💰 Partner: User ensured, creating profile');
+    const profile = await getOrCreatePartnerProfile(user.id, programType);
+    console.log('💰 Partner: Profile created:', profile.referralCode);
+
+    await logUserAction(ctx, 'partner:select-program', { programType });
+
+    const referralLink = buildReferralLink(profile.referralCode, programType);
+    console.log('💰 Partner: Generated referral link:', referralLink);
+
+    await ctx.reply(
+      `${message}\n\nВаша ссылка: ${referralLink}`,
+      partnerActionsKeyboard()
+    );
+    return true;
+  } catch (error) {
+    console.error('💰 Partner: Failed to handle plan selection', error);
+    await ctx.reply('❌ Не удалось обработать запрос. Попробуйте позже.');
+    return false;
+  }
 }
 
 async function showPartners(ctx: Context) {
@@ -605,13 +618,15 @@ export const partnerModule: BotModule = {
     bot.action(DIRECT_PLAN_ACTION, async (ctx) => {
       console.log('💰 Partner: Direct plan button pressed');
       const directPlanText = await getBotContent('direct_plan_text') || fallbackDirectPlanText;
-      await handlePlanSelection(ctx, PartnerProgramType.DIRECT, directPlanText);
+      const success = await handlePlanSelection(ctx, PartnerProgramType.DIRECT, directPlanText);
+      await ctx.answerCbQuery(success ? 'Программа 25% активирована' : 'Не удалось активировать программу');
     });
 
     bot.action(MULTI_PLAN_ACTION, async (ctx) => {
       console.log('💰 Partner: Multi-level plan button pressed');
       const multiPlanText = await getBotContent('multi_plan_text') || fallbackMultiPlanText;
-      await handlePlanSelection(ctx, PartnerProgramType.MULTI_LEVEL, multiPlanText);
+      const success = await handlePlanSelection(ctx, PartnerProgramType.MULTI_LEVEL, multiPlanText);
+      await ctx.answerCbQuery(success ? 'Сеть 15% + 5% + 5% активирована' : 'Не удалось активировать программу');
     });
 
     bot.action(PARTNERS_ACTION, async (ctx) => {
