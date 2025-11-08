@@ -5,7 +5,6 @@ import { ensureUser, logUserAction } from '../../services/user-history.js';
 import { getActiveCategories, getCategoryById, getProductById, getProductsByCategory } from '../../services/shop-service.js';
 import { addProductToCart, cartItemsToText, getCartItems } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
-import { showPaymentMethods, createPayment } from '../payment/index.js';
 import { env } from '../../config/env.js';
 import { prisma } from '../../lib/prisma.js';
 
@@ -377,9 +376,14 @@ async function handleBuy(ctx: Context, productId: string) {
   }
 
   await ctx.answerCbQuery();
-  
-  // Показываем способы оплаты
-  await showPaymentMethods(ctx);
+
+  await ctx.reply(
+    '📞 <b>В ближайшее время с вами свяжется менеджер.</b>\n\n' +
+      'Вы можете написать менеджеру напрямую: @Aurelia_8888',
+    {
+      parse_mode: 'HTML'
+    }
+  );
 }
 
 export const shopModule: BotModule = {
