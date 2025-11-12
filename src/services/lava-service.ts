@@ -77,59 +77,86 @@ class LavaService {
     const data = JSON.stringify(request);
     const signature = this.createSignature(data);
 
-    // Убираем trailing slash из baseUrl и добавляем endpoint
+    // Убираем trailing slash из baseUrl
     const baseUrl = this.config.baseUrl.replace(/\/$/, '');
-    const url = `${baseUrl}/invoice/create`;
     
-    console.log('🔥 Lava API Request:', {
-      url,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.secretKey.substring(0, 10)}...`,
-        'X-Project-Id': this.config.projectId,
-        'X-Signature': signature.substring(0, 20) + '...',
-        'X-Timestamp': timestamp.toString()
-      },
-      body: request
-    });
-
-    try {
-      const response = await axios.post(
-        url,
-        request,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.config.secretKey}`,
-            'X-Project-Id': this.config.projectId,
-            'X-Signature': signature,
-            'X-Timestamp': timestamp.toString()
-          }
-        }
-      );
-
-      console.log('✅ Lava API Response:', {
-        status: response.status,
-        data: response.data
-      });
-
-      return response.data;
-    } catch (error: any) {
-      console.error('❌ Lava API Error Details:', {
-        url,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers,
-        request: {
-          method: error.config?.method,
-          url: error.config?.url,
-          headers: error.config?.headers
-        }
-      });
-      throw new Error(`Failed to create invoice: ${error.response?.data || error.message}`);
+    // Пробуем разные варианты endpoint'ов
+    const endpoints = [
+      '/invoice/create',           // Стандартный
+      '/v2/invoice/create',        // С версией без /api
+      '/business/invoice/create',  // Business API
+      '/api/invoice/create',       // С /api
+    ];
+    
+    // Если baseUrl уже содержит /api/v2, пробуем без добавления /api
+    let baseUrlToUse = baseUrl;
+    if (baseUrl.includes('/api/v2')) {
+      baseUrlToUse = baseUrl.replace('/api/v2', '');
+      endpoints.unshift('/api/v2/invoice/create'); // Добавляем в начало
+    } else if (baseUrl.includes('/api')) {
+      baseUrlToUse = baseUrl.replace('/api', '');
+      endpoints.unshift('/api/invoice/create');
     }
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.config.secretKey}`,
+      'X-Project-Id': this.config.projectId,
+      'X-Signature': signature,
+      'X-Timestamp': timestamp.toString()
+    };
+    
+    // Пробуем каждый endpoint
+    for (const endpoint of endpoints) {
+      const url = `${baseUrlToUse}${endpoint}`;
+      
+      console.log(`🔥 Lava API Request (trying ${endpoint}):`, {
+        url,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.secretKey.substring(0, 10)}...`,
+          'X-Project-Id': this.config.projectId,
+          'X-Signature': signature.substring(0, 20) + '...',
+          'X-Timestamp': timestamp.toString()
+        },
+        body: request
+      });
+
+      try {
+        const response = await axios.post(
+          url,
+          request,
+          { headers }
+        );
+
+        console.log('✅ Lava API Response:', {
+          status: response.status,
+          data: response.data,
+          endpoint: endpoint
+        });
+
+        return response.data;
+      } catch (error: any) {
+        // Если это не 404, сразу выбрасываем ошибку
+        if (error.response?.status !== 404) {
+          console.error('❌ Lava API Error (non-404):', {
+            url,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data
+          });
+          throw new Error(`Failed to create invoice: ${error.response?.data || error.message}`);
+        }
+        
+        // Если 404, пробуем следующий endpoint
+        console.log(`⚠️ Endpoint ${endpoint} returned 404, trying next...`);
+        continue;
+      }
+    }
+    
+    // Если все endpoint'ы вернули 404
+    throw new Error('Failed to create invoice: All endpoints returned 404. Please check LAVA_BASE_URL and Lava API documentation.');
   }
 
   /**
