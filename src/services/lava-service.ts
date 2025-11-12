@@ -67,10 +67,21 @@ class LavaService {
    */
   async createInvoice(request: CreateInvoiceRequest): Promise<CreateInvoiceResponse> {
     // Убираем trailing slash из baseUrl
-    const baseUrl = this.config.baseUrl.replace(/\/$/, '');
+    let baseUrl = this.config.baseUrl.replace(/\/$/, '');
     
     // Правильный endpoint согласно документации Lava: /api/v2/invoice
-    const url = `${baseUrl}/api/v2/invoice`;
+    // Проверяем, не содержит ли baseUrl уже /api/v2
+    let url: string;
+    if (baseUrl.includes('/api/v2')) {
+      // Если baseUrl уже содержит /api/v2, просто добавляем /invoice
+      url = `${baseUrl}/invoice`;
+    } else if (baseUrl.includes('/api')) {
+      // Если baseUrl содержит /api, добавляем /v2/invoice
+      url = `${baseUrl}/v2/invoice`;
+    } else {
+      // Если baseUrl чистый, добавляем полный путь
+      url = `${baseUrl}/api/v2/invoice`;
+    }
     
     // Согласно документации, используется X-Api-Key для авторизации
     const headers = {
