@@ -1,4 +1,4 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import { Context } from '../../bot/context.js';
 import { BotModule } from '../../bot/types.js';
 import { getActiveReviews } from '../../services/review-service.js';
@@ -34,7 +34,10 @@ export async function showReviews(ctx: Context) {
     const reviews = await getActiveReviews();
 
     if (reviews.length === 0) {
-      await ctx.reply('Отзывов пока нет. Добавьте их в админке.');
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.url('💬 Оставить отзыв', 'https://iplazma.tilda.ws/comment')]
+      ]);
+      await ctx.reply('Отзывов пока нет. Добавьте их в админке.', keyboard);
       return;
     }
 
@@ -50,6 +53,12 @@ export async function showReviews(ctx: Context) {
         await ctx.reply(caption.join('\n\n'));
       }
     }
+
+    // Добавляем кнопку для оставления отзыва после всех отзывов
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.url('💬 Оставить отзыв', 'https://iplazma.tilda.ws/comment')]
+    ]);
+    await ctx.reply('💬 Хотите оставить свой отзыв?', keyboard);
   } catch (error) {
     console.error('⭐ Reviews: Failed to show reviews', error);
     await ctx.reply('❌ Ошибка при загрузке отзывов. Попробуйте позже.');
