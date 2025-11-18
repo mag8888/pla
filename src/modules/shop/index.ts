@@ -355,14 +355,14 @@ async function handleBuy(ctx: Context, productId: string) {
     try {
       await bot.telegram.sendMessage(aureliaAdminId, fullMessage, {
         parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
                 text: '💬 Написать пользователю',
                 url: user.username ? `https://t.me/${user.username}` : `tg://user?id=${user.telegramId}`
-              },
-              {
+          },
+          {
                 text: '🤖 Писать через бот',
                 callback_data: `admin_reply:${user.telegramId}:${user.firstName || 'Пользователь'}`
               }

@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { Context } from '../../bot/context.js';
 import { BotModule } from '../../bot/types.js';
-import { logUserAction, ensureUser } from '../../services/user-history.js';
+import { logUserAction, ensureUser, checkUserContact, handlePhoneNumber } from '../../services/user-history.js';
 import { upsertPartnerReferral, recordPartnerTransaction } from '../../services/partner-service.js';
 import { prisma } from '../../lib/prisma.js';
 import { env } from '../../config/env.js';
@@ -457,6 +457,12 @@ export const navigationModule: BotModule = {
 
     bot.start(async (ctx) => {
       await logUserAction(ctx, 'command:start');
+      
+      // Проверяем наличие username или phone
+      const canContinue = await checkUserContact(ctx);
+      if (!canContinue) {
+        return; // Пользователь должен предоставить номер телефона
+      }
       
       // Check if user came from referral link
       const startPayload = ctx.startPayload;

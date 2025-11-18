@@ -45,12 +45,12 @@ const extractTelegramUser = (req: express.Request, res: express.Response, next: 
     
     // Method 2: From x-telegram-init-data header (original Telegram method)
     if (!telegramUser) {
-      const initData = req.headers['x-telegram-init-data'] as string;
-      if (initData) {
+    const initData = req.headers['x-telegram-init-data'] as string;
+    if (initData) {
         console.log('📱 Found x-telegram-init-data:', initData);
-        const urlParams = new URLSearchParams(initData);
-        const userStr = urlParams.get('user');
-        if (userStr) {
+      const urlParams = new URLSearchParams(initData);
+      const userStr = urlParams.get('user');
+      if (userStr) {
           telegramUser = JSON.parse(decodeURIComponent(userStr));
           console.log('✅ Telegram user from init-data:', telegramUser);
         }
@@ -73,7 +73,7 @@ const extractTelegramUser = (req: express.Request, res: express.Response, next: 
       console.log('📱 Found user in body:', req.body.user);
       telegramUser = req.body.user;
       console.log('✅ Telegram user from body:', telegramUser);
-    }
+      }
     
     // Method 4: Mock user for development/testing
     if (!telegramUser) {
