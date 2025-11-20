@@ -490,6 +490,15 @@ export const navigationModule: BotModule = {
           console.log('🔗 Referral: Found partner profile:', partnerProfile ? 'YES' : 'NO');
           
           if (partnerProfile) {
+            // Check if user already existed before ensuring
+            let existingUserBeforeEnsure: { id: string } | null = null;
+            if (ctx.from?.id) {
+              existingUserBeforeEnsure = await prisma.user.findUnique({
+                where: { telegramId: ctx.from.id.toString() },
+                select: { id: true }
+              });
+            }
+            
             // Ensure user exists first
             const user = await ensureUser(ctx);
             if (!user) {
@@ -498,15 +507,19 @@ export const navigationModule: BotModule = {
               return;
             }
             
+            const isExistingUser = Boolean(existingUserBeforeEnsure);
+            
             console.log('🔗 Referral: User ensured, upserting referral record');
             
             // Use upsert to create or get existing referral record
             const referralLevel = programType === 'DIRECT' ? 1 : 1; // Both start at level 1
             const referral = await upsertPartnerReferral(partnerProfile.id, referralLevel, user.id, undefined, programType);
             
-            // Award bonus only if this is a new referral record (check by creation time)
+            // Award bonus only if this is a new user and new referral record
             const isNewReferral = referral.createdAt.getTime() > Date.now() - 5000; // Created within last 5 seconds
-            if (isNewReferral) {
+            const shouldReward = !isExistingUser && isNewReferral;
+            
+            if (shouldReward) {
               // Check if bonus was already awarded for this user
               const existingBonus = await prisma.partnerTransaction.findFirst({
                 where: {
@@ -529,11 +542,14 @@ export const navigationModule: BotModule = {
                 console.log('🔗 Referral: Bonus already awarded for this user, skipping');
               }
             } else {
-              console.log('🔗 Referral: Existing referral record, no bonus awarded');
+              console.log('🔗 Referral: Skipping bonus because user already existed or referral is not new', {
+                isExistingUser,
+                isNewReferral
+              });
             }
             
             // Send notification to inviter only for new referrals
-            if (isNewReferral) {
+            if (shouldReward) {
               try {
                 console.log('🔗 Referral: Sending notification to inviter:', partnerProfile.user.telegramId);
                 const joinedLabel = user.username ? `@${user.username}` : (user.firstName || 'пользователь');
