@@ -8604,7 +8604,9 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
           }
           
           // Добавить товар в редактируемый заказ
-          document.getElementById('addProductForm').addEventListener('submit', function(e) {
+          const editOrderProductForm = document.getElementById('editOrderProductForm');
+          if (editOrderProductForm) {
+            editOrderProductForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
             const productSelect = document.getElementById('productSelect');
@@ -8619,18 +8621,19 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
             const title = selectedOption.dataset.title;
             const price = parseFloat(selectedOption.dataset.price);
             
-            currentEditItems.push({
-              title: title,
-              price: price,
-              quantity: quantity
+              currentEditItems.push({
+                title: title,
+                price: price,
+                quantity: quantity
+              });
+              
+              renderEditItems();
+              
+              // Очищаем форму
+              editOrderProductForm.reset();
+              document.getElementById('productQuantity').value = 1;
             });
-            
-            renderEditItems();
-            
-            // Очищаем форму
-            document.getElementById('addProductForm').reset();
-            document.getElementById('productQuantity').value = 1;
-          });
+          }
           
           // Сохранить изменения заказа
           async function saveOrderChanges() {
@@ -8830,7 +8833,7 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
             
             <div class="add-product-section">
               <h3>➕ Добавить товар</h3>
-              <form id="addProductForm" class="add-product-form">
+              <form id="editOrderProductForm" class="add-product-form">
                 <div class="form-group">
                   <label for="productSelect">Выберите товар:</label>
                   <select id="productSelect" name="productId" required>
