@@ -5562,7 +5562,8 @@ router.post('/products/:id/toggle-active', requireAdmin, async (req, res) => {
     const product = await prisma.product.findUnique({ where: { id } });
     
     if (!product) {
-      return res.redirect('/admin?error=product_not_found');
+      const fallback = req.get('referer') || '/admin/products';
+      return res.redirect(`${fallback}?error=product_not_found`);
     }
 
     await prisma.product.update({
@@ -5570,10 +5571,12 @@ router.post('/products/:id/toggle-active', requireAdmin, async (req, res) => {
       data: { isActive: !product.isActive }
     });
 
-    res.redirect('/admin?success=product_updated');
+    const redirectUrl = req.get('referer') || '/admin/products';
+    res.redirect(redirectUrl);
   } catch (error) {
     console.error('Product toggle error:', error);
-    res.redirect('/admin?error=product_toggle');
+    const fallback = req.get('referer') || '/admin/products';
+    res.redirect(`${fallback}?error=product_toggle`);
   }
 });
 // Update product
