@@ -1597,10 +1597,15 @@ router.get('/', requireAdmin, async (req, res) => {
           
           // Show/hide buttons section
           document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('includeButtons').addEventListener('change', function() {
-              const buttonsSection = document.getElementById('buttonsSection');
-              buttonsSection.style.display = this.checked ? 'block' : 'none';
-            });
+            const includeButtonsToggle = document.getElementById('includeButtons') as HTMLInputElement | null;
+            if (includeButtonsToggle) {
+              includeButtonsToggle.addEventListener('change', function() {
+                const buttonsSection = document.getElementById('buttonsSection');
+                if (buttonsSection) {
+                  buttonsSection.style.display = this.checked ? 'block' : 'none';
+                }
+              });
+            }
             
             // Price converters (PZ <-> RUB) for create form
             const pricePzInput = document.getElementById('productPrice') as HTMLInputElement | null;
@@ -1618,7 +1623,7 @@ router.get('/', requireAdmin, async (req, res) => {
               pricePzInput.addEventListener('input', updateRubFromPz);
               priceRubInput.addEventListener('input', updatePzFromRub);
               
-              // initialize values; prioritize rub input if filled
+              // Ensure initial sync
               if (priceRubInput.value) {
                 updatePzFromRub();
               } else if (pricePzInput.value) {
