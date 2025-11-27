@@ -1,0 +1,50 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false
+  },
+  "include": [
+    "src/server.ts",
+    "src/config/**/*",
+    "src/bot/**/*",
+    "src/lib/**/*",
+    "src/modules/**/*",
+    "src/services/partner-service.ts",
+    "src/services/audio-service.ts",
+    "src/services/cart-service.ts",
+    "src/services/order-service.ts",
+    "src/services/review-service.ts",
+    "src/services/shop-service.ts",
+    "src/services/user-history.ts",
+    "src/admin/**/*",
+    "src/webapp/**/*",
+    "src/types/express.d.ts"
+  ],
+  "exclude": [
+    "src/controllers/**/*",
+    "src/repositories/**/*",
+    "src/services/admin/**/*",
+    "src/types/api.ts",
+    "src/types/admin.ts",
+    "src/types/validation.ts",
+    "src/interfaces/**/*",
+    "src/admin/web-refactored.ts",
+    "src/admin/web-simple-refactored.ts",
+    "src/server-refactored.ts",
+    "src/server-simple-refactored.ts"
+  ]
+}

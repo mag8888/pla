@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum PartnerProgramType {
+  DIRECT
+  MULTI_LEVEL
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum Region {
+  RUSSIA
+  BALI
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  telegramId      String          @unique
+  firstName       String?
+  lastName        String?
+  username        String?
+  languageCode    String?
+  phone           String?
+  selectedRegion  Region?         @default(RUSSIA)
+  deliveryAddress String?         // Адрес доставки пользователя
+  balance         Float           @default(0)
+  cartItems       CartItem[]
+  histories       UserHistory[]
+  partner         PartnerProfile?
+  orders          OrderRequest[]
+  referrals       PartnerReferral[] @relation("UserReferrals") // Рефералы этого пользователя
+  payments        Payment[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model UserHistory {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  action    String
+  payload   Json?
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String     @unique
+  description String?
+  isActive    Boolean    @default(true)
+  products    Product[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Product {
+  id               String     @id @default(auto()) @map("_id") @db.ObjectId
+  title            String
+  summary          String
+  description      String?
+  instruction      String?    // Инструкция по применению товара
+  imageUrl         String?
+  price            Float
+  stock            Int        @default(999)
+  isActive         Boolean     @default(true)
+  availableInRussia Boolean   @default(true)
+  availableInBali  Boolean    @default(true)
+  category         Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId       String     @db.ObjectId
+  cartItems        CartItem[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String  @db.ObjectId
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String  @db.ObjectId
+  quantity  Int     @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model OrderRequest {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  user        User?    @relation(fields: [userId], references: [id])
+  userId      String?  @db.ObjectId
+  contact     String?
+  message     String
+  itemsJson   Json
+  status      String   @default("NEW")
+  createdAt   DateTime @default(now())
+}
+
+model PartnerProfile {
+  id             String              @id @default(auto()) @map("_id") @db.ObjectId
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String              @unique @db.ObjectId
+  isActive       Boolean             @default(false)
+  activatedAt    DateTime?
+  expiresAt      DateTime?
+  activationType String?             // 'PURCHASE' или 'ADMIN'
+  programType    PartnerProgramType  @default(DIRECT)
+  referralCode   String              @unique
+  balance        Float               @default(0)
+  bonus          Float               @default(0)
+  totalPartners  Int                 @default(0)
+  directPartners Int                 @default(0)
+  multiPartners  Int                 @default(0)
+  referrals      PartnerReferral[]
+  transactions   PartnerTransaction[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}
+
+model PartnerReferral {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  profile     PartnerProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId   String           @db.ObjectId
+  referredId  String?          @db.ObjectId
+  referred    User?            @relation("UserReferrals", fields: [referredId], references: [id])
+  contact     String?
+  level       Int
+  referralType PartnerProgramType @default(DIRECT) // Тип программы реферала
+  createdAt   DateTime          @default(now())
+}
+
+model PartnerTransaction {
+  id          String            @id @default(auto()) @map("_id") @db.ObjectId
+  profile     PartnerProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId   String            @db.ObjectId
+  amount      Float
+  type        TransactionType
+  description String
+  createdAt   DateTime          @default(now())
+}
+
+model Review {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  photoUrl  String?
+  content   String
+  link      String?
+  isPinned  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AudioFile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  fileId      String   // Telegram file ID
+  duration    Int?     // Duration in seconds
+  fileSize    Int?     // File size in bytes
+  mimeType    String?
+  isActive    Boolean  @default(true)
+  category    String?  // For grouping (e.g., "gift", "healing", etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BotContent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  key         String   @unique // Уникальный ключ для контента (например: "welcome_message", "about_text")
+  title       String   // Название контента для админки
+  content     String   // Основной контент
+  description String?  // Описание для админки
+  category    String?  // Категория контента (например: "messages", "buttons", "descriptions")
+  isActive    Boolean  @default(true)
+  language    String   @default("ru") // Язык контента
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String        @db.ObjectId
+  user        User          @relation(fields: [userId], references: [id])
+  orderId     String        @unique
+  invoiceId   String        @unique
+  amount      Float
+  currency    String        @default("RUB")
+  status      PaymentStatus @default(PENDING)
+  paymentUrl  String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}

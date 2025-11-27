@@ -3,190 +3,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PLAZMA WATER</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            background: #0a0a0a;
-            color: #ffffff;
-            min-height: 100vh;
-        }
-        
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .close-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: #fff;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .header-title {
-            font-size: 20px;
-            font-weight: 600;
-        }
-        
-        .header-subtitle {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.6);
-            margin-top: 2px;
-        }
-        
-        .menu-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: #fff;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .search-bar {
-            margin: 16px;
-            padding: 12px 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .search-icon {
-            color: rgba(255, 255, 255, 0.5);
-        }
-        
-        .search-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: #fff;
-            font-size: 14px;
-            outline: none;
-        }
-        
-        .search-input::placeholder {
-            color: rgba(255, 255, 255, 0.4);
-        }
-        
-        .content {
-            padding: 16px;
-        }
-        
-        .nav-button {
-            width: 100%;
-            padding: 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            color: #fff;
-            font-size: 16px;
-            font-weight: 500;
-            text-align: left;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .nav-button:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-    </style>
+    <title>Plazma Water - Навигация</title>
+    <link rel="stylesheet" href="/webapp/static/styles.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <div class="header">
-        <div class="header-left">
-            <button class="close-btn" onclick="window.Telegram.WebApp.close()">×</button>
-            <div>
-                <div class="header-title">PLAZMA WATER</div>
-                <div class="header-subtitle">НАВИГАЦИЯ ПО ЭКОСИСТЕМЕ</div>
+    <div class="app-container">
+        <header class="top-bar">
+            <div class="brand-cluster">
+                <button class="control-btn" onclick="closeApp()" aria-label="Закрыть">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <div class="brand-badge">
+                    <span class="brand-label">Plazma Water</span>
+                    <p class="brand-description">Навигация по экосистеме</p>
+                </div>
+            </div>
+            <button class="control-btn ghost" aria-label="Меню">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="5" r="2" fill="currentColor"/>
+                    <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                    <circle cx="12" cy="19" r="2" fill="currentColor"/>
+                </svg>
+            </button>
+        </header>
+
+        <div class="search-container">
+            <div class="search-bar">
+                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                    <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <input type="text" placeholder="Поиск..." class="search-input">
+            </div>
+            <div class="search-meta">
+                <span class="meta-pill">Пульс сообщества</span>
+                <span class="meta-pill">Актуальные направления</span>
+                <span class="meta-pill accent">Обновлено сегодня</span>
             </div>
         </div>
-        <button class="menu-btn">⋮</button>
-    </div>
-    
-    <div class="search-bar">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" placeholder="Поиск...">
-    </div>
-    
-    <div class="content">
-        <!-- Навигационные кнопки будут добавлены через JavaScript -->
-    </div>
-    
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script>
-        // Инициализация Telegram WebApp
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-        
-        // Проверка, есть ли параметр video в URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const videoUrl = urlParams.get('video');
-        
-        if (videoUrl) {
-            // Показываем видео
-            const content = document.querySelector('.content');
-            content.innerHTML = `
-                <div style="padding: 20px; text-align: center;">
-                    <h2 style="margin-bottom: 20px;">🎥 Видео о Plazma Water</h2>
-                    <video controls style="width: 100%; max-width: 100%; border-radius: 12px;" autoplay>
-                        <source src="${decodeURIComponent(videoUrl)}" type="video/mp4">
-                        Ваш браузер не поддерживает видео.
-                    </video>
-                    <button onclick="window.Telegram.WebApp.close()" style="margin-top: 20px; padding: 12px 24px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #fff; cursor: pointer; font-size: 16px;">
-                        Закрыть
-                    </button>
+
+        <!-- Main Content Grid -->
+        <main class="content-grid">
+            <div class="content-card" onclick="openSection('shop')">
+                <div class="card-inner">
+                    <div class="card-top">
+                        <div class="card-icon shop-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 3H5L5.4 5M7 13H17L21 5H5.4M7 13L5.4 5M7 13L4.7 15.3C4.3 15.7 4.6 16.5 5.1 16.5H17M17 13V17C17 18.1 16.1 19 15 19H9C7.9 19 7 18.1 7 17V13M17 13H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="card-badge" id="shop-badge">0</div>
+                    </div>
+                    <div class="card-title">МАГАЗИН</div>
+                    <div class="card-action">
+                        <span>Перейти</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 19L19 5M19 5H8M19 5V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
                 </div>
-            `;
-        } else {
-            // Загрузка данных пользователя и отображение навигации
-            async function loadNavigation() {
-                try {
-                    const response = await fetch('/webapp/api/user/profile');
-                    const user = await response.json();
-                    
-                    // Здесь можно добавить логику отображения навигации
-                    // Без лишних кнопок "ПУЛЬС СООБЩЕСТВА", "АКТУАЛЬНЫЕ НАПРАВЛЕНИЯ", "ОБНОВЛЕНО СЕГОДНЯ"
-                } catch (error) {
-                    console.error('Error loading navigation:', error);
-                }
-            }
-            
-            loadNavigation();
-        }
-    </script>
+            </div>
+
+            <div class="content-card" onclick="openSection('partner')">
+                <div class="card-inner">
+                    <div class="card-top">
+                        <div class="card-icon partner-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                                <path d="M16 21V19C16 17.9 15.1 17 14 17H10C8.9 17 8 17.9 8 19V21M12 11C13.1 11 14 10.1 14 9C14 7.9 13.1 7 12 7C10.9 7 10 7.9 10 9C10 10.1 10.9 11 12 11ZM6 21V19C6 16.8 7.8 15 10 15H14C16.2 15 18 16.8 18 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="card-badge" id="partner-badge">25%</div>
+                    </div>
+                    <div class="card-title">ПАРТНЁРКА</div>
+                    <div class="card-action">
+                        <span>Перейти</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 19L19 5M19 5H8M19 5V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" onclick="openSection('audio')">
+                <div class="card-inner">
+                    <div class="card-top">
+                        <div class="card-icon audio-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 1C13.1 1 14 1.9 14 3V11C14 12.1 13.1 13 12 13C10.9 13 10 12.1 10 11V3C10 1.9 10.9 1 12 1ZM19 10V12C19 16.4 15.4 20 11 20C6.6 20 3 16.4 3 12V10H5V12C5 15.3 7.7 18 11 18C14.3 18 17 15.3 17 12V10H19ZM12 15C13.7 15 15 13.7 15 12V4C15 2.3 13.7 1 12 1C10.3 1 9 2.3 9 4V12C9 13.7 10.3 15 12 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="card-badge" id="audio-badge">5</div>
+                    </div>
+                    <div class="card-title">ЗВУКОВЫЕ МАТРИЦЫ</div>
+                    <div class="card-action">
+                        <span>Перейти</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 19L19 5M19 5H8M19 5V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" onclick="openSection('reviews')">
+                <div class="card-inner">
+                    <div class="card-top">
+                        <div class="card-icon reviews-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2L15.09 8.26L22 9L17 14.74L18.18 21.02Л12 17.77Л5.82 21.02L7 14.74L2 9L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="card-badge" id="reviews-badge">0</div>
+                    </div>
+                    <div class="card-title">ОТЗЫВЫ</div>
+                    <div class="card-action">
+                        <span>Перейти</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 19L19 5M19 5H8M19 5V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" onclick="openSection('about')">
+                <div class="card-inner">
+                    <div class="card-top">
+                        <div class="card-icon about-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 16V12M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="card-badge" id="about-badge">1</div>
+                    </div>
+                    <div class="card-title">О PLASMA</div>
+                    <div class="card-action">
+                        <span>Перейти</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 19L19 5M19 5H8M19 5V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" onclick="openSection('support')">
+                <div class="card-inner">
+                    <div class="card-top">
+                        <div class="card-icon support-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                                <path d="M21 15C21 15.5 20.6 16 20 16H4C3.4 16 3 15.5 3 15V5C3 4.5 3.4 4 4 4H20C20.6 4 21 4.5 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M7 8L12 13L17 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="card-badge" id="support-badge">24/7</div>
+                    </div>
+                    <div class="card-title">ПОДДЕРЖКА</div>
+                    <div class="card-action">
+                        <span>Перейти</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 19L19 5M19 5H8M19 5V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="showHome()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 9L12 2L21 9V20C21 20.5 20.6 21 20 21H15V14H9V21H4C3.4 21 3 20.5 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Домой</span>
+            </div>
+            <div class="nav-item" onclick="openSection('about')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M16 21V19C16 17.9 15.1 17 14 17H10C8.9 17 8 17.9 8 19V21M12 11C13.1 11 14 10.1 14 9C14 7.9 13.1 7 12 7C10.9 7 10 7.9 10 9C10 10.1 10.9 11 12 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>О сообществе</span>
+            </div>
+            <div class="nav-item" onclick="openSection('support')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 15C21 15.5 20.6 16 20 16H4C3.4 16 3 15.5 3 15V5C3 4.5 3.4 4 4 4H20C20.6 4 21 4.5 21 5V15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Чаты</span>
+            </div>
+            <div class="nav-item" onclick="showFavorites()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M20.84 4.61C20.33 4.1 19.66 3.8 18.95 3.8C18.24 3.8 17.57 4.1 17.06 4.61L12 9.67L6.94 4.61C6.43 4.1 5.76 3.8 5.05 3.8C4.34 3.8 3.67 4.1 3.16 4.61C2.65 5.12 2.35 5.79 2.35 6.5C2.35 7.21 2.65 7.88 3.16 8.39L8.22 13.45L3.16 18.51C2.65 19.02 2.35 19.69 2.35 20.4C2.35 21.11 2.65 21.78 3.16 22.29C3.67 22.8 4.34 23.1 5.05 23.1C5.76 23.1 6.43 22.8 6.94 22.29L12 17.23L17.06 22.29C17.57 22.8 18.24 23.1 18.95 23.1C19.66 23.1 20.33 22.8 20.84 22.29C21.35 21.78 21.65 21.11 21.65 20.4C21.65 19.69 21.35 19.02 20.84 18.51L15.78 13.45L20.84 8.39C21.35 7.88 21.65 7.21 21.65 6.5C21.65 5.79 21.35 5.12 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Избранное</span>
+            </div>
+            <div class="nav-item" onclick="openSection('partner')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 22S2 16 2 10C2 5.6 5.6 2 10 2C11.1 2 12 2.9 12 4C12 5.1 11.1 6 10 6C7.8 6 6 7.8 6 10C6 12.2 7.8 14 10 14C11.1 14 12 14.9 12 16C12 17.1 11.1 18 10 18C7.8 18 6 19.8 6 22H12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Амбассадоры</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Section Content Overlays -->
+    <div id="section-overlay" class="section-overlay hidden">
+        <div class="section-content">
+            <header class="section-header">
+                <button class="back-btn" onclick="closeSection()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <h2 id="section-title">Раздел</h2>
+                <div class="header-spacer"></div>
+            </header>
+            <div id="section-body" class="section-body">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/webapp/static/app.js?v=14"></script>
 </body>
 </html>
-
