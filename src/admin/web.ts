@@ -1632,6 +1632,25 @@ router.get('/', requireAdmin, async (req, res) => {
                 reader.readAsDataURL(file);
               });
             }
+
+            // Price converters (PZ <-> RUB)
+            const pricePzInput = document.getElementById('productPrice') as HTMLInputElement | null;
+            const priceRubInput = document.getElementById('productPriceRub') as HTMLInputElement | null;
+            if (pricePzInput && priceRubInput) {
+              const updateRubFromPz = () => {
+                const pzValue = parseFloat(pricePzInput.value) || 0;
+                priceRubInput.value = (pzValue * 100).toFixed(2);
+              };
+              const updatePzFromRub = () => {
+                const rubValue = parseFloat(priceRubInput.value) || 0;
+                pricePzInput.value = (rubValue / 100).toFixed(2);
+              };
+              
+              pricePzInput.addEventListener('input', updateRubFromPz);
+              priceRubInput.addEventListener('input', updatePzFromRub);
+              // Ensure initial sync
+              updateRubFromPz();
+            }
           });
           
           // Product modal functions
