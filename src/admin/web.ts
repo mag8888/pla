@@ -711,6 +711,18 @@ router.get('/', requireAdmin, async (req, res) => {
           }
           .product-grid.media-layout { grid-template-columns: repeat(2, 1fr); align-items: stretch; }
           .product-form textarea { resize: vertical; }
+          .product-form label { color: #212529; }
+          .product-form input,
+          .product-form select,
+          .product-form textarea {
+            background: #ffffff;
+            color: #212529;
+            border: 1px solid #ced4da;
+          }
+          .product-form input::placeholder,
+          .product-form textarea::placeholder {
+            color: #6c757d;
+          }
           #productShortDescription { min-height: 220px; }
           #productFullDescription { min-height: 220px; }
           .category-picker { display: flex; gap: 12px; }
@@ -1340,16 +1352,26 @@ router.get('/', requireAdmin, async (req, res) => {
             const imageUrl = button.dataset.image;
             
             // Fill form fields
-            document.getElementById('productId').value = productId;
-            document.getElementById('productName').value = title;
-            document.getElementById('productShortDescription').value = summary;
-            document.getElementById('productFullDescription').value = description;
-            document.getElementById('productInstruction').value = button.dataset.instruction || '';
-            document.getElementById('productPrice').value = price;
-            document.getElementById('productPriceRub').value = (price * 100).toFixed(2);
-            document.getElementById('productStock').value = '999';
-            document.getElementById('productCategory').value = categoryId;
-            document.getElementById('productStatus').checked = isActive;
+            const productIdField = document.getElementById('productId') as HTMLInputElement | null;
+            if (productIdField) productIdField.value = productId;
+            const productNameField = document.getElementById('productName') as HTMLInputElement | null;
+            if (productNameField) productNameField.value = title;
+            const shortDescField = document.getElementById('productShortDescription') as HTMLTextAreaElement | null;
+            if (shortDescField) shortDescField.value = summary;
+            const fullDescField = document.getElementById('productFullDescription') as HTMLTextAreaElement | null;
+            if (fullDescField) fullDescField.value = description;
+            const instructionField = document.getElementById('productInstruction') as HTMLTextAreaElement | null;
+            if (instructionField) instructionField.value = button.dataset.instruction || '';
+            const pricePzField = document.getElementById('productPrice') as HTMLInputElement | null;
+            if (pricePzField) pricePzField.value = price;
+            const priceRubField = document.getElementById('productPriceRub') as HTMLInputElement | null;
+            if (priceRubField) priceRubField.value = (price * 100).toFixed(2);
+            const stockField = document.getElementById('productStock') as HTMLInputElement | null;
+            if (stockField) stockField.value = '999';
+            const categoryField = document.getElementById('productCategory') as HTMLSelectElement | null;
+            if (categoryField) categoryField.value = categoryId;
+            const statusCheckbox = document.getElementById('productStatus') as HTMLInputElement | null;
+            if (statusCheckbox) statusCheckbox.checked = isActive;
             const regionRussiaEl = document.getElementById('regionRussia');
             const regionBaliEl = document.getElementById('regionBali');
             if (regionRussiaEl) regionRussiaEl.checked = availableInRussia;
@@ -1486,21 +1508,24 @@ router.get('/', requireAdmin, async (req, res) => {
           
           // Checkbox functionality
           function toggleAllUsers() {
-            const selectAll = document.getElementById('selectAll');
+            const selectAll = document.getElementById('selectAll') as HTMLInputElement | null;
             const checkboxes = document.querySelectorAll('.user-checkbox');
-            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            const checked = selectAll ? selectAll.checked : false;
+            checkboxes.forEach(cb => cb.checked = checked);
           }
           
           function selectAllUsers() {
             const checkboxes = document.querySelectorAll('.user-checkbox');
             checkboxes.forEach(cb => cb.checked = true);
-            document.getElementById('selectAll').checked = true;
+            const selectAll = document.getElementById('selectAll') as HTMLInputElement | null;
+            if (selectAll) selectAll.checked = true;
           }
           
           function deselectAllUsers() {
             const checkboxes = document.querySelectorAll('.user-checkbox');
             checkboxes.forEach(cb => cb.checked = false);
-            document.getElementById('selectAll').checked = false;
+            const selectAll = document.getElementById('selectAll') as HTMLInputElement | null;
+            if (selectAll) selectAll.checked = false;
           }
           
           // Message composer functionality
@@ -1597,10 +1622,13 @@ router.get('/', requireAdmin, async (req, res) => {
           
           // Show/hide buttons section
           document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('includeButtons').addEventListener('change', function() {
-              const buttonsSection = document.getElementById('buttonsSection');
-              buttonsSection.style.display = this.checked ? 'block' : 'none';
-            });
+            const includeButtonsToggle = document.getElementById('includeButtons') as HTMLInputElement | null;
+            if (includeButtonsToggle) {
+              includeButtonsToggle.addEventListener('change', function() {
+                const buttonsSection = document.getElementById('buttonsSection');
+                if (buttonsSection) buttonsSection.style.display = this.checked ? 'block' : 'none';
+              });
+            }
             
             // Load categories when product modal opens
             const addProductModalEl = document.getElementById('addProductModal');
@@ -1648,8 +1676,8 @@ router.get('/', requireAdmin, async (req, res) => {
               
               pricePzInput.addEventListener('input', updateRubFromPz);
               priceRubInput.addEventListener('input', updatePzFromRub);
-              // Ensure initial sync
-              updateRubFromPz();
+              // Ensure initial sync (prefer RUB -> PZ)
+              updatePzFromRub();
             }
           });
           
@@ -1730,14 +1758,23 @@ router.get('/', requireAdmin, async (req, res) => {
             const isEdit = productId !== '';
             
             const formData = new FormData();
-            formData.append('title', document.getElementById('productName').value);
-            formData.append('price', document.getElementById('productPrice').value);
-            formData.append('categoryId', document.getElementById('productCategory').value);
-            formData.append('stock', document.getElementById('productStock').value || 0);
-            formData.append('summary', document.getElementById('productShortDescription').value);
-            formData.append('description', document.getElementById('productFullDescription').value);
-            formData.append('instruction', document.getElementById('productInstruction').value);
-            formData.append('isActive', document.getElementById('productStatus').checked);
+            const nameField = document.getElementById('productName') as HTMLInputElement | null;
+            const priceField = document.getElementById('productPrice') as HTMLInputElement | null;
+            const categoryField = document.getElementById('productCategory') as HTMLSelectElement | null;
+            const stockField = document.getElementById('productStock') as HTMLInputElement | null;
+            const shortDescField = document.getElementById('productShortDescription') as HTMLTextAreaElement | null;
+            const fullDescField = document.getElementById('productFullDescription') as HTMLTextAreaElement | null;
+            const instructionField = document.getElementById('productInstruction') as HTMLTextAreaElement | null;
+            const statusField = document.getElementById('productStatus') as HTMLInputElement | null;
+            
+            formData.append('title', nameField ? nameField.value : '');
+            formData.append('price', priceField ? priceField.value : '0');
+            formData.append('categoryId', categoryField ? categoryField.value : '');
+            formData.append('stock', stockField ? stockField.value || '0' : '0');
+            formData.append('summary', shortDescField ? shortDescField.value : '');
+            formData.append('description', fullDescField ? fullDescField.value : '');
+            formData.append('instruction', instructionField ? instructionField.value : '');
+            formData.append('isActive', statusField ? statusField.checked : false);
             
             // Regions
             const regionRussiaEl = document.getElementById('regionRussia');
@@ -2976,7 +3013,8 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             const selectedUserIds = Array.from(selectedCheckboxes).map(cb => cb.value);
             const subject = document.getElementById('messageSubject').value.trim();
             const text = document.getElementById('messageText').value.trim();
-            const saveAsTemplate = document.getElementById('saveAsTemplate').checked;
+          const saveAsTemplateInput = document.getElementById('saveAsTemplate') as HTMLInputElement | null;
+          const saveAsTemplate = saveAsTemplateInput ? saveAsTemplateInput.checked : false;
             const errorDiv = document.getElementById('messageError');
             
             // Валидация
@@ -5231,9 +5269,12 @@ router.get('/products', requireAdmin, async (req, res) => {
             document.getElementById('editProductPrice').value = price;
             document.getElementById('editProductPriceRub').value = (price * 100).toFixed(2);
             document.getElementById('editProductStock').value = '999';
-            document.getElementById('editProductStatus').checked = isActive;
-            document.getElementById('editProductRussia').checked = availableInRussia;
-            document.getElementById('editProductBali').checked = availableInBali;
+            const editStatus = document.getElementById('editProductStatus') as HTMLInputElement | null;
+            if (editStatus) editStatus.checked = isActive;
+            const editRussia = document.getElementById('editProductRussia') as HTMLInputElement | null;
+            if (editRussia) editRussia.checked = availableInRussia;
+            const editBali = document.getElementById('editProductBali') as HTMLInputElement | null;
+            if (editBali) editBali.checked = availableInBali;
             
             // Load categories
             fetch('/admin/api/categories', { credentials: 'include' })
@@ -5268,7 +5309,8 @@ router.get('/products', requireAdmin, async (req, res) => {
             // Fix checkbox functionality for regions and status
             const regionCheckboxes = ['editProductRussia', 'editProductBali', 'editProductStatus'];
             regionCheckboxes.forEach(id => {
-              const checkbox = document.getElementById(id);
+              const checkbox = document.getElementById(id) as HTMLInputElement | null;
+              if (!checkbox) return;
               const switchRow = checkbox.closest('.switch-row') || checkbox.closest('.status-row');
               
               if (switchRow) {
@@ -5300,13 +5342,16 @@ router.get('/products', requireAdmin, async (req, res) => {
               formDataToSend.append('stock', formData.get('stock') || '999');
               
               // Handle checkboxes properly - only send if checked
-              if (document.getElementById('editProductStatus').checked) {
+              const editStatusCheckbox = document.getElementById('editProductStatus') as HTMLInputElement | null;
+              if (editStatusCheckbox && editStatusCheckbox.checked) {
                 formDataToSend.append('isActive', 'true');
               }
-              if (document.getElementById('editProductRussia').checked) {
+              const editRussiaCheckbox = document.getElementById('editProductRussia') as HTMLInputElement | null;
+              if (editRussiaCheckbox && editRussiaCheckbox.checked) {
                 formDataToSend.append('availableInRussia', 'true');
               }
-              if (document.getElementById('editProductBali').checked) {
+              const editBaliCheckbox = document.getElementById('editProductBali') as HTMLInputElement | null;
+              if (editBaliCheckbox && editBaliCheckbox.checked) {
                 formDataToSend.append('availableInBali', 'true');
               }
               
