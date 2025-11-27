@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 import { getActiveCategories, getProductsByCategory } from '../services/shop-service.js';
 import { getCartItems } from '../services/cart-service.js';
 import { getActiveReviews } from '../services/review-service.js';
-import { getOrCreatePartnerProfile, buildReferralLink, getPartnerDashboard, getPartnerList } from '../services/partner-service.js';
+import { getOrCreatePartnerProfile } from '../services/partner-service.js';
 const router = express.Router();
 // Serve static files
 router.use('/static', express.static(path.join(__dirname, '../../webapp')));
@@ -160,12 +160,6 @@ router.get('/api/categories/:categoryId/products', async (req, res) => {
         }
         else if (region === 'BALI') {
             filteredProducts = products.filter((product) => product.availableInBali);
-        }
-        else if (region === 'KAZAKHSTAN') {
-            filteredProducts = products.filter((product) => product.availableInKazakhstan);
-        }
-        else if (region === 'BELARUS') {
-            filteredProducts = products.filter((product) => product.availableInBelarus);
         }
         res.json(filteredProducts);
     }
@@ -343,54 +337,25 @@ router.get('/api/partner/dashboard', async (req, res) => {
         }
         const { prisma } = await import('../lib/prisma.js');
         let user = await prisma.user.findUnique({
-            where: { telegramId: telegramUser.id.toString() }
+            where: { telegramId: telegramUser.id.toString() },
+            include: { partner: true }
         });
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-        // Use the same logic as in bot - getPartnerDashboard
-        const dashboard = await getPartnerDashboard(user.id);
-        if (!dashboard) {
+        if (!user.partner) {
             return res.json({
                 isActive: false,
                 message: 'Партнерская программа не активирована'
             });
         }
-        const { profile, stats } = dashboard;
-        // Build referral links like in bot
-        const directLink = buildReferralLink(profile.referralCode, 'DIRECT');
-        const multiLink = buildReferralLink(profile.referralCode, 'MULTI_LEVEL');
-        
-        // Get recent transactions (last 3) like in bot
-        const recentTransactions = profile.transactions.slice(0, 3).map((tx) => {
-            const sign = tx.type === 'CREDIT' ? '+' : '-';
-            const amount = Number(tx.amount).toFixed(2);
-            return {
-                id: tx.id,
-                amount: tx.amount,
-                type: tx.type,
-                description: tx.description,
-                createdAt: tx.createdAt,
-                display: `${sign}${amount} PZ — ${tx.description}`
-            };
-        });
-        
         res.json({
-            isActive: profile.isActive,
-            balance: Number(profile.balance).toFixed(2),
-            bonus: Number(profile.bonus).toFixed(2),
-            referralCode: profile.referralCode,
-            referralLink: directLink, // Default direct link
-            referralLinkDirect: directLink,
-            referralLinkMulti: multiLink,
-            programType: profile.programType,
-            // Use stats from getPartnerDashboard (calculated from database)
-            totalPartners: stats.partners,
-            directPartners: stats.directPartners,
-            multiPartners: stats.multiPartners || 0,
-            transactions: recentTransactions,
-            expiresAt: profile.expiresAt,
-            activatedAt: profile.activatedAt
+            isActive: user.partner.isActive,
+            balance: user.partner.balance,
+            bonus: user.partner.bonus,
+            referralCode: user.partner.referralCode,
+            totalPartners: user.partner.totalPartners,
+            directPartners: user.partner.directPartners
         });
     }
     catch (error) {
@@ -448,36 +413,21 @@ router.post('/api/partner/activate', async (req, res) => {
         // Check if user already has a partner profile
         if (user.partner) {
             console.log('✅ User already has partner profile:', user.partner.id);
-            // Build referral links like in bot
-            const directLink = buildReferralLink(user.partner.referralCode, 'DIRECT');
-            const multiLink = buildReferralLink(user.partner.referralCode, 'MULTI_LEVEL');
-            
             return res.json({
                 success: true,
                 message: 'Партнёрская программа уже активирована',
                 isActive: user.partner.isActive,
-                referralCode: user.partner.referralCode,
-                referralLink: directLink, // Default direct link
-                referralLinkDirect: directLink,
-                referralLinkMulti: multiLink,
-                programType: user.partner.programType
+                referralCode: user.partner.referralCode
             });
         }
         // Create partner profile
         console.log('✅ Creating partner profile...');
         const partnerProfile = await getOrCreatePartnerProfile(user.id, type);
         console.log('✅ Partner profile created successfully:', partnerProfile.id);
-        // Build referral links like in bot
-        const directLink = buildReferralLink(partnerProfile.referralCode, 'DIRECT');
-        const multiLink = buildReferralLink(partnerProfile.referralCode, 'MULTI_LEVEL');
-        
         res.json({
             success: true,
             message: 'Партнёрская программа активирована!',
             referralCode: partnerProfile.referralCode,
-            referralLink: directLink, // Default direct link
-            referralLinkDirect: directLink,
-            referralLinkMulti: multiLink,
             programType: partnerProfile.programType
         });
     }
@@ -650,35 +600,6 @@ router.post('/api/user/address', async (req, res) => {
     }
     catch (error) {
         console.error('Error saving address:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-// Get partner list
-router.get('/api/partner/list', async (req, res) => {
-    try {
-        const telegramUser = getTelegramUser(req);
-        if (!telegramUser) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-        const { prisma } = await import('../lib/prisma.js');
-        let user = await prisma.user.findUnique({
-            where: { telegramId: telegramUser.id.toString() }
-        });
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        // Use the same logic as in bot - getPartnerList
-        const partnerList = await getPartnerList(user.id);
-        if (!partnerList) {
-            return res.json({
-                directPartners: [],
-                multiPartners: []
-            });
-        }
-        res.json(partnerList);
-    }
-    catch (error) {
-        console.error('Error getting partner list:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

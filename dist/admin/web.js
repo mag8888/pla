@@ -966,8 +966,6 @@ router.get('/', requireAdmin, async (req, res) => {
                 <div class="regions-grid">
                   <label class="switch-row"><input type="checkbox" id="regionRussia" checked> 🇷🇺 Россия</label>
                   <label class="switch-row"><input type="checkbox" id="regionBali"> 🇮🇩 Бали</label>
-                  <label class="switch-row"><input type="checkbox" id="regionKazakhstan"> 🇰🇿 Казахстан</label>
-                  <label class="switch-row"><input type="checkbox" id="regionBelarus"> 🇧🇾 Беларусь</label>
                 </div>
               </div>
 
@@ -1011,14 +1009,14 @@ router.get('/', requireAdmin, async (req, res) => {
                 </div>
                 <div class="form-group">
                   <label class="status-toggle">
-                    <input type="checkbox" id="productStatus"> Товар активен (доступен для покупки)
+                    <input type="checkbox" id="productActive"> Товар активен (доступен для покупки)
                   </label>
                 </div>
               </div>
 
               <div class="modal-footer">
                 <button type="button" class="btn" onclick="closeAddProductModal()" style="background: #6c757d;">Отмена</button>
-                <button type="submit" id="productModalSubmit" class="btn" style="background: #28a745;">💾 Создать товар</button>
+                <button type="submit" class="btn" style="background: #28a745;">💾 Создать товар</button>
               </div>
             </form>
           </div>
@@ -1287,7 +1285,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 categories.forEach(category => {
                   const option = document.createElement('option');
                   option.value = category.id;
-                  option.textContent = category.name;
+                  option.textContent = category.icon ? category.icon + ' ' + category.name : category.name;
                   select.appendChild(option);
                 });
               }
@@ -1307,8 +1305,6 @@ router.get('/', requireAdmin, async (req, res) => {
             const isActive = button.dataset.active === 'true';
             const availableInRussia = button.dataset.russia === 'true';
             const availableInBali = button.dataset.bali === 'true';
-            const availableInKazakhstan = button.dataset.kazakhstan === 'true';
-            const availableInBelarus = button.dataset.belarus === 'true';
             const imageUrl = button.dataset.image;
             
             // Fill form fields
@@ -1322,16 +1318,10 @@ router.get('/', requireAdmin, async (req, res) => {
             document.getElementById('productStock').value = '999';
             document.getElementById('productCategory').value = categoryId;
             document.getElementById('productStatus').checked = isActive;
-            
-            // Set region toggles
             const regionRussiaEl = document.getElementById('regionRussia');
             const regionBaliEl = document.getElementById('regionBali');
-            const regionKazakhstanEl = document.getElementById('regionKazakhstan');
-            const regionBelarusEl = document.getElementById('regionBelarus');
             if (regionRussiaEl) regionRussiaEl.checked = availableInRussia;
             if (regionBaliEl) regionBaliEl.checked = availableInBali;
-            if (regionKazakhstanEl) regionKazakhstanEl.checked = availableInKazakhstan;
-            if (regionBelarusEl) regionBelarusEl.checked = availableInBelarus;
             
             // Set image preview
             const imagePreview = document.getElementById('imagePreview');
@@ -1377,56 +1367,71 @@ router.get('/', requireAdmin, async (req, res) => {
             const isActive = button.dataset.active === 'true';
             const availableInRussia = button.dataset.russia === 'true';
             const availableInBali = button.dataset.bali === 'true';
-            const availableInKazakhstan = button.dataset.kazakhstan === 'true';
-            const availableInBelarus = button.dataset.belarus === 'true';
             const imageUrl = button.dataset.image;
             
             // Set hidden product ID field
-            document.getElementById('productId').value = productId;
+            const productIdEl = document.getElementById('productId');
+            if (productIdEl) productIdEl.value = productId;
             
             // Fill form fields
-            document.getElementById('productName').value = title;
-            document.getElementById('productShortDescription').value = summary;
-            document.getElementById('productFullDescription').value = description;
-            document.getElementById('productInstruction').value = button.dataset.instruction || '';
-            document.getElementById('productPrice').value = price;
-            document.getElementById('productPriceRub').value = (price * 100).toFixed(2);
-            document.getElementById('productStock').value = '999'; // Default stock
-            document.getElementById('productCategory').value = categoryId;
+            const productNameEl = document.getElementById('productName');
+            if (productNameEl) productNameEl.value = title;
+            
+            const productShortDescEl = document.getElementById('productShortDescription');
+            if (productShortDescEl) productShortDescEl.value = summary;
+            
+            const productFullDescEl = document.getElementById('productFullDescription');
+            if (productFullDescEl) productFullDescEl.value = description;
+            
+            const productInstructionEl = document.getElementById('productInstruction');
+            if (productInstructionEl) productInstructionEl.value = button.dataset.instruction || '';
+            
+            const productPriceEl = document.getElementById('productPrice');
+            if (productPriceEl) productPriceEl.value = price;
+            
+            const productPriceRubEl = document.getElementById('productPriceRub');
+            if (productPriceRubEl) productPriceRubEl.value = (price * 100).toFixed(2);
+            
+            const productStockEl = document.getElementById('productStock');
+            if (productStockEl) productStockEl.value = '999'; // Default stock
+            
+            const productCategoryEl = document.getElementById('productCategory');
+            if (productCategoryEl) productCategoryEl.value = categoryId;
             
             // Set status toggle
-            document.getElementById('productStatus').checked = isActive;
+            const productStatusEl = document.getElementById('productStatus');
+            if (productStatusEl) productStatusEl.checked = isActive;
             
             // Set region toggles
-            const regionRussiaEl = document.getElementById('regionRussia');
-            const regionBaliEl = document.getElementById('regionBali');
-            const regionKazakhstanEl = document.getElementById('regionKazakhstan');
-            const regionBelarusEl = document.getElementById('regionBelarus');
-            if (regionRussiaEl) regionRussiaEl.checked = availableInRussia;
-            if (regionBaliEl) regionBaliEl.checked = availableInBali;
-            if (regionKazakhstanEl) regionKazakhstanEl.checked = availableInKazakhstan;
-            if (regionBelarusEl) regionBelarusEl.checked = availableInBelarus;
+            const productRussiaEl = document.getElementById('productRussia') || document.getElementById('regionRussia');
+            if (productRussiaEl) productRussiaEl.checked = availableInRussia;
+            
+            const productBaliEl = document.getElementById('productBali') || document.getElementById('regionBali');
+            if (productBaliEl) productBaliEl.checked = availableInBali;
             
             // Set image preview
             const imagePreview = document.getElementById('imagePreview');
-            if (imageUrl) {
-              imagePreview.src = imageUrl;
-              imagePreview.style.display = 'block';
-              imagePreview.nextElementSibling.style.display = 'none';
-            } else {
-              imagePreview.style.display = 'none';
-              imagePreview.nextElementSibling.style.display = 'flex';
+            if (imagePreview) {
+              if (imageUrl) {
+                imagePreview.style.backgroundImage = 'url(' + imageUrl + ')';
+                imagePreview.style.display = 'block';
+              } else {
+                imagePreview.style.backgroundImage = '';
+                imagePreview.style.display = 'none';
+              }
             }
             
-            // Update modal title and submit button
-            document.querySelector('.product-modal h2').textContent = 'Редактировать товар';
-            document.querySelector('#productModalSubmit').textContent = 'Обновить товар';
+            // Update modal title
+            const modalTitle = document.querySelector('.product-modal h2');
+            if (modalTitle) modalTitle.textContent = 'Редактировать товар';
             
             // Load categories and show modal
             if (window.loadCategories) {
               window.loadCategories();
             }
-            document.getElementById('addProductModal').style.display = 'block';
+            
+            const modal = document.getElementById('addProductModal');
+            if (modal) modal.style.display = 'block';
           };
           // Sorting: redirect to full users page with server-side sorting across ALL users
           function sortTable(column) {
@@ -1556,7 +1561,12 @@ router.get('/', requireAdmin, async (req, res) => {
             });
             
             // Load categories when product modal opens
-            document.getElementById('addProductModal').addEventListener('shown.bs.modal', loadCategories);
+            const addProductModalEl = document.getElementById('addProductModal');
+            if (addProductModalEl) {
+              addProductModalEl.addEventListener('shown.bs.modal', function() {
+                if (window.loadCategories) window.loadCategories();
+              });
+            }
             
             // Character counter for short description
             const shortDesc = document.getElementById('productShortDescription');
@@ -1582,186 +1592,97 @@ router.get('/', requireAdmin, async (req, res) => {
             }
           });
           
-          // Product modal functions - make them global (available immediately)
+          // Product modal functions
           window.openAddProductModal = function() {
             // Reset form for new product
+            const modal = document.getElementById('addProductModal');
+            if (!modal) {
+              console.error('Modal addProductModal not found');
+              return;
+            }
+            
             const productIdEl = document.getElementById('productId');
             if (productIdEl) productIdEl.value = '';
+            
             const modalTitle = document.querySelector('.product-modal h2');
             if (modalTitle) modalTitle.textContent = 'Добавить товар';
-            const productModalSubmit = document.querySelector('#productModalSubmit');
-            if (productModalSubmit) productModalSubmit.textContent = 'Создать товар';
-            const modal = document.getElementById('addProductModal');
-            if (modal) {
-              modal.style.display = 'block';
-              if (window.loadCategories) {
-                window.loadCategories();
-              }
+            
+            modal.style.display = 'block';
+            
+            // Load categories if function exists
+            if (window.loadCategories) {
+              window.loadCategories();
+            } else {
+              console.error('loadCategories function not found');
             }
-          };
+          }
           
           window.closeAddProductModal = function() {
             const modal = document.getElementById('addProductModal');
             if (modal) modal.style.display = 'none';
+            
             const form = document.getElementById('addProductForm');
             if (form) form.reset();
+            
             const productIdEl = document.getElementById('productId');
             if (productIdEl) productIdEl.value = '';
+            
             const shortDescCount = document.getElementById('shortDescCount');
             if (shortDescCount) shortDescCount.textContent = '0/200';
             
-            // Reset modal title and submit button
+            // Reset modal title
             const modalTitle = document.querySelector('.product-modal h2');
             if (modalTitle) modalTitle.textContent = '➕ Добавить новый товар';
-            const productModalSubmit = document.querySelector('#productModalSubmit');
-            if (productModalSubmit) productModalSubmit.textContent = 'Создать товар';
-          }
-        
-        // Continue with other DOMContentLoaded handlers
-        document.addEventListener('DOMContentLoaded', function() {
-          
-          function openAddCategoryModal() {
-            document.getElementById('addCategoryModal').style.display = 'block';
+            
+            // Reset image preview
+            const imagePreview = document.getElementById('imagePreview');
+            if (imagePreview) {
+              imagePreview.style.backgroundImage = '';
+              imagePreview.innerHTML = '';
+            }
           }
           
-          function closeAddCategoryModal() {
-            document.getElementById('addCategoryModal').style.display = 'none';
-            document.getElementById('addCategoryForm').reset();
+          window.openAddCategoryModal = function() {
+            const modal = document.getElementById('addCategoryModal');
+            if (modal) modal.style.display = 'block';
+          }
+          
+          window.closeAddCategoryModal = function() {
+            const modal = document.getElementById('addCategoryModal');
+            if (modal) modal.style.display = 'none';
+            
+            const form = document.getElementById('addCategoryForm');
+            if (form) form.reset();
           }
           
           // Edit product using create modal
-          function editProductUsingCreateModal(button) {
-            const productId = button.dataset.id;
-            const title = button.dataset.title;
-            const summary = button.dataset.summary;
-            const description = button.dataset.description;
-            const price = button.dataset.price;
-            const categoryId = button.dataset.categoryId;
-            const isActive = button.dataset.active === 'true';
-            const availableInRussia = button.dataset.russia === 'true';
-            const availableInBali = button.dataset.bali === 'true';
-            const imageUrl = button.dataset.image;
-            
-            // Set hidden product ID field
-            document.getElementById('productId').value = productId;
-            
-            // Fill form fields
-            document.getElementById('productName').value = title;
-            document.getElementById('productShortDescription').value = summary;
-            document.getElementById('productFullDescription').value = description;
-            document.getElementById('productInstruction').value = button.dataset.instruction || '';
-            document.getElementById('productPrice').value = price;
-            document.getElementById('productPriceRub').value = (price * 100).toFixed(2);
-            document.getElementById('productStock').value = '999'; // Default stock
-            document.getElementById('productCategory').value = categoryId;
-            
-            // Set status toggle
-            document.getElementById('productStatus').checked = isActive;
-            
-            // Set region toggles
-            const regionRussiaEl = document.getElementById('regionRussia');
-            const regionBaliEl = document.getElementById('regionBali');
-            const regionKazakhstanEl = document.getElementById('regionKazakhstan');
-            const regionBelarusEl = document.getElementById('regionBelarus');
-            if (regionRussiaEl) regionRussiaEl.checked = availableInRussia;
-            if (regionBaliEl) regionBaliEl.checked = availableInBali;
-            if (regionKazakhstanEl) regionKazakhstanEl.checked = availableInKazakhstan;
-            if (regionBelarusEl) regionBelarusEl.checked = availableInBelarus;
-            
-            // Set image preview
-            const imagePreview = document.getElementById('imagePreview');
-            if (imageUrl) {
-              imagePreview.src = imageUrl;
-              imagePreview.style.display = 'block';
-              imagePreview.nextElementSibling.style.display = 'none';
-            } else {
-              imagePreview.style.display = 'none';
-              imagePreview.nextElementSibling.style.display = 'flex';
-            }
-            
-            // Update modal title and submit button
-            document.querySelector('.product-modal h2').textContent = 'Редактировать товар';
-            document.querySelector('#productModalSubmit').textContent = 'Обновить товар';
-            
-            // Load categories and show modal
-            if (window.loadCategories) {
-              window.loadCategories();
-            }
-            document.getElementById('addProductModal').style.display = 'block';
-          }
+          // editProductUsingCreateModal is already defined as window.editProductUsingCreateModal above
           
-          // Load categories for product form - use global function window.loadCategories
+          // Load categories for product form
+          // loadCategories is already defined as window.loadCategories above
           
           // Handle product form submission
           document.getElementById('addProductForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Validate required fields
-            const productName = document.getElementById('productName').value.trim();
-            const productPrice = document.getElementById('productPrice').value;
-            const productCategory = document.getElementById('productCategory').value;
-            const productShortDescription = document.getElementById('productShortDescription').value.trim();
-            const productFullDescription = document.getElementById('productFullDescription').value.trim();
-            
-            if (!productName) {
-              alert('❌ Введите название товара');
-              document.getElementById('productName').focus();
-              return;
-            }
-            
-            if (!productPrice || isNaN(parseFloat(productPrice)) || parseFloat(productPrice) <= 0) {
-              alert('❌ Введите корректную цену товара');
-              document.getElementById('productPrice').focus();
-              return;
-            }
-            
-            if (!productCategory) {
-              alert('❌ Выберите категорию товара');
-              document.getElementById('productCategory').focus();
-              return;
-            }
-            
-            if (!productShortDescription) {
-              alert('❌ Введите краткое описание товара');
-              document.getElementById('productShortDescription').focus();
-              return;
-            }
-            
-            if (!productFullDescription) {
-              alert('❌ Введите полное описание товара');
-              document.getElementById('productFullDescription').focus();
-              return;
-            }
-            
             const productId = document.getElementById('productId').value;
             const isEdit = productId !== '';
             
             const formData = new FormData();
-            // For create use 'name', for update use 'title'
-            if (isEdit) {
-              formData.append('title', productName);
-              formData.append('summary', productShortDescription);
-              formData.append('description', productFullDescription);
-            } else {
-              formData.append('name', productName);
-              formData.append('shortDescription', productShortDescription);
-              formData.append('fullDescription', productFullDescription);
-            }
-            formData.append('price', productPrice);
-            formData.append('categoryId', productCategory);
+            formData.append('title', document.getElementById('productName').value);
+            formData.append('price', document.getElementById('productPrice').value);
+            formData.append('categoryId', document.getElementById('productCategory').value);
             formData.append('stock', document.getElementById('productStock').value || 0);
+            formData.append('summary', document.getElementById('productShortDescription').value);
+            formData.append('description', document.getElementById('productFullDescription').value);
             formData.append('instruction', document.getElementById('productInstruction').value);
             formData.append('isActive', document.getElementById('productStatus').checked);
             
             // Regions
             const regionRussiaEl = document.getElementById('regionRussia');
             const regionBaliEl = document.getElementById('regionBali');
-            const regionKazakhstanEl = document.getElementById('regionKazakhstan');
-            const regionBelarusEl = document.getElementById('regionBelarus');
             formData.append('availableInRussia', regionRussiaEl ? regionRussiaEl.checked : false);
             formData.append('availableInBali', regionBaliEl ? regionBaliEl.checked : false);
-            formData.append('availableInKazakhstan', regionKazakhstanEl ? regionKazakhstanEl.checked : false);
-            formData.append('availableInBelarus', regionBelarusEl ? regionBelarusEl.checked : false);
             
             // Add image if selected
             const imageFile = document.getElementById('productImage').files[0];
@@ -1813,9 +1734,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 alert('✅ Категория успешно создана!');
                 closeAddCategoryModal();
                 // Reload categories in product form
-                if (window.loadCategories) {
-                  window.loadCategories();
-                }
+                window.loadCategories();
               } else {
                 alert('❌ Ошибка при создании категории: ' + result.error);
               }
@@ -3439,7 +3358,7 @@ router.post('/api/categories', requireAdmin, async (req, res) => {
 // API: Create product
 router.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
     try {
-        const { name, price, categoryId, stock, shortDescription, fullDescription, instruction, active, availableInRussia, availableInBali, availableInKazakhstan, availableInBelarus } = req.body;
+        const { name, price, categoryId, stock, shortDescription, fullDescription, instruction, active, availableInRussia, availableInBali } = req.body;
         // Validation
         if (!name || !name.trim()) {
             return res.status(400).json({ success: false, error: 'Название товара обязательно' });
@@ -3494,9 +3413,7 @@ router.post('/api/products', requireAdmin, upload.single('image'), async (req, r
                 imageUrl,
                 isActive: active === 'true' || active === true,
                 availableInRussia: availableInRussia === 'true' || availableInRussia === true,
-                availableInBali: availableInBali === 'true' || availableInBali === true,
-                availableInKazakhstan: availableInKazakhstan === 'true' || availableInKazakhstan === true,
-                availableInBelarus: availableInBelarus === 'true' || availableInBelarus === true
+                availableInBali: availableInBali === 'true' || availableInBali === true
             }
         });
         res.json({ success: true, product });
@@ -4951,9 +4868,7 @@ router.get('/products', requireAdmin, async (req, res) => {
             <div style="margin: 8px 0;">
               <span style="font-size: 12px; color: #666;">Регионы:</span>
               ${product.availableInRussia ? '<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇷🇺 Россия</span>' : ''}
-              ${product.availableInBali ? '<span style="background: #f3e5f5; color: #7b1fa2; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇮🇩 Бали</span>' : ''}
-              ${product.availableInKazakhstan ? '<span style="background: #fff3e0; color: #e65100; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇰🇿 Казахстан</span>' : ''}
-              ${product.availableInBelarus ? '<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇧🇾 Беларусь</span>' : ''}
+              ${product.availableInBali ? '<span style="background: #f3e5f5; color: #7b1fa2; padding: 2px 6px; border-radius: 4px; font-size: 11px;">🇮🇩 Бали</span>' : ''}
             </div>
             <p class="product-summary">${product.summary}</p>
             <div class="product-price">${priceFormatted}</div>
@@ -4975,8 +4890,6 @@ router.get('/products', requireAdmin, async (req, res) => {
                 data-active="${product.isActive ? 'true' : 'false'}"
                 data-russia="${product.availableInRussia ? 'true' : 'false'}"
                 data-bali="${product.availableInBali ? 'true' : 'false'}"
-                data-kazakhstan="${product.availableInKazakhstan ? 'true' : 'false'}"
-                data-belarus="${product.availableInBelarus ? 'true' : 'false'}"
                 data-image="${product.imageUrl || ''}"
                 onclick="editProduct(this)"
               >✏️ Редактировать</button>
@@ -5408,7 +5321,7 @@ router.post('/products/:id/toggle-active', requireAdmin, async (req, res) => {
 router.post('/products/:productId/update', requireAdmin, upload.single('image'), async (req, res) => {
     try {
         const { productId } = req.params;
-        const { title, price, summary, description, instruction, isActive, categoryId, stock, availableInRussia, availableInBali, availableInKazakhstan, availableInBelarus } = req.body;
+        const { title, price, summary, description, instruction, isActive, categoryId, stock, availableInRussia, availableInBali } = req.body;
         console.log('Update product request:', {
             productId,
             body: req.body,
@@ -5447,10 +5360,6 @@ router.post('/products/:productId/update', requireAdmin, upload.single('image'),
             updateData.availableInRussia = availableInRussia === 'true';
         if (availableInBali !== undefined)
             updateData.availableInBali = availableInBali === 'true';
-        if (availableInKazakhstan !== undefined)
-            updateData.availableInKazakhstan = availableInKazakhstan === 'true';
-        if (availableInBelarus !== undefined)
-            updateData.availableInBelarus = availableInBelarus === 'true';
         if (imageUrl)
             updateData.imageUrl = imageUrl;
         const product = await prisma.product.update({
@@ -8604,9 +8513,7 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
           }
           
           // Добавить товар в редактируемый заказ
-          const editOrderProductForm = document.getElementById('editOrderProductForm');
-          if (editOrderProductForm) {
-            editOrderProductForm.addEventListener('submit', function(e) {
+          document.getElementById('addProductForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const productSelect = document.getElementById('productSelect');
@@ -8621,19 +8528,18 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
             const title = selectedOption.dataset.title;
             const price = parseFloat(selectedOption.dataset.price);
             
-              currentEditItems.push({
-                title: title,
-                price: price,
-                quantity: quantity
-              });
-              
-              renderEditItems();
-              
-              // Очищаем форму
-              editOrderProductForm.reset();
-              document.getElementById('productQuantity').value = 1;
+            currentEditItems.push({
+              title: title,
+              price: price,
+              quantity: quantity
             });
-          }
+            
+            renderEditItems();
+            
+            // Очищаем форму
+            document.getElementById('addProductForm').reset();
+            document.getElementById('productQuantity').value = 1;
+          });
           
           // Сохранить изменения заказа
           async function saveOrderChanges() {
@@ -8833,7 +8739,7 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
             
             <div class="add-product-section">
               <h3>➕ Добавить товар</h3>
-              <form id="editOrderProductForm" class="add-product-form">
+              <form id="addProductForm" class="add-product-form">
                 <div class="form-group">
                   <label for="productSelect">Выберите товар:</label>
                   <select id="productSelect" name="productId" required>

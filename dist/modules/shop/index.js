@@ -16,10 +16,6 @@ export async function showRegionSelection(ctx) {
         [
             Markup.button.callback('🇷🇺 Россия', `${REGION_SELECT_PREFIX}RUSSIA`),
             Markup.button.callback('🇮🇩 Бали', `${REGION_SELECT_PREFIX}BALI`)
-        ],
-        [
-            Markup.button.callback('🇰🇿 Казахстан', `${REGION_SELECT_PREFIX}KAZAKHSTAN`),
-            Markup.button.callback('🇧🇾 Беларусь', `${REGION_SELECT_PREFIX}BELARUS`)
         ]
     ]));
 }
@@ -49,8 +45,8 @@ export async function showCategories(ctx, region) {
             return;
         }
         // Show catalog with products grouped by categories
-        const regionEmoji = region === 'RUSSIA' ? '🇷🇺' : region === 'BALI' ? '🇮🇩' : region === 'KAZAKHSTAN' ? '🇰🇿' : region === 'BELARUS' ? '🇧🇾' : '🌍';
-        const regionText = region === 'RUSSIA' ? 'Россия' : region === 'BALI' ? 'Бали' : region === 'KAZAKHSTAN' ? 'Казахстан' : region === 'BELARUS' ? 'Беларусь' : 'Все регионы';
+        const regionEmoji = region === 'RUSSIA' ? '🇷🇺' : region === 'BALI' ? '🇮🇩' : '🌍';
+        const regionText = region === 'RUSSIA' ? 'Россия' : region === 'BALI' ? 'Бали' : 'Все регионы';
         // Get cart items count
         const user = await ensureUser(ctx);
         let cartItemsCount = 0;
@@ -119,14 +115,8 @@ async function sendProductCards(ctx, categoryId, region) {
         else if (region === 'BALI') {
             products = products.filter((product) => product.availableInBali);
         }
-        else if (region === 'KAZAKHSTAN') {
-            products = products.filter((product) => product.availableInKazakhstan);
-        }
-        else if (region === 'BELARUS') {
-            products = products.filter((product) => product.availableInBelarus);
-        }
         if (products.length === 0) {
-            const regionText = region === 'RUSSIA' ? 'России' : region === 'BALI' ? 'Бали' : region === 'KAZAKHSTAN' ? 'Казахстана' : region === 'BELARUS' ? 'Беларуси' : '';
+            const regionText = region === 'RUSSIA' ? 'России' : region === 'BALI' ? 'Бали' : '';
             await ctx.reply(`📂 ${category.name}\n\nВ этой категории нет товаров для ${regionText}.`);
             return;
         }
@@ -255,23 +245,6 @@ async function handleBuy(ctx, productId) {
         return;
     }
     const cartItems = await getCartItems(user.id);
-    
-    // Check if user has active partner program for 10% discount
-    const { prisma } = await import('../../lib/prisma.js');
-    const partnerProfile = await prisma.partnerProfile.findUnique({
-        where: { userId: user.id },
-        select: { isActive: true, expiresAt: true }
-    });
-    
-    let discount = 0;
-    if (partnerProfile && partnerProfile.isActive) {
-        // Check if partner program hasn't expired
-        const isExpired = partnerProfile.expiresAt && new Date(partnerProfile.expiresAt) < new Date();
-        if (!isExpired) {
-            discount = 0.1; // 10% discount
-        }
-    }
-    
     // Create full items list including main product
     const allItems = [...cartItems];
     allItems.push({
@@ -281,7 +254,7 @@ async function handleBuy(ctx, productId) {
         },
         quantity: 1
     });
-    const summaryText = cartItemsToText(allItems, discount);
+    const summaryText = cartItemsToText(allItems);
     const lines = [
         '🛒 Запрос на покупку',
         `Пользователь: ${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
@@ -293,84 +266,22 @@ async function handleBuy(ctx, productId) {
         summaryText
     ].filter(Boolean);
     const message = lines.join('\n');
-    
-    // Apply discount to prices
-    const itemsPayload = cartItems.map((item) => {
-        const originalPrice = Number(item.product.price);
-        const discountedPrice = discount > 0 ? originalPrice * (1 - discount) : originalPrice;
-        return {
-            productId: item.productId,
-            title: item.product.title,
-            price: discountedPrice,
-            quantity: item.quantity,
-        };
-    });
-    
-    const originalProductPrice = Number(product.price);
-    const discountedProductPrice = discount > 0 ? originalProductPrice * (1 - discount) : originalProductPrice;
+    const itemsPayload = cartItems.map((item) => ({
+        productId: item.productId,
+        title: item.product.title,
+        price: Number(item.product.price),
+        quantity: item.quantity,
+    }));
     itemsPayload.push({
         productId: product.id,
         title: product.title,
-        price: discountedProductPrice,
+        price: Number(product.price),
         quantity: 1,
     });
-    
-    // Calculate total order amount in rubles (price * 100)
-    const subtotal = allItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-    const discountAmount = discount > 0 ? subtotal * discount : 0;
-    const total = subtotal - discountAmount;
-    const totalInRubles = total * 100; // Convert PZ to rubles
-    
-    // Check if order amount is less than 12,000 rubles
-    const MIN_ORDER_AMOUNT = 12000; // 12,000 rubles
-    if (totalInRubles < MIN_ORDER_AMOUNT) {
-        const missingAmount = MIN_ORDER_AMOUNT - totalInRubles;
-        const missingAmountPz = (missingAmount / 100).toFixed(2);
-        const missingAmountRub = missingAmount.toFixed(2);
-        
-        await ctx.reply(
-            `💡 Для активации персональной скидки 10% и партнерской программы вы можете дополнить заказ.\n\n` +
-            `💰 Вам не хватает: ${missingAmountRub} ₽ / ${missingAmountPz} PZ\n\n` +
-            `🛒 Добавьте товары в корзину и оформите заказ.`,
-            {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: '🛒 Перейти в магазин',
-                                callback_data: 'shop:cart',
-                            },
-                        ],
-                    ],
-                },
-            }
-        );
-        return;
-    }
-    
-    // Check if this is a supplementary order (user had a previous order in last 24 hours)
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const previousOrder = await prisma.orderRequest.findFirst({
-        where: {
-            userId: user.id,
-            createdAt: {
-                gte: oneDayAgo
-            }
-        },
-        orderBy: {
-            createdAt: 'desc'
-        }
-    });
-    
-    const isSupplementaryOrder = !!previousOrder;
-    const orderMessage = isSupplementaryOrder 
-        ? `ДОПОЛНЕННЫЙ ЗАКАЗ через бота. Основной товар: ${product.title}${discount > 0 ? ' (скидка 10% применена)' : ''}`
-        : `Покупка через бота. Основной товар: ${product.title}${discount > 0 ? ' (скидка 10% применена)' : ''}`;
-    
-    console.log('🛒 SHOP: About to create order request for user:', user.id, user.firstName, user.username, discount > 0 ? 'with 10% discount' : '', isSupplementaryOrder ? '(supplementary order)' : '');
+    console.log('🛒 SHOP: About to create order request for user:', user.id, user.firstName, user.username);
     await createOrderRequest({
         userId: user.id,
-        message: orderMessage,
+        message: `Покупка через бота. Основной товар: ${product.title}`,
         items: itemsPayload,
     });
     console.log('✅ SHOP: Order request created successfully');
@@ -380,10 +291,7 @@ async function handleBuy(ctx, productId) {
     const bot = await getBotInstance();
     if (bot) {
         const aureliaAdminId = '7077195545'; // @Aurelia_8888
-        const orderHeader = isSupplementaryOrder 
-            ? `🛍️ ДОПОЛНЕННЫЙ ЗАКАЗ от ${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
-            : `🛍️ Новый заказ от ${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
-        const fullMessage = `${orderHeader}\n\n${message}\n\nЗдравствуйте, хочу приобрести товар…`;
+        const fullMessage = `${message}\n\nЗдравствуйте, хочу приобрести товар…`;
         try {
             await bot.telegram.sendMessage(aureliaAdminId, fullMessage, {
                 parse_mode: 'HTML',
@@ -444,7 +352,7 @@ export const shopModule = {
             }
             // Save region to user and show categories
             const user = await ensureUser(ctx);
-            if (user && (regionOrAction === 'RUSSIA' || regionOrAction === 'BALI' || regionOrAction === 'KAZAKHSTAN' || regionOrAction === 'BELARUS')) {
+            if (user && (regionOrAction === 'RUSSIA' || regionOrAction === 'BALI')) {
                 await prisma.user.update({
                     where: { id: user.id },
                     data: { selectedRegion: regionOrAction }

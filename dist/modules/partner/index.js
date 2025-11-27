@@ -135,14 +135,14 @@ async function showDashboard(ctx) {
             const expiration = new Date(expiresAt);
             const daysLeft = Math.ceil((expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             if (daysLeft > 0) {
-                activationStatus = `\n✅ Активация партнерки 25% до ${expiration.toLocaleDateString('ru-RU')} (осталось ${daysLeft} дней)\n🎁 Активирована личная скидка 10% на последующие заказы`;
+                activationStatus = `\n✅ Активация партнерки 25% до ${expiration.toLocaleDateString('ru-RU')} (осталось ${daysLeft} дней)`;
             }
             else {
                 activationStatus = '\n❌ Активация партнерки истекла';
             }
         }
         else {
-            activationStatus = '\n✅ Активация партнерки активна\n🎁 Активирована личная скидка 10% на последующие заказы';
+            activationStatus = '\n✅ Активация партнерки активна';
         }
     }
     else {
