@@ -2086,7 +2086,22 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
         const sortOrder = req.query.order || 'desc';
         // Get all users with their related data
         // Optional search by username
-        const search = req.query.search?.trim();
+        const searchRaw = req.query.search?.trim();
+        const usernameSearch = searchRaw?.replace(/^@/, '');
+        const phoneDigits = searchRaw ? searchRaw.replace(/\D+/g, '') : '';
+        const searchConditions = [];
+        if (usernameSearch) {
+            searchConditions.push({ username: { contains: usernameSearch, mode: 'insensitive' } });
+        }
+        if (searchRaw) {
+            searchConditions.push({ username: { contains: searchRaw, mode: 'insensitive' } });
+        }
+        if (phoneDigits) {
+            searchConditions.push({ phone: { contains: phoneDigits } });
+        }
+        if (searchRaw && !phoneDigits) {
+            searchConditions.push({ phone: { contains: searchRaw } });
+        }
         const users = await prisma.user.findMany({
             include: {
                 partner: {
@@ -2097,7 +2112,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                 },
                 orders: true
             },
-            where: search ? { username: { contains: search, mode: 'insensitive' } } : undefined,
+            where: searchConditions.length > 0 ? { OR: searchConditions } : undefined,
             orderBy: {
                 createdAt: sortOrder === 'desc' ? 'desc' : 'asc'
             }
@@ -2564,8 +2579,8 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           <div class="controls">
             <div class="sort-controls">
               <div class="sort-group" style="position: relative;">
-                <label>Найти по юзернейм:</label>
-                <input type="text" id="searchUsername" placeholder="@username" style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; font-size:14px;" autocomplete="off" />
+                <label>Найти по юзернейм или телефону:</label>
+                <input type="text" id="searchUsername" placeholder="@username или +7999..." style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; font-size:14px;" autocomplete="off" />
                 <button onclick="searchByUsername()">🔎 Найти</button>
                 <div id="searchSuggestions" style="position:absolute; top:36px; left:0; background:#fff; border:1px solid #e5e7eb; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.1); width:260px; max-height:220px; overflow:auto; display:none; z-index:5"></div>
               </div>
@@ -3055,13 +3070,17 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                   const resp = await fetch('/admin/users/search?q=' + encodeURIComponent(val), { credentials:'include' });
                   const data = await resp.json();
                   if(!Array.isArray(data) || data.length===0){ hide(); return; }
-                  box.innerHTML = data.map(u => '<div class="list-item" style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f3f4f6">' +
-                    (u.username ? '@'+u.username : (u.firstName||'')) +
-                    '</div>').join('');
+                  box.innerHTML = data.map(u => {
+                    const main = u.username ? '@' + u.username : (u.firstName || u.phone || '');
+                    const phoneInfo = u.phone ? '<span style="color:#6b7280; font-size:12px; margin-left:6px;">' + u.phone + '</span>' : '';
+                    return '<div class="list-item" style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f3f4f6">' + main + phoneInfo + '</div>';
+                  }).join('');
                   Array.from(box.children).forEach((el, idx)=>{
                     el.addEventListener('click', function(){
-                      var uname = data[idx].username || '';
-                      if(uname){ window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(uname); }
+                      var targetValue = data[idx].username || data[idx].phone || '';
+                      if(targetValue){
+                        window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(targetValue);
+                      }
                       hide();
                     });
                   });
@@ -3204,12 +3223,20 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
 // Username prefix search (router mounted at /admin → final path /admin/users/search)
 router.get('/users/search', requireAdmin, async (req, res) => {
     try {
-        const q = String(req.query.q || '').trim().replace(/^@/, '');
-        if (!q)
+        const rawQuery = String(req.query.q || '').trim();
+        const sanitizedQuery = rawQuery.replace(/^@/, '');
+        if (!sanitizedQuery)
             return res.json([]);
+        const phoneDigits = sanitizedQuery.replace(/\D+/g, '');
+        const whereConditions = [
+            { username: { startsWith: sanitizedQuery, mode: 'insensitive' } }
+        ];
+        if (phoneDigits.length >= 3) {
+            whereConditions.push({ phone: { contains: phoneDigits } });
+        }
         const users = await prisma.user.findMany({
-            where: { username: { startsWith: q, mode: 'insensitive' } },
-            select: { id: true, username: true, firstName: true },
+            where: { OR: whereConditions },
+            select: { id: true, username: true, firstName: true, phone: true },
             take: 10,
             orderBy: { username: 'asc' }
         });
