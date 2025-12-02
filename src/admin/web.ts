@@ -6967,28 +6967,78 @@ router.post('/users/:userId/toggle-partner-program', requireAdmin, async (req, r
         }
       }
       
-      await prisma.partnerProfile.create({
+      const now = new Date();
+      const expiresAt = isActive ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) : null; // 1 месяц при активации
+      
+      const newProfile = await prisma.partnerProfile.create({
         data: {
           userId: user.id,
           isActive: isActive,
-          activatedAt: isActive ? new Date() : null,
+          activatedAt: isActive ? now : null,
+          expiresAt: expiresAt,
           activationType: 'ADMIN',
           referralCode: referralCode,
           programType: 'DIRECT'
         }
       });
       
+      // Log activation history
+      if (isActive) {
+        await prisma.partnerActivationHistory.create({
+          data: {
+            profileId: newProfile.id,
+            action: 'ACTIVATED',
+            activationType: 'ADMIN',
+            reason: 'Активация администратором',
+            expiresAt: expiresAt,
+            adminId: (req as any).user?.id,
+          },
+        });
+      }
+      
       console.log(`✅ Partner profile created and ${isActive ? 'activated' : 'deactivated'}: ${userId}`);
     } else {
+      const wasActive = user.partner.isActive;
+      
       // Обновляем существующий профиль
+      const updateData: any = {
+        isActive: isActive,
+        activationType: 'ADMIN'
+      };
+      
+      if (isActive) {
+        // При активации устанавливаем activatedAt, если его нет
+        if (!user.partner.activatedAt) {
+          updateData.activatedAt = new Date();
+        }
+        // Если expiresAt не установлен или истек, устанавливаем новый срок (1 месяц)
+        if (!user.partner.expiresAt || new Date(user.partner.expiresAt) < new Date()) {
+          const now = new Date();
+          updateData.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 1 месяц
+        }
+      } else {
+        // При деактивации сохраняем expiresAt для истории
+        updateData.activatedAt = user.partner.activatedAt;
+      }
+      
       await prisma.partnerProfile.update({
         where: { userId: user.id },
-        data: {
-          isActive: isActive,
-          activatedAt: isActive && !user.partner.activatedAt ? new Date() : user.partner.activatedAt,
-          activationType: 'ADMIN'
-        }
+        data: updateData
       });
+      
+      // Log activation/deactivation history only if status changed
+      if (wasActive !== isActive) {
+        await prisma.partnerActivationHistory.create({
+          data: {
+            profileId: user.partner.id,
+            action: isActive ? 'ACTIVATED' : 'DEACTIVATED',
+            activationType: 'ADMIN',
+            reason: isActive ? 'Активация администратором' : 'Деактивация администратором',
+            expiresAt: updateData.expiresAt || user.partner.expiresAt,
+            adminId: (req as any).user?.id,
+          },
+        });
+      }
       
       console.log(`✅ Partner program ${isActive ? 'activated' : 'deactivated'}: ${userId}`);
     }

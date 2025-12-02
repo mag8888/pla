@@ -189,12 +189,12 @@ async function showDashboard(ctx: Context) {
       const daysLeft = Math.ceil((expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       if (daysLeft > 0) {
-        activationStatus = `\n✅ Активация партнерки 25% до ${expiration.toLocaleDateString('ru-RU')} (осталось ${daysLeft} дней)`;
+        activationStatus = `\n✅ Партнёрская программа активна до ${expiration.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })} (осталось ${daysLeft} ${daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'})`;
       } else {
-        activationStatus = '\n❌ Активация партнерки истекла';
+        activationStatus = '\n❌ Срок действия партнёрской программы истёк';
       }
     } else {
-      activationStatus = '\n✅ Активация партнерки активна';
+      activationStatus = '\n✅ Партнёрская программа активна';
     }
   } else {
     // Вычисляем сколько нужно до активации (120 PZ товарооборот)
@@ -203,9 +203,9 @@ async function showDashboard(ctx: Context) {
     const remainingTurnover = Math.max(0, neededTurnover - currentTurnover);
     
     if (remainingTurnover > 0) {
-      activationStatus = `\n⏳ До активации партнерки осталось ${remainingTurnover} PZ товарооборота (нужно 120 PZ в месяц)`;
+      activationStatus = `\n⏳ До активации партнёрской программы осталось ${remainingTurnover} PZ товарооборота (нужно 120 PZ в месяц)`;
     } else {
-      activationStatus = '\n🎯 Достаточно активности для активации партнерки!';
+      activationStatus = '\n🎯 Достаточно активности для активации партнёрской программы!';
     }
   }
 
@@ -702,8 +702,40 @@ export const partnerModule: BotModule = {
 
 export async function showPartnerIntro(ctx: Context) {
   try {
+    const user = await ensureUser(ctx);
+    if (!user) {
+      await ctx.reply('❌ Не удалось загрузить данные пользователя.');
+      return;
+    }
+
+    // Проверяем статус партнерской программы
+    const dashboard = await getPartnerDashboard(user.id);
+    let activationInfo = '';
+    
+    if (dashboard && dashboard.profile) {
+      const profile = dashboard.profile as any;
+      if (profile.isActive) {
+        const expiresAt = profile.expiresAt;
+        if (expiresAt) {
+          const now = new Date();
+          const expiration = new Date(expiresAt);
+          const daysLeft = Math.ceil((expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysLeft > 0) {
+            activationInfo = `\n\n✅ Ваша партнёрская программа активна до ${expiration.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })} (осталось ${daysLeft} ${daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'})`;
+          } else {
+            activationInfo = '\n\n❌ Срок действия партнёрской программы истёк';
+          }
+        } else {
+          activationInfo = '\n\n✅ Ваша партнёрская программа активна';
+        }
+      } else {
+        activationInfo = '\n\n❌ Партнёрская программа не активирована';
+      }
+    }
+
     const programIntro = (await getBotContent('partner_intro')) || fallbackProgramIntro;
-    await ctx.reply(programIntro, planKeyboard());
+    await ctx.reply(programIntro + activationInfo, planKeyboard());
   } catch (error) {
     console.error('💰 Partner: Failed to load intro content', error);
     await ctx.reply(fallbackProgramIntro, planKeyboard());

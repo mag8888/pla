@@ -28,13 +28,24 @@ export async function getOrCreatePartnerProfile(userId, programType = 'DIRECT') 
         },
     });
 }
-export async function activatePartnerProfile(userId, activationType, months = 1) {
+export async function activatePartnerProfile(userId, activationType, months = 1, reason, adminId) {
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
     if (!profile) {
         throw new Error('Partner profile not found');
     }
     const now = new Date();
     const expiresAt = new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000); // Добавляем месяцы
+    // Log activation history
+    await prisma.partnerActivationHistory.create({
+        data: {
+            profileId: profile.id,
+            action: 'ACTIVATED',
+            activationType,
+            reason: reason || (activationType === 'PURCHASE' ? 'Покупка на 120 PZ' : 'Активация администратором'),
+            expiresAt,
+            adminId,
+        },
+    });
     return prisma.partnerProfile.update({
         where: { userId },
         data: {
@@ -45,6 +56,35 @@ export async function activatePartnerProfile(userId, activationType, months = 1)
         },
     });
 }
+export async function deactivatePartnerProfile(userId, reason, adminId) {
+    const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
+    if (!profile) {
+        throw new Error('Partner profile not found');
+    }
+    // Log deactivation history
+    await prisma.partnerActivationHistory.create({
+        data: {
+            profileId: profile.id,
+            action: 'DEACTIVATED',
+            activationType: profile.activationType || null,
+            reason: reason || 'Деактивация',
+            expiresAt: profile.expiresAt,
+            adminId,
+        },
+    });
+    return prisma.partnerProfile.update({
+        where: { userId },
+        data: {
+            isActive: false,
+        },
+    });
+}
+export async function getPartnerActivationHistory(profileId) {
+    return prisma.partnerActivationHistory.findMany({
+        where: { profileId },
+        orderBy: { createdAt: 'desc' },
+    });
+}
 export async function checkPartnerActivation(userId) {
     const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
     if (!profile)
@@ -52,12 +92,26 @@ export async function checkPartnerActivation(userId) {
     // Проверяем, активен ли профиль и не истек ли срок
     if (!profile.isActive)
         return false;
+    // Проверяем срок, но НЕ деактивируем автоматически
+    // Деактивация должна происходить явно в других местах (например, при открытии дашборда партнера)
+    if (profile.expiresAt && new Date() > profile.expiresAt) {
+        return false; // Срок истек, но не деактивируем здесь
+    }
+    return true;
+}
+/**
+ * Проверяет и автоматически деактивирует истекшие профили
+ * Используется только в местах, где это уместно (например, при открытии дашборда партнера)
+ */
+export async function checkAndDeactivateExpiredProfiles(userId) {
+    const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
+    if (!profile)
+        return false;
+    if (!profile.isActive)
+        return false;
     if (profile.expiresAt && new Date() > profile.expiresAt) {
         // Автоматически деактивируем истекший профиль
-        await prisma.partnerProfile.update({
-            where: { userId },
-            data: { isActive: false }
-        });
+        await deactivatePartnerProfile(userId, 'Истек срок активации');
         return false;
     }
     return true;

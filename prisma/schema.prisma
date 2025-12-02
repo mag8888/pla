@@ -129,6 +129,7 @@ model PartnerProfile {
   multiPartners  Int                 @default(0)
   referrals      PartnerReferral[]
   transactions   PartnerTransaction[]
+  activationHistory PartnerActivationHistory[]
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 }
@@ -153,6 +154,21 @@ model PartnerTransaction {
   type        TransactionType
   description String
   createdAt   DateTime          @default(now())
+}
+
+model PartnerActivationHistory {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  profile       PartnerProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId     String          @db.ObjectId
+  action        String          // 'ACTIVATED' или 'DEACTIVATED'
+  activationType String?         // 'PURCHASE' или 'ADMIN'
+  reason        String?         // Причина активации/деактивации
+  expiresAt     DateTime?       // Дата истечения (если была установлена)
+  adminId       String?          // ID администратора, если активация через админку
+  createdAt     DateTime        @default(now())
+  
+  @@index([profileId])
+  @@index([createdAt])
 }
 
 model Review {
