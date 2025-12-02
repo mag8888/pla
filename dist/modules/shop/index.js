@@ -4,6 +4,7 @@ import { getActiveCategories, getCategoryById, getProductById, getProductsByCate
 import { addProductToCart, cartItemsToText, getCartItems } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
 import { prisma } from '../../lib/prisma.js';
+import { checkPartnerActivation } from '../../services/partner-service.js';
 const CATEGORY_ACTION_PREFIX = 'shop:cat:';
 const PRODUCT_MORE_PREFIX = 'shop:prod:more:';
 const PRODUCT_CART_PREFIX = 'shop:prod:cart:';
@@ -40,8 +41,21 @@ export async function showCategories(ctx, region) {
             console.log('🛍️ No active categories found, showing empty message');
             // Получаем баланс пользователя
             const user = await ensureUser(ctx);
+            if (!user) {
+                await ctx.reply('❌ Ошибка загрузки данных пользователя.');
+                return;
+            }
             const userBalance = Number(user?.balance || 0);
-            await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n\nКаталог пока пуст. Добавьте категории и товары в админке.`);
+            // Check partner program status
+            const hasPartnerDiscount = await checkPartnerActivation(user.id);
+            let partnerInfo = '';
+            if (hasPartnerDiscount) {
+                partnerInfo = '\n\n🎁 Ваша скидка 10%\n✅ У вас активная партнерская программа';
+            }
+            else {
+                partnerInfo = '\n\n❌ У вас не активна бонус программа, для активации нужно сделать покупку на 120PZ=12000р';
+            }
+            await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ${partnerInfo}\n\nКаталог пока пуст. Добавьте категории и товары в админке.`);
             return;
         }
         // Show catalog with products grouped by categories
@@ -80,8 +94,21 @@ export async function showCategories(ctx, region) {
             ]
         ];
         // Получаем баланс пользователя
+        if (!user) {
+            await ctx.reply('❌ Ошибка загрузки данных пользователя.');
+            return;
+        }
         const userBalance = Number(user?.balance || 0);
-        await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n📍 Регион: ${regionEmoji} ${regionText}\n\nВыберите категорию:`, {
+        // Check partner program status
+        const hasPartnerDiscount = await checkPartnerActivation(user.id);
+        let partnerInfo = '';
+        if (hasPartnerDiscount) {
+            partnerInfo = '\n\n🎁 Ваша скидка 10%\n✅ У вас активная партнерская программа';
+        }
+        else {
+            partnerInfo = '\n\n❌ У вас не активна бонус программа, для активации нужно сделать покупку на 120PZ=12000р';
+        }
+        await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n📍 Регион: ${regionEmoji} ${regionText}${partnerInfo}\n\nВыберите категорию:`, {
             reply_markup: {
                 inline_keyboard: keyboard,
             },
@@ -91,8 +118,21 @@ export async function showCategories(ctx, region) {
         console.error('Error loading categories:', error);
         // Получаем баланс пользователя
         const user = await ensureUser(ctx);
+        if (!user) {
+            await ctx.reply('❌ Ошибка загрузки данных пользователя.');
+            return;
+        }
         const userBalance = Number(user?.balance || 0);
-        await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n\n❌ Ошибка загрузки каталога. Попробуйте позже.`);
+        // Check partner program status
+        const hasPartnerDiscount = await checkPartnerActivation(user.id);
+        let partnerInfo = '';
+        if (hasPartnerDiscount) {
+            partnerInfo = '\n\n🎁 Ваша скидка 10%\n✅ У вас активная партнерская программа';
+        }
+        else {
+            partnerInfo = '\n\n❌ У вас не активна бонус программа, для активации нужно сделать покупку на 120PZ=12000р';
+        }
+        await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ${partnerInfo}\n\n❌ Ошибка загрузки каталога. Попробуйте позже.`);
     }
 }
 function formatProductMessage(product) {
@@ -244,6 +284,10 @@ async function handleBuy(ctx, productId) {
         await ctx.reply('Товар не найден.');
         return;
     }
+    // Check if user has active partner program
+    const { checkPartnerActivation } = await import('../../services/partner-service.js');
+    const { calculatePriceWithDiscount } = await import('../../services/cart-service.js');
+    const hasPartnerDiscount = await checkPartnerActivation(user.id);
     const cartItems = await getCartItems(user.id);
     // Create full items list including main product
     const allItems = [...cartItems];
@@ -254,7 +298,7 @@ async function handleBuy(ctx, productId) {
         },
         quantity: 1
     });
-    const summaryText = cartItemsToText(allItems);
+    const summaryText = await cartItemsToText(allItems, user.id);
     const lines = [
         '🛒 Запрос на покупку',
         `Пользователь: ${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
@@ -266,22 +310,38 @@ async function handleBuy(ctx, productId) {
         summaryText
     ].filter(Boolean);
     const message = lines.join('\n');
-    const itemsPayload = cartItems.map((item) => ({
-        productId: item.productId,
-        title: item.product.title,
-        price: Number(item.product.price),
-        quantity: item.quantity,
+    // Create items payload with discounted prices
+    const itemsPayload = await Promise.all(cartItems.map(async (item) => {
+        const priceInfo = await calculatePriceWithDiscount(user.id, item.product.price);
+        return {
+            productId: item.productId,
+            title: item.product.title,
+            price: priceInfo.discountedPrice, // Save discounted price
+            originalPrice: priceInfo.originalPrice, // Save original price for reference
+            quantity: item.quantity,
+            hasDiscount: priceInfo.hasDiscount,
+            discount: priceInfo.discount,
+        };
     }));
+    // Add main product with discount
+    const productPriceInfo = await calculatePriceWithDiscount(user.id, Number(product.price));
     itemsPayload.push({
         productId: product.id,
         title: product.title,
-        price: Number(product.price),
+        price: productPriceInfo.discountedPrice, // Save discounted price
+        originalPrice: productPriceInfo.originalPrice, // Save original price for reference
         quantity: 1,
+        hasDiscount: productPriceInfo.hasDiscount,
+        discount: productPriceInfo.discount,
     });
+    let orderMessage = `Покупка через бота. Основной товар: ${product.title}`;
+    if (hasPartnerDiscount) {
+        orderMessage += '\n🎁 Применена скидка партнера 10%';
+    }
     console.log('🛒 SHOP: About to create order request for user:', user.id, user.firstName, user.username);
     await createOrderRequest({
         userId: user.id,
-        message: `Покупка через бота. Основной товар: ${product.title}`,
+        message: orderMessage,
         items: itemsPayload,
     });
     console.log('✅ SHOP: Order request created successfully');
@@ -316,8 +376,12 @@ async function handleBuy(ctx, productId) {
         }
     }
     await ctx.answerCbQuery();
-    await ctx.reply('📞 <b>В ближайшее время с вами свяжется менеджер.</b>\n\n' +
-        'Вы можете написать менеджеру напрямую: @Aurelia_8888', {
+    let replyMessage = '📞 <b>В ближайшее время с вами свяжется менеджер.</b>\n\n';
+    if (hasPartnerDiscount) {
+        replyMessage += '🎁 <b>Применена скидка партнера 10%!</b>\n\n';
+    }
+    replyMessage += 'Вы можете написать менеджеру напрямую: @Aurelia_8888';
+    await ctx.reply(replyMessage, {
         parse_mode: 'HTML'
     });
 }

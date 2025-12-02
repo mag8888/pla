@@ -51,10 +51,19 @@ export declare function removeProductFromCart(userId: string, productId: string)
     productId: string;
     quantity: number;
 }>;
+/**
+ * Calculate price with partner discount (10% if partner program is active)
+ */
+export declare function calculatePriceWithDiscount(userId: string, basePrice: number): Promise<{
+    originalPrice: number;
+    discountedPrice: number;
+    discount: number;
+    hasDiscount: boolean;
+}>;
 export declare function cartItemsToText(items: Array<{
     product: {
         title: string;
         price: number;
     };
     quantity: number;
-}>): string;
+}>, userId?: string): Promise<string>;

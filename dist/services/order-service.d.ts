@@ -3,6 +3,9 @@ interface OrderItemPayload {
     title: string;
     price: number;
     quantity: number;
+    originalPrice?: number;
+    hasDiscount?: boolean;
+    discount?: number;
 }
 export declare function createOrderRequest(params: {
     userId?: string;

@@ -3,6 +3,9 @@ export async function createOrderRequest(params) {
     const itemsJson = params.items.map((item) => ({
         ...item,
         price: Number(item.price),
+        originalPrice: item.originalPrice ? Number(item.originalPrice) : undefined,
+        discount: item.discount ? Number(item.discount) : undefined,
+        hasDiscount: item.hasDiscount || false,
     }));
     console.log('🛒 Creating order request:', {
         userId: params.userId,

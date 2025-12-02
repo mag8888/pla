@@ -2,10 +2,11 @@ import { Markup, Telegraf } from 'telegraf';
 import { BotModule } from '../../bot/types.js';
 import { Context } from '../../bot/context.js';
 import { logUserAction, ensureUser } from '../../services/user-history.js';
-import { getCartItems, cartItemsToText, clearCart, increaseProductQuantity, decreaseProductQuantity, removeProductFromCart } from '../../services/cart-service.js';
+import { getCartItems, cartItemsToText, clearCart, increaseProductQuantity, decreaseProductQuantity, removeProductFromCart, calculatePriceWithDiscount } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
 import { getBotContent } from '../../services/bot-content-service.js';
 import { prisma } from '../../lib/prisma.js';
+import { checkPartnerActivation } from '../../services/partner-service.js';
 
 export const cartModule: BotModule = {
   async register(bot: Telegraf<Context>) {
@@ -89,16 +90,36 @@ export async function showCart(ctx: Context) {
       return;
     }
 
+    // Check if user has active partner program
+    const hasPartnerDiscount = await checkPartnerActivation(userId);
+    const discountPercent = hasPartnerDiscount ? 10 : 0;
+
     // Send each cart item separately with quantity controls
     for (const item of cartItems) {
-      const rubPrice = (item.product.price * 100).toFixed(2);
-      const pzPrice = item.product.price.toFixed(2);
-      const itemTotalRub = (item.product.price * item.quantity * 100).toFixed(2);
-      const itemTotalPz = (item.product.price * item.quantity).toFixed(2);
+      const basePrice = item.product.price;
+      const priceInfo = await calculatePriceWithDiscount(userId, basePrice);
       
-      const itemText = `🛍️ ${item.product.title}\n📦 Количество: ${item.quantity}\n💰 Цена: ${rubPrice} ₽ / ${pzPrice} PZ\n💵 Итого: ${itemTotalRub} ₽ / ${itemTotalPz} PZ`;
+      const originalRubPrice = (basePrice * 100).toFixed(2);
+      const originalPzPrice = basePrice.toFixed(2);
+      const finalRubPrice = (priceInfo.discountedPrice * 100).toFixed(2);
+      const finalPzPrice = priceInfo.discountedPrice.toFixed(2);
+      
+      const itemTotalRub = (priceInfo.discountedPrice * item.quantity * 100).toFixed(2);
+      const itemTotalPz = (priceInfo.discountedPrice * item.quantity).toFixed(2);
+      
+      let itemText = `🛍️ ${item.product.title}\n📦 Количество: ${item.quantity}\n`;
+      
+      if (hasPartnerDiscount) {
+        itemText += `💰 Цена: ~~${originalRubPrice}~~ ${finalRubPrice} ₽ / ~~${originalPzPrice}~~ ${finalPzPrice} PZ\n`;
+        itemText += `🎁 Скидка 10%: -${(priceInfo.discount * 100).toFixed(2)} ₽ / -${priceInfo.discount.toFixed(2)} PZ\n`;
+      } else {
+        itemText += `💰 Цена: ${finalRubPrice} ₽ / ${finalPzPrice} PZ\n`;
+      }
+      
+      itemText += `💵 Итого: ${itemTotalRub} ₽ / ${itemTotalPz} PZ`;
       
       await ctx.reply(itemText, {
+        parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
@@ -122,12 +143,31 @@ export async function showCart(ctx: Context) {
       });
     }
     
-    // Send total and action buttons
-    const total = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    // Calculate total with discount
+    let total = 0;
+    let totalDiscount = 0;
+    
+    for (const item of cartItems) {
+      const priceInfo = await calculatePriceWithDiscount(userId, item.product.price);
+      total += priceInfo.discountedPrice * item.quantity;
+      if (hasPartnerDiscount) {
+        totalDiscount += priceInfo.discount * item.quantity;
+      }
+    }
+    
     const totalRub = (total * 100).toFixed(2);
     const totalPz = total.toFixed(2);
     
-    await ctx.reply(`💰 Итого к оплате: ${totalRub} ₽ / ${totalPz} PZ`, {
+    let totalText = `💰 Итого к оплате: ${totalRub} ₽ / ${totalPz} PZ`;
+    
+    if (hasPartnerDiscount && totalDiscount > 0) {
+      const discountRub = (totalDiscount * 100).toFixed(2);
+      const discountPz = totalDiscount.toFixed(2);
+      totalText += `\n\n🎁 Скидка партнера (10%): -${discountRub} ₽ / -${discountPz} PZ`;
+      totalText += `\n✨ Применена скидка 10% для партнеров`;
+    }
+    
+    await ctx.reply(totalText, {
       reply_markup: {
         inline_keyboard: [
           [
@@ -238,23 +278,37 @@ export function registerCartActions(bot: Telegraf<Context>) {
 
       console.log('🛒 CART CHECKOUT: Found cart items:', cartItems.length);
 
-      // Create order in database
-      const itemsPayload = cartItems.map((item: any) => ({
-        productId: item.productId,
-        title: item.product.title,
-        price: Number(item.product.price),
-        quantity: item.quantity,
+      // Check if user has active partner program and calculate prices with discount
+      const hasPartnerDiscount = await checkPartnerActivation(userId);
+      
+      // Create order in database with discounted prices
+      const itemsPayload = await Promise.all(cartItems.map(async (item: any) => {
+        const priceInfo = await calculatePriceWithDiscount(userId, item.product.price);
+        return {
+          productId: item.productId,
+          title: item.product.title,
+          price: priceInfo.discountedPrice, // Save discounted price
+          originalPrice: priceInfo.originalPrice, // Save original price for reference
+          quantity: item.quantity,
+          hasDiscount: priceInfo.hasDiscount,
+          discount: priceInfo.discount,
+        };
       }));
+
+      let orderMessage = `Заказ через корзину от ${user.firstName || 'Пользователь'}`;
+      if (hasPartnerDiscount) {
+        orderMessage += '\n🎁 Применена скидка партнера 10%';
+      }
 
       console.log('🛒 CART CHECKOUT: Creating order request...');
       await createOrderRequest({
         userId: userId,
-        message: `Заказ через корзину от ${user.firstName || 'Пользователь'}`,
+        message: orderMessage,
         items: itemsPayload,
       });
       console.log('✅ CART CHECKOUT: Order request created successfully');
 
-      const cartText = cartItemsToText(cartItems);
+      const cartText = await cartItemsToText(cartItems, userId);
       
       // Get user data for phone and address
       const userData = await prisma.user.findUnique({

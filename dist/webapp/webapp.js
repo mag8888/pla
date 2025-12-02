@@ -5,7 +5,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { getActiveCategories, getProductsByCategory } from '../services/shop-service.js';
-import { getCartItems } from '../services/cart-service.js';
+import { getCartItems, calculatePriceWithDiscount } from '../services/cart-service.js';
+import { checkPartnerActivation } from '../services/partner-service.js';
+import { createOrderRequest } from '../services/order-service.js';
 import { getActiveReviews } from '../services/review-service.js';
 import { getOrCreatePartnerProfile } from '../services/partner-service.js';
 const router = express.Router();
@@ -198,7 +200,23 @@ router.get('/api/cart/items', async (req, res) => {
         console.log('✅ User found for cart items:', user.id);
         const cartItems = await getCartItems(user.id);
         console.log('✅ Cart items retrieved:', cartItems.length);
-        res.json(cartItems);
+        // Check if user has active partner program and apply discount
+        const hasPartnerDiscount = await checkPartnerActivation(user.id);
+        // Add discounted prices to cart items
+        const cartItemsWithDiscount = await Promise.all(cartItems.map(async (item) => {
+            const priceInfo = await calculatePriceWithDiscount(user.id, item.product.price);
+            return {
+                ...item,
+                product: {
+                    ...item.product,
+                    originalPrice: priceInfo.originalPrice,
+                    discountedPrice: priceInfo.discountedPrice,
+                    hasDiscount: priceInfo.hasDiscount,
+                    discount: priceInfo.discount,
+                }
+            };
+        }));
+        res.json(cartItemsWithDiscount);
     }
     catch (error) {
         console.error('❌ Error getting cart items:', error);
@@ -310,15 +328,37 @@ router.post('/api/orders/create', async (req, res) => {
             console.log('✅ User created:', user.id);
         }
         console.log('✅ User found:', user.id);
-        // Create order
-        const order = await prisma.orderRequest.create({
-            data: {
-                userId: user.id,
-                message,
-                itemsJson: items,
-                status: 'NEW',
-                contact: `@${telegramUser.username || 'user'}` || `ID: ${telegramUser.id}`
+        // Check if user has active partner program
+        const hasPartnerDiscount = await checkPartnerActivation(user.id);
+        // Process items and apply discount
+        const { getProductById } = await import('../services/shop-service.js');
+        const itemsWithDiscount = await Promise.all(items.map(async (item) => {
+            // Get product to get original price
+            const product = await getProductById(item.productId);
+            if (!product) {
+                return item; // Return original item if product not found
             }
+            const priceInfo = await calculatePriceWithDiscount(user.id, product.price);
+            return {
+                productId: item.productId,
+                title: product.title,
+                price: priceInfo.discountedPrice, // Final price after discount
+                originalPrice: priceInfo.originalPrice, // Original price before discount
+                quantity: item.quantity || 1,
+                hasDiscount: priceInfo.hasDiscount,
+                discount: priceInfo.discount,
+            };
+        }));
+        let orderMessage = message || 'Заказ через веб-приложение';
+        if (hasPartnerDiscount) {
+            orderMessage += '\n🎁 Применена скидка партнера 10%';
+        }
+        // Create order using order service
+        const order = await createOrderRequest({
+            userId: user.id,
+            message: orderMessage,
+            items: itemsWithDiscount,
+            contact: `@${telegramUser.username || 'user'}` || `ID: ${telegramUser.id}`
         });
         console.log('✅ Order created successfully:', order.id);
         res.json({ success: true, orderId: order.id });
