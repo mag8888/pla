@@ -11,6 +11,7 @@ import { prisma } from './lib/prisma.js';
 import { ensureInitialData } from './lib/bootstrap.js';
 import { adminWebRouter } from './admin/web.js';
 import { webappRouter } from './webapp/webapp.js';
+import { externalApiRouter } from './api/external.js';
 import lavaWebhook from './webhooks/lava.js';
 import { setBotInstance } from './lib/bot-instance.js';
 
@@ -75,6 +76,9 @@ async function bootstrap() {
     
     // Webapp routes
     app.use('/webapp', webappRouter);
+    
+    // External API for friendly services
+    app.use('/api/external', externalApiRouter);
     
     // Lava webhook routes
     app.use('/webhook', lavaWebhook);
