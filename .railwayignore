@@ -8,7 +8,6 @@ lobby.html
 
 # Серверные файлы (не нужны для бота)
 server.js
-railway.json
 
 # Документация
 README.md
