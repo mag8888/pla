@@ -877,6 +877,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 <a href="/admin/orders" class="btn">📦 Заказы</a>
                 <a href="/admin/media" class="btn" style="background: #17a2b8; color: white; font-weight: bold;">📸🎥 Медиа</a>
                 <button class="btn" onclick="openAddProductModal()" style="background: #28a745;">➕ Добавить товар</button>
+                <button class="btn" onclick="createBackup()" style="background: #6f42c1; color: white;">💾 Создать бэкап БД</button>
               </div>
             </div>
             <p>Управление каталогом товаров, отзывами, заказами и медиафайлами.</p>
@@ -1121,6 +1122,47 @@ router.get('/', requireAdmin, async (req, res) => {
           
           window.showUserDetails = function(userId) {
             window.open(\`/admin/users/\${userId}\`, '_blank', 'width=600,height=400');
+          }
+          
+          window.createBackup = async function() {
+            if (!confirm('Создать резервную копию базы данных? Это может занять несколько минут.')) {
+              return;
+            }
+            
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ Создание бэкапа...';
+            
+            try {
+              const response = await fetch('/admin/backup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+              });
+              
+              const result = await response.json();
+              
+              if (result.success) {
+                let message = \`✅ Резервная копия создана успешно!\\n\\n\`;
+                message += \`📄 Файл: \${result.filename}\\n\`;
+                message += \`📊 Размер: \${result.fileSize}\\n\`;
+                if (result.cloudinaryUrl) {
+                  message += \`☁️ URL: \${result.cloudinaryUrl}\\n\`;
+                }
+                message += \`\\n📈 Статистика:\\n\`;
+                message += \`   - Пользователей: \${result.statistics.totalUsers}\\n\`;
+                message += \`   - Товаров: \${result.statistics.totalProducts}\\n\`;
+                message += \`   - Заказов: \${result.statistics.totalOrders}\`;
+                alert(message);
+              } else {
+                alert(\`❌ Ошибка: \${result.error || result.message || 'Неизвестная ошибка'}\`);
+              }
+            } catch (error) {
+              alert(\`❌ Ошибка при создании бэкапа: \${error.message}\`);
+            } finally {
+              btn.disabled = false;
+              btn.textContent = originalText;
+            }
           }
           
           window.openChangeInviter = async function(userId, userName) {
@@ -10415,6 +10457,43 @@ router.post('/media/delete', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error deleting media file:', error);
     res.status(500).json({ error: 'Ошибка удаления файла' });
+  }
+});
+
+// Database backup endpoint
+router.post('/backup', requireAdmin, async (req, res) => {
+  try {
+    const { exportDatabase } = await import('../../scripts/backup-database-railway.js');
+    const result = await exportDatabase();
+    
+    res.json({
+      success: true,
+      message: 'Резервная копия создана успешно',
+      ...result
+    });
+  } catch (error) {
+    console.error('Error creating backup:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Ошибка создания резервной копии',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get backup status
+router.get('/backup/status', requireAdmin, async (req, res) => {
+  try {
+    // Можно добавить логику проверки последнего бэкапа
+    res.json({
+      success: true,
+      lastBackup: null, // TODO: сохранять информацию о последнем бэкапе
+      autoBackupEnabled: true,
+      schedule: 'Ежедневно в 02:00 UTC'
+    });
+  } catch (error) {
+    console.error('Error getting backup status:', error);
+    res.status(500).json({ error: 'Ошибка получения статуса' });
   }
 });
 

@@ -113,6 +113,18 @@ async function exportDatabase() {
     });
     console.log(`   ✓ Экспортировано платежей: ${exportData.data.payments.length}`);
 
+    console.log('📥 Экспорт медиафайлов...');
+    exportData.data.mediaFiles = await prisma.mediaFile.findMany();
+    console.log(`   ✓ Экспортировано медиафайлов: ${exportData.data.mediaFiles.length}`);
+
+    console.log('📥 Экспорт истории активации партнеров...');
+    exportData.data.partnerActivationHistory = await prisma.partnerActivationHistory.findMany({
+      include: {
+        profile: true
+      }
+    });
+    console.log(`   ✓ Экспортировано записей истории: ${exportData.data.partnerActivationHistory.length}`);
+
     // Статистика
     exportData.statistics = {
       totalUsers: exportData.data.users.length,
@@ -121,7 +133,9 @@ async function exportDatabase() {
       totalOrders: exportData.data.orders.length,
       totalReviews: exportData.data.reviews.length,
       totalPayments: exportData.data.payments.length,
-      totalPartnerProfiles: exportData.data.partnerProfiles.length
+      totalPartnerProfiles: exportData.data.partnerProfiles.length,
+      totalMediaFiles: exportData.data.mediaFiles?.length || 0,
+      totalPartnerActivationHistory: exportData.data.partnerActivationHistory?.length || 0
     };
 
     // Сохранение в файл
@@ -144,6 +158,8 @@ async function exportDatabase() {
     console.log(`   - Отзывов: ${exportData.statistics.totalReviews}`);
     console.log(`   - Платежей: ${exportData.statistics.totalPayments}`);
     console.log(`   - Партнерских профилей: ${exportData.statistics.totalPartnerProfiles}`);
+    console.log(`   - Медиафайлов: ${exportData.statistics.totalMediaFiles}`);
+    console.log(`   - История активации партнеров: ${exportData.statistics.totalPartnerActivationHistory}`);
 
   } catch (error) {
     console.error('❌ Ошибка при экспорте:', error);

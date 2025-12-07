@@ -14,6 +14,7 @@ import { webappRouter } from './webapp/webapp.js';
 import { externalApiRouter } from './api/external.js';
 import lavaWebhook from './webhooks/lava.js';
 import { setBotInstance } from './lib/bot-instance.js';
+import cron from 'node-cron';
 
 async function bootstrap() {
   try {
@@ -152,6 +153,24 @@ async function bootstrap() {
     process.once('SIGTERM', () => {
       void bot.stop('SIGTERM');
     });
+
+    // Настройка автоматического резервного копирования
+    // Запуск каждый день в 02:00 UTC (05:00 МСК)
+    if (process.env.ENABLE_AUTO_BACKUP !== 'false') {
+      cron.schedule('0 2 * * *', async () => {
+        try {
+          console.log('🔄 Запуск автоматического резервного копирования...');
+          const { exportDatabase } = await import('../scripts/backup-database-railway.js');
+          const result = await exportDatabase();
+          console.log('✅ Автоматический бэкап завершен:', result.filename);
+        } catch (error) {
+          console.error('❌ Ошибка автоматического бэкапа:', error);
+        }
+      }, {
+        timezone: 'UTC'
+      });
+      console.log('📦 Автоматическое резервное копирование настроено (ежедневно в 02:00 UTC)');
+    }
 
   } catch (error) {
     console.error('Bootstrap error:', error);

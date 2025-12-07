@@ -16,6 +16,7 @@
     "migrate:dev": "prisma db push",
     "migrate:deploy": "prisma db push",
     "prisma:generate": "prisma generate",
+    "backup": "node scripts/backup-database-railway.js",
     "setup-webapp": "node scripts/setup-webapp.js",
     "setup-railway": "node scripts/setup-railway-webapp.js",
     "check-video": "node scripts/check-video-size.js",
@@ -36,6 +37,7 @@
     "express": "^4.19.2",
     "express-session": "^1.18.2",
     "multer": "^2.0.2",
+    "node-cron": "^3.0.3",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
