@@ -160,6 +160,7 @@ async function bootstrap() {
       cron.schedule('0 2 * * *', async () => {
         try {
           console.log('🔄 Запуск автоматического резервного копирования...');
+          // @ts-ignore - скрипт не имеет типов
           const { exportDatabase } = await import('../scripts/backup-database-railway.js');
           const result = await exportDatabase();
           console.log('✅ Автоматический бэкап завершен:', result.filename);
