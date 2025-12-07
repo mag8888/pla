@@ -223,3 +223,17 @@ model Payment {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
+
+model MediaFile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  type        String   // 'photo' или 'video'
+  url         String
+  category    String?  // Категория для группировки (например: 'welcome', 'promo', etc.)
+  fileSize    Int?     // Размер файла в байтах
+  mimeType    String?  // MIME тип файла
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
