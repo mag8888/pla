@@ -875,7 +875,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 <a href="/admin/products" class="btn">🛍️ Товары</a>
                 <a href="/admin/reviews" class="btn">⭐ Отзывы</a>
                 <a href="/admin/orders" class="btn">📦 Заказы</a>
-                <a href="/admin/media" class="btn" style="background: #17a2b8;">📸🎥 Медиа</a>
+                <a href="/admin/media" class="btn" style="background: #17a2b8; color: white; font-weight: bold;">📸🎥 Медиа</a>
                 <button class="btn" onclick="openAddProductModal()" style="background: #28a745;">➕ Добавить товар</button>
               </div>
             </div>
