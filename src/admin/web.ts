@@ -10180,36 +10180,52 @@ router.get('/media', requireAdmin, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const mediaFilesHtml = mediaFiles.map(file => `
+    const mediaFilesHtml = mediaFiles.map(file => {
+      const fileSizeKB = file.fileSize ? Math.round(file.fileSize / 1024) : 0;
+      const fileSizeMB = fileSizeKB > 1024 ? (fileSizeKB / 1024).toFixed(2) + ' MB' : fileSizeKB + ' KB';
+      const dateStr = new Date(file.createdAt).toLocaleDateString('ru-RU', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      return `
       <div class="media-file-card">
         <div class="media-file-header">
-          <h3>${file.type === 'photo' ? '📷' : '🎥'} ${file.title}</h3>
-          <div class="media-file-status ${file.isActive ? 'active' : 'inactive'}">
+          <h3 style="font-size: 16px; margin: 0;">${file.type === 'photo' ? '📷' : '🎥'} ${file.title}</h3>
+          <div class="media-file-status ${file.isActive ? 'active' : 'inactive'}" style="font-size: 12px; padding: 4px 8px; border-radius: 4px; background: ${file.isActive ? '#dcfce7' : '#fee2e2'};">
             ${file.isActive ? '✅ Активен' : '❌ Неактивен'}
           </div>
         </div>
-        <div class="media-file-preview">
+        <div class="media-file-preview" style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 15px 0;">
           ${file.type === 'photo' 
-            ? `<img src="${file.url}" alt="${file.title}" class="media-preview-image">`
-            : `<video src="${file.url}" controls class="media-preview-video"></video>`
+            ? `<img src="${file.url}" alt="${file.title}" class="media-preview-image" style="cursor: pointer;" onclick="window.open('${file.url}', '_blank')">`
+            : `<video src="${file.url}" controls class="media-preview-video" style="cursor: pointer;"></video>`
           }
         </div>
-        <div class="media-file-info">
-          <p><strong>Описание:</strong> ${file.description || 'Не указано'}</p>
-          <p><strong>Тип:</strong> ${file.type === 'photo' ? 'Фото' : 'Видео'}</p>
-          <p><strong>Категория:</strong> ${file.category || 'Не указана'}</p>
-          <p><strong>Размер:</strong> ${file.fileSize ? Math.round(file.fileSize / 1024) + ' KB' : 'Неизвестно'}</p>
-          <p><strong>URL:</strong> <a href="${file.url}" target="_blank">${file.url.substring(0, 50)}...</a></p>
-          <p><strong>Загружен:</strong> ${file.createdAt.toLocaleDateString('ru-RU')}</p>
+        <div class="media-file-info" style="font-size: 13px;">
+          ${file.description ? `<p style="margin: 8px 0;"><strong>📝 Описание:</strong> ${file.description}</p>` : ''}
+          <p style="margin: 8px 0;"><strong>🏷️ Тип:</strong> ${file.type === 'photo' ? 'Фото' : 'Видео'}</p>
+          ${file.category ? `<p style="margin: 8px 0;"><strong>📁 Категория:</strong> ${file.category}</p>` : ''}
+          <p style="margin: 8px 0;"><strong>💾 Размер:</strong> ${fileSizeMB}</p>
+          <p style="margin: 8px 0;"><strong>📅 Загружен:</strong> ${dateStr}</p>
+          <p style="margin: 8px 0;">
+            <strong>🔗 URL:</strong> 
+            <a href="${file.url}" target="_blank" style="color: #007bff; word-break: break-all; font-size: 11px;">${file.url.substring(0, 40)}...</a>
+            <button onclick="navigator.clipboard.writeText('${file.url}'); alert('URL скопирован!');" style="margin-left: 5px; padding: 2px 6px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px;">📋</button>
+          </p>
         </div>
-        <div class="media-file-actions">
-          <button onclick="toggleMediaStatus('${file.id}')" class="toggle-btn ${file.isActive ? 'deactivate' : 'activate'}">
+        <div class="media-file-actions" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef;">
+          <button onclick="toggleMediaStatus('${file.id}')" class="toggle-btn ${file.isActive ? 'deactivate' : 'activate'}" style="flex: 1;">
             ${file.isActive ? '❌ Деактивировать' : '✅ Активировать'}
           </button>
-          <button onclick="deleteMediaFile('${file.id}')" class="delete-btn">🗑️ Удалить</button>
+          <button onclick="deleteMediaFile('${file.id}')" class="delete-btn" style="flex: 1;">🗑️ Удалить</button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     res.send(`
       <!DOCTYPE html>
@@ -10238,6 +10254,15 @@ router.get('/media', requireAdmin, async (req, res) => {
           .media-preview-image { max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
           .media-preview-video { max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
           .media-file-info { margin: 15px 0; }
+          #filePreview { margin-top: 15px; }
+          #previewContent img { max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+          #previewContent video { max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+          .upload-progress { display: none; margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 8px; }
+          .progress-bar { width: 100%; height: 20px; background: #dee2e6; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+          .progress-fill { height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); width: 0%; transition: width 0.3s ease; }
+          .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+          .media-file-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+          .media-file-card:hover { transform: translateY(-5px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
           .media-file-info p { margin: 5px 0; color: #666; }
           .media-file-info a { color: #007bff; text-decoration: none; }
           .media-file-info a:hover { text-decoration: underline; }
@@ -10285,9 +10310,16 @@ router.get('/media', requireAdmin, async (req, res) => {
             </div>
             <div class="form-group">
               <label>Файл:</label>
-              <input type="file" name="file" accept="image/*,video/*" required>
+              <input type="file" name="file" id="mediaFileInput" accept="image/*,video/*" required onchange="previewMediaFile(this)">
+              <div id="filePreview" style="margin-top: 15px; display: none;">
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 2px dashed #dee2e6;">
+                  <p style="margin: 0 0 10px 0; font-weight: bold; color: #495057;">📎 Выбранный файл:</p>
+                  <div id="previewContent" style="text-align: center;"></div>
+                  <p id="fileInfo" style="margin: 10px 0 0 0; font-size: 12px; color: #6c757d;"></p>
+                </div>
+              </div>
             </div>
-            <button type="submit" class="upload-btn">📤 Загрузить файл</button>
+            <button type="submit" class="upload-btn" id="uploadBtn">📤 Загрузить файл</button>
           </form>
         </div>
         
@@ -10295,11 +10327,80 @@ router.get('/media', requireAdmin, async (req, res) => {
         ${req.query.error === 'upload_failed' ? '<div class="alert alert-error">❌ Ошибка при загрузке файла</div>' : ''}
         
         <div class="header">
-          <h2>📋 Загруженные файлы</h2>
+          <h2>📋 Загруженные файлы (${mediaFiles.length})</h2>
         </div>
-        ${mediaFilesHtml || '<p>Пока нет загруженных медиафайлов.</p>'}
+        <div class="media-grid">
+          ${mediaFilesHtml || '<p style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #6c757d;">Пока нет загруженных медиафайлов. Загрузите первый файл выше.</p>'}
+        </div>
+        
+        <div class="upload-progress" id="uploadProgress">
+          <p style="margin: 0 0 10px 0; font-weight: bold; color: #007bff;">⏳ Загрузка файла...</p>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <p id="progressText" style="margin: 10px 0 0 0; font-size: 12px; color: #6c757d;">0%</p>
+        </div>
         
         <script>
+          function previewMediaFile(input) {
+            const preview = document.getElementById('filePreview');
+            const previewContent = document.getElementById('previewContent');
+            const fileInfo = document.getElementById('fileInfo');
+            
+            if (input.files && input.files[0]) {
+              const file = input.files[0];
+              const fileSize = (file.size / 1024 / 1024).toFixed(2);
+              const fileType = file.type;
+              
+              preview.style.display = 'block';
+              fileInfo.textContent = \`Размер: \${fileSize} MB | Тип: \${fileType}\`;
+              
+              if (fileType.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                  previewContent.innerHTML = \`<img src="\${e.target.result}" alt="Превью" style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">\`;
+                };
+                reader.readAsDataURL(file);
+              } else if (fileType.startsWith('video/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                  previewContent.innerHTML = \`<video src="\${e.target.result}" controls style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></video>\`;
+                };
+                reader.readAsDataURL(file);
+              } else {
+                previewContent.innerHTML = \`<p style="padding: 20px; color: #6c757d;">📄 Файл: \${file.name}</p>\`;
+              }
+            } else {
+              preview.style.display = 'none';
+            }
+          }
+          
+          // Показываем прогресс загрузки
+          document.querySelector('.upload-form').addEventListener('submit', function(e) {
+            const uploadBtn = document.getElementById('uploadBtn');
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '⏳ Загрузка...';
+            progressDiv.style.display = 'block';
+            
+            // Симуляция прогресса (реальный прогресс будет через XMLHttpRequest)
+            let progress = 0;
+            const interval = setInterval(() => {
+              progress += Math.random() * 15;
+              if (progress > 90) progress = 90;
+              progressFill.style.width = progress + '%';
+              progressText.textContent = Math.round(progress) + '%';
+            }, 200);
+            
+            // Очистка интервала после отправки формы
+            setTimeout(() => {
+              clearInterval(interval);
+            }, 5000);
+          });
+          
           async function toggleMediaStatus(fileId) {
             if (confirm('Вы уверены, что хотите изменить статус файла?')) {
               try {
