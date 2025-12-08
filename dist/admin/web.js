@@ -679,6 +679,18 @@ router.get('/', requireAdmin, async (req, res) => {
           }
           .product-grid.media-layout { grid-template-columns: repeat(2, 1fr); align-items: stretch; }
           .product-form textarea { resize: vertical; }
+          .product-form label { color: #212529; }
+          .product-form input,
+          .product-form select,
+          .product-form textarea {
+            background: #ffffff;
+            color: #212529;
+            border: 1px solid #ced4da;
+          }
+          .product-form input::placeholder,
+          .product-form textarea::placeholder {
+            color: #6c757d;
+          }
           #productShortDescription { min-height: 220px; }
           #productFullDescription { min-height: 220px; }
           .category-picker { display: flex; gap: 12px; }
@@ -832,6 +844,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 <a href="/admin/reviews" class="btn">⭐ Отзывы</a>
                 <a href="/admin/orders" class="btn">📦 Заказы</a>
                 <a href="/admin/media" class="btn" style="background: #17a2b8; color: white; font-weight: bold;">📸🎥 Медиа</a>
+                <a href="/admin/content" class="btn" style="background: #6f42c1; color: white; font-weight: bold;">📝 Контент бота</a>
                 <button class="btn" onclick="openAddProductModal()" style="background: #28a745;">➕ Добавить товар</button>
                 <button class="btn" onclick="createBackup()" style="background: #6f42c1; color: white;">💾 Создать бэкап БД</button>
               </div>
@@ -968,8 +981,6 @@ router.get('/', requireAdmin, async (req, res) => {
                 <div class="regions-grid">
                   <label class="switch-row"><input type="checkbox" id="regionRussia" checked> 🇷🇺 Россия</label>
                   <label class="switch-row"><input type="checkbox" id="regionBali"> 🇮🇩 Бали</label>
-                  <label class="switch-row"><input type="checkbox" id="regionKazakhstan"> 🇰🇿 Казахстан</label>
-                  <label class="switch-row"><input type="checkbox" id="regionBelarus"> 🇧🇾 Беларусь</label>
                 </div>
               </div>
 
@@ -1013,14 +1024,14 @@ router.get('/', requireAdmin, async (req, res) => {
                 </div>
                 <div class="form-group">
                   <label class="status-toggle">
-                    <input type="checkbox" id="productStatus"> Товар активен (доступен для покупки)
+                    <input type="checkbox" id="productActive"> Товар активен (доступен для покупки)
                   </label>
                 </div>
               </div>
 
               <div class="modal-footer">
                 <button type="button" class="btn" onclick="closeAddProductModal()" style="background: #6c757d;">Отмена</button>
-                <button type="submit" id="productModalSubmit" class="btn" style="background: #28a745;">💾 Создать товар</button>
+                <button type="submit" class="btn" style="background: #28a745;">💾 Создать товар</button>
               </div>
             </form>
           </div>
@@ -1330,7 +1341,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 categories.forEach(category => {
                   const option = document.createElement('option');
                   option.value = category.id;
-                  option.textContent = category.name;
+                  option.textContent = category.icon ? category.icon + ' ' + category.name : category.name;
                   select.appendChild(option);
                 });
               }
@@ -1350,8 +1361,6 @@ router.get('/', requireAdmin, async (req, res) => {
             const isActive = button.dataset.active === 'true';
             const availableInRussia = button.dataset.russia === 'true';
             const availableInBali = button.dataset.bali === 'true';
-            const availableInKazakhstan = button.dataset.kazakhstan === 'true';
-            const availableInBelarus = button.dataset.belarus === 'true';
             const imageUrl = button.dataset.image;
             
             // Fill form fields
@@ -1365,16 +1374,10 @@ router.get('/', requireAdmin, async (req, res) => {
             document.getElementById('productStock').value = '999';
             document.getElementById('productCategory').value = categoryId;
             document.getElementById('productStatus').checked = isActive;
-            
-            // Set region toggles
             const regionRussiaEl = document.getElementById('regionRussia');
             const regionBaliEl = document.getElementById('regionBali');
-            const regionKazakhstanEl = document.getElementById('regionKazakhstan');
-            const regionBelarusEl = document.getElementById('regionBelarus');
             if (regionRussiaEl) regionRussiaEl.checked = availableInRussia;
             if (regionBaliEl) regionBaliEl.checked = availableInBali;
-            if (regionKazakhstanEl) regionKazakhstanEl.checked = availableInKazakhstan;
-            if (regionBelarusEl) regionBelarusEl.checked = availableInBelarus;
             
             // Set image preview
             const imagePreview = document.getElementById('imagePreview');
@@ -1420,56 +1423,71 @@ router.get('/', requireAdmin, async (req, res) => {
             const isActive = button.dataset.active === 'true';
             const availableInRussia = button.dataset.russia === 'true';
             const availableInBali = button.dataset.bali === 'true';
-            const availableInKazakhstan = button.dataset.kazakhstan === 'true';
-            const availableInBelarus = button.dataset.belarus === 'true';
             const imageUrl = button.dataset.image;
             
             // Set hidden product ID field
-            document.getElementById('productId').value = productId;
+            const productIdEl = document.getElementById('productId');
+            if (productIdEl) productIdEl.value = productId;
             
             // Fill form fields
-            document.getElementById('productName').value = title;
-            document.getElementById('productShortDescription').value = summary;
-            document.getElementById('productFullDescription').value = description;
-            document.getElementById('productInstruction').value = button.dataset.instruction || '';
-            document.getElementById('productPrice').value = price;
-            document.getElementById('productPriceRub').value = (price * 100).toFixed(2);
-            document.getElementById('productStock').value = '999'; // Default stock
-            document.getElementById('productCategory').value = categoryId;
+            const productNameEl = document.getElementById('productName');
+            if (productNameEl) productNameEl.value = title;
+            
+            const productShortDescEl = document.getElementById('productShortDescription');
+            if (productShortDescEl) productShortDescEl.value = summary;
+            
+            const productFullDescEl = document.getElementById('productFullDescription');
+            if (productFullDescEl) productFullDescEl.value = description;
+            
+            const productInstructionEl = document.getElementById('productInstruction');
+            if (productInstructionEl) productInstructionEl.value = button.dataset.instruction || '';
+            
+            const productPriceEl = document.getElementById('productPrice');
+            if (productPriceEl) productPriceEl.value = price;
+            
+            const productPriceRubEl = document.getElementById('productPriceRub');
+            if (productPriceRubEl) productPriceRubEl.value = (price * 100).toFixed(2);
+            
+            const productStockEl = document.getElementById('productStock');
+            if (productStockEl) productStockEl.value = '999'; // Default stock
+            
+            const productCategoryEl = document.getElementById('productCategory');
+            if (productCategoryEl) productCategoryEl.value = categoryId;
             
             // Set status toggle
-            document.getElementById('productStatus').checked = isActive;
+            const productStatusEl = document.getElementById('productStatus');
+            if (productStatusEl) productStatusEl.checked = isActive;
             
             // Set region toggles
-            const regionRussiaEl = document.getElementById('regionRussia');
-            const regionBaliEl = document.getElementById('regionBali');
-            const regionKazakhstanEl = document.getElementById('regionKazakhstan');
-            const regionBelarusEl = document.getElementById('regionBelarus');
-            if (regionRussiaEl) regionRussiaEl.checked = availableInRussia;
-            if (regionBaliEl) regionBaliEl.checked = availableInBali;
-            if (regionKazakhstanEl) regionKazakhstanEl.checked = availableInKazakhstan;
-            if (regionBelarusEl) regionBelarusEl.checked = availableInBelarus;
+            const productRussiaEl = document.getElementById('productRussia') || document.getElementById('regionRussia');
+            if (productRussiaEl) productRussiaEl.checked = availableInRussia;
+            
+            const productBaliEl = document.getElementById('productBali') || document.getElementById('regionBali');
+            if (productBaliEl) productBaliEl.checked = availableInBali;
             
             // Set image preview
             const imagePreview = document.getElementById('imagePreview');
-            if (imageUrl) {
-              imagePreview.src = imageUrl;
-              imagePreview.style.display = 'block';
-              imagePreview.nextElementSibling.style.display = 'none';
-            } else {
-              imagePreview.style.display = 'none';
-              imagePreview.nextElementSibling.style.display = 'flex';
+            if (imagePreview) {
+              if (imageUrl) {
+                imagePreview.style.backgroundImage = 'url(' + imageUrl + ')';
+                imagePreview.style.display = 'block';
+              } else {
+                imagePreview.style.backgroundImage = '';
+                imagePreview.style.display = 'none';
+              }
             }
             
-            // Update modal title and submit button
-            document.querySelector('.product-modal h2').textContent = 'Редактировать товар';
-            document.querySelector('#productModalSubmit').textContent = 'Обновить товар';
+            // Update modal title
+            const modalTitle = document.querySelector('.product-modal h2');
+            if (modalTitle) modalTitle.textContent = 'Редактировать товар';
             
             // Load categories and show modal
             if (window.loadCategories) {
               window.loadCategories();
             }
-            document.getElementById('addProductModal').style.display = 'block';
+            
+            const modal = document.getElementById('addProductModal');
+            if (modal) modal.style.display = 'block';
           };
           // Sorting: redirect to full users page with server-side sorting across ALL users
           function sortTable(column) {
@@ -1541,9 +1559,19 @@ router.get('/', requireAdmin, async (req, res) => {
           
           function sendMessages() {
             const selectedUsers = getSelectedUsers();
-            const messageType = document.getElementById('messageType').value;
-            const subject = document.getElementById('messageSubject').value;
-            const text = document.getElementById('messageText').value;
+            const messageTypeEl = document.getElementById('messageType');
+            const subjectEl = document.getElementById('messageSubject');
+            const textEl = document.getElementById('messageText');
+            const includeButtonsEl = document.getElementById('includeButtons');
+            const button1TextEl = document.getElementById('button1Text');
+            const button1UrlEl = document.getElementById('button1Url');
+            const button2TextEl = document.getElementById('button2Text');
+            const button2UrlEl = document.getElementById('button2Url');
+            
+            const messageType = messageTypeEl ? messageTypeEl.value : 'plain';
+            const subject = subjectEl ? subjectEl.value : '';
+            const text = textEl ? textEl.value : '';
+            const includeButtons = includeButtonsEl ? includeButtonsEl.checked : false;
             
             if (!text.trim()) {
               alert('Введите текст сообщения');
@@ -1559,14 +1587,14 @@ router.get('/', requireAdmin, async (req, res) => {
                 type: messageType,
                 subject: subject,
                 text: text,
-                includeButtons: document.getElementById('includeButtons').checked,
+                includeButtons: includeButtons,
                 button1: {
-                  text: document.getElementById('button1Text').value,
-                  url: document.getElementById('button1Url').value
+                  text: button1TextEl ? button1TextEl.value : '',
+                  url: button1UrlEl ? button1UrlEl.value : ''
                 },
                 button2: {
-                  text: document.getElementById('button2Text').value,
-                  url: document.getElementById('button2Url').value
+                  text: button2TextEl ? button2TextEl.value : '',
+                  url: button2UrlEl ? button2UrlEl.value : ''
                 }
               })
             })
@@ -1593,13 +1621,47 @@ router.get('/', requireAdmin, async (req, res) => {
           
           // Show/hide buttons section
           document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('includeButtons').addEventListener('change', function() {
-              const buttonsSection = document.getElementById('buttonsSection');
-              buttonsSection.style.display = this.checked ? 'block' : 'none';
-            });
+            const includeButtonsToggle = document.getElementById('includeButtons');
+            if (includeButtonsToggle) {
+              includeButtonsToggle.addEventListener('change', function() {
+                const buttonsSection = document.getElementById('buttonsSection');
+                if (buttonsSection) {
+                  buttonsSection.style.display = this.checked ? 'block' : 'none';
+                }
+              });
+            }
+            
+            function setupPriceSync(priceId, priceRubId) {
+              const pricePzInput = document.getElementById(priceId);
+              const priceRubInput = document.getElementById(priceRubId);
+              if (!pricePzInput || !priceRubInput) return;
+              
+              const syncFromRub = () => {
+                const rubValue = parseFloat(priceRubInput.value) || 0;
+                pricePzInput.value = (rubValue / 100).toFixed(2);
+              };
+              const syncFromPz = () => {
+                const pzValue = parseFloat(pricePzInput.value) || 0;
+                priceRubInput.value = (pzValue * 100).toFixed(2);
+              };
+              
+              priceRubInput.addEventListener('input', syncFromRub);
+              pricePzInput.addEventListener('input', syncFromPz);
+              
+              if (priceRubInput.value) syncFromRub();
+              else if (pricePzInput.value) syncFromPz();
+            }
+            
+            // Initialize price sync for create form
+            setupPriceSync('productPrice', 'productPriceRub');
             
             // Load categories when product modal opens
-            document.getElementById('addProductModal').addEventListener('shown.bs.modal', loadCategories);
+            const addProductModalEl = document.getElementById('addProductModal');
+            if (addProductModalEl) {
+              addProductModalEl.addEventListener('shown.bs.modal', function() {
+                if (window.loadCategories) window.loadCategories();
+              });
+            }
             
             // Character counter for short description
             const shortDesc = document.getElementById('productShortDescription');
@@ -1625,186 +1687,123 @@ router.get('/', requireAdmin, async (req, res) => {
             }
           });
           
-          // Product modal functions - make them global (available immediately)
+          // Product modal functions
           window.openAddProductModal = function() {
             // Reset form for new product
+            const modal = document.getElementById('addProductModal');
+            if (!modal) {
+              console.error('Modal addProductModal not found');
+              return;
+            }
+            
             const productIdEl = document.getElementById('productId');
             if (productIdEl) productIdEl.value = '';
+            
             const modalTitle = document.querySelector('.product-modal h2');
             if (modalTitle) modalTitle.textContent = 'Добавить товар';
-            const productModalSubmit = document.querySelector('#productModalSubmit');
-            if (productModalSubmit) productModalSubmit.textContent = 'Создать товар';
-            const modal = document.getElementById('addProductModal');
-            if (modal) {
-              modal.style.display = 'block';
-              if (window.loadCategories) {
-                window.loadCategories();
-              }
+            
+            modal.style.display = 'block';
+            
+            // Load categories if function exists
+            if (window.loadCategories) {
+              window.loadCategories();
+            } else {
+              console.error('loadCategories function not found');
             }
-          };
+          }
           
           window.closeAddProductModal = function() {
             const modal = document.getElementById('addProductModal');
             if (modal) modal.style.display = 'none';
+            
             const form = document.getElementById('addProductForm');
             if (form) form.reset();
+            
             const productIdEl = document.getElementById('productId');
             if (productIdEl) productIdEl.value = '';
+            
             const shortDescCount = document.getElementById('shortDescCount');
             if (shortDescCount) shortDescCount.textContent = '0/200';
             
-            // Reset modal title and submit button
+            // Reset modal title
             const modalTitle = document.querySelector('.product-modal h2');
             if (modalTitle) modalTitle.textContent = '➕ Добавить новый товар';
-            const productModalSubmit = document.querySelector('#productModalSubmit');
-            if (productModalSubmit) productModalSubmit.textContent = 'Создать товар';
-          }
-        
-        // Continue with other DOMContentLoaded handlers
-        document.addEventListener('DOMContentLoaded', function() {
-          
-          function openAddCategoryModal() {
-            document.getElementById('addCategoryModal').style.display = 'block';
+            
+            // Reset image preview
+            const imagePreview = document.getElementById('imagePreview');
+            if (imagePreview) {
+              imagePreview.style.backgroundImage = '';
+              imagePreview.innerHTML = '';
+            }
           }
           
-          function closeAddCategoryModal() {
-            document.getElementById('addCategoryModal').style.display = 'none';
-            document.getElementById('addCategoryForm').reset();
+          window.openAddCategoryModal = function() {
+            const modal = document.getElementById('addCategoryModal');
+            if (modal) modal.style.display = 'block';
+          }
+          
+          window.closeAddCategoryModal = function() {
+            const modal = document.getElementById('addCategoryModal');
+            if (modal) modal.style.display = 'none';
+            
+            const form = document.getElementById('addCategoryForm');
+            if (form) form.reset();
           }
           
           // Edit product using create modal
-          function editProductUsingCreateModal(button) {
-            const productId = button.dataset.id;
-            const title = button.dataset.title;
-            const summary = button.dataset.summary;
-            const description = button.dataset.description;
-            const price = button.dataset.price;
-            const categoryId = button.dataset.categoryId;
-            const isActive = button.dataset.active === 'true';
-            const availableInRussia = button.dataset.russia === 'true';
-            const availableInBali = button.dataset.bali === 'true';
-            const imageUrl = button.dataset.image;
-            
-            // Set hidden product ID field
-            document.getElementById('productId').value = productId;
-            
-            // Fill form fields
-            document.getElementById('productName').value = title;
-            document.getElementById('productShortDescription').value = summary;
-            document.getElementById('productFullDescription').value = description;
-            document.getElementById('productInstruction').value = button.dataset.instruction || '';
-            document.getElementById('productPrice').value = price;
-            document.getElementById('productPriceRub').value = (price * 100).toFixed(2);
-            document.getElementById('productStock').value = '999'; // Default stock
-            document.getElementById('productCategory').value = categoryId;
-            
-            // Set status toggle
-            document.getElementById('productStatus').checked = isActive;
-            
-            // Set region toggles
-            const regionRussiaEl = document.getElementById('regionRussia');
-            const regionBaliEl = document.getElementById('regionBali');
-            const regionKazakhstanEl = document.getElementById('regionKazakhstan');
-            const regionBelarusEl = document.getElementById('regionBelarus');
-            if (regionRussiaEl) regionRussiaEl.checked = availableInRussia;
-            if (regionBaliEl) regionBaliEl.checked = availableInBali;
-            if (regionKazakhstanEl) regionKazakhstanEl.checked = availableInKazakhstan;
-            if (regionBelarusEl) regionBelarusEl.checked = availableInBelarus;
-            
-            // Set image preview
-            const imagePreview = document.getElementById('imagePreview');
-            if (imageUrl) {
-              imagePreview.src = imageUrl;
-              imagePreview.style.display = 'block';
-              imagePreview.nextElementSibling.style.display = 'none';
-            } else {
-              imagePreview.style.display = 'none';
-              imagePreview.nextElementSibling.style.display = 'flex';
-            }
-            
-            // Update modal title and submit button
-            document.querySelector('.product-modal h2').textContent = 'Редактировать товар';
-            document.querySelector('#productModalSubmit').textContent = 'Обновить товар';
-            
-            // Load categories and show modal
-            if (window.loadCategories) {
-              window.loadCategories();
-            }
-            document.getElementById('addProductModal').style.display = 'block';
-          }
+          // editProductUsingCreateModal is already defined as window.editProductUsingCreateModal above
           
-          // Load categories for product form - use global function window.loadCategories
+          // Load categories for product form
+          // loadCategories is already defined as window.loadCategories above
           
           // Handle product form submission
-          document.getElementById('addProductForm').addEventListener('submit', async function(e) {
+           document.getElementById('addProductForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            // Validate required fields
-            const productName = document.getElementById('productName').value.trim();
-            const productPrice = document.getElementById('productPrice').value;
-            const productCategory = document.getElementById('productCategory').value;
-            const productShortDescription = document.getElementById('productShortDescription').value.trim();
-            const productFullDescription = document.getElementById('productFullDescription').value.trim();
-            
-            if (!productName) {
-              alert('❌ Введите название товара');
-              document.getElementById('productName').focus();
-              return;
-            }
-            
-            if (!productPrice || isNaN(parseFloat(productPrice)) || parseFloat(productPrice) <= 0) {
-              alert('❌ Введите корректную цену товара');
-              document.getElementById('productPrice').focus();
-              return;
-            }
-            
-            if (!productCategory) {
-              alert('❌ Выберите категорию товара');
-              document.getElementById('productCategory').focus();
-              return;
-            }
-            
-            if (!productShortDescription) {
-              alert('❌ Введите краткое описание товара');
-              document.getElementById('productShortDescription').focus();
-              return;
-            }
-            
-            if (!productFullDescription) {
-              alert('❌ Введите полное описание товара');
-              document.getElementById('productFullDescription').focus();
-              return;
-            }
             
             const productId = document.getElementById('productId').value;
             const isEdit = productId !== '';
             
+             const productPriceInput = document.getElementById('productPrice');
+             const productPriceRubInput = document.getElementById('productPriceRub');
+             let productPriceValue = productPriceInput ? productPriceInput.value : '';
+             if ((!productPriceValue || Number(productPriceValue) === 0) && productPriceRubInput) {
+               const rubValue = parseFloat(productPriceRubInput.value) || 0;
+               if (rubValue > 0 && productPriceInput) {
+                 productPriceValue = (rubValue / 100).toFixed(2);
+                 productPriceInput.value = productPriceValue;
+               }
+             }
+             
             const formData = new FormData();
-            // For create use 'name', for update use 'title'
-            if (isEdit) {
-              formData.append('title', productName);
-              formData.append('summary', productShortDescription);
-              formData.append('description', productFullDescription);
-            } else {
-              formData.append('name', productName);
-              formData.append('shortDescription', productShortDescription);
-              formData.append('fullDescription', productFullDescription);
-            }
-            formData.append('price', productPrice);
-            formData.append('categoryId', productCategory);
+            const productNameValue = document.getElementById('productName').value || '';
+            const shortDescValue = document.getElementById('productShortDescription').value || '';
+            const fullDescValue = document.getElementById('productFullDescription').value || '';
+            const productInstructionEl = document.getElementById('productInstruction');
+            const productStatusEl = document.getElementById('productStatus');
+            const productInstructionValue = productInstructionEl ? productInstructionEl.value : '';
+            const productStatusValue = productStatusEl ? productStatusEl.checked : false;
+            
+            formData.append('title', productNameValue);
+            formData.append('name', productNameValue);
+            const finalPriceValue = productPriceValue || document.getElementById('productPrice').value;
+            formData.append('price', finalPriceValue);
+            formData.append('categoryId', document.getElementById('productCategory').value);
             formData.append('stock', document.getElementById('productStock').value || 0);
-            formData.append('instruction', document.getElementById('productInstruction').value);
-            formData.append('isActive', document.getElementById('productStatus').checked);
+            formData.append('summary', shortDescValue);
+            formData.append('shortDescription', shortDescValue);
+            formData.append('description', fullDescValue);
+            formData.append('fullDescription', fullDescValue);
+            formData.append('instruction', productInstructionValue);
+            formData.append('isActive', productStatusValue);
+            formData.append('active', productStatusValue ? 'true' : 'false');
             
             // Regions
             const regionRussiaEl = document.getElementById('regionRussia');
             const regionBaliEl = document.getElementById('regionBali');
-            const regionKazakhstanEl = document.getElementById('regionKazakhstan');
-            const regionBelarusEl = document.getElementById('regionBelarus');
-            formData.append('availableInRussia', regionRussiaEl ? regionRussiaEl.checked : false);
-            formData.append('availableInBali', regionBaliEl ? regionBaliEl.checked : false);
-            formData.append('availableInKazakhstan', regionKazakhstanEl ? regionKazakhstanEl.checked : false);
-            formData.append('availableInBelarus', regionBelarusEl ? regionBelarusEl.checked : false);
+            const russiaAvailable = regionRussiaEl ? regionRussiaEl.checked : false;
+            const baliAvailable = regionBaliEl ? regionBaliEl.checked : false;
+            formData.append('availableInRussia', russiaAvailable ? 'true' : 'false');
+            formData.append('availableInBali', baliAvailable ? 'true' : 'false');
             
             // Add image if selected
             const imageFile = document.getElementById('productImage').files[0];
@@ -1856,9 +1855,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 alert('✅ Категория успешно создана!');
                 closeAddCategoryModal();
                 // Reload categories in product form
-                if (window.loadCategories) {
-                  window.loadCategories();
-                }
+                window.loadCategories();
               } else {
                 alert('❌ Ошибка при создании категории: ' + result.error);
               }
@@ -2133,7 +2130,22 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
         const sortOrder = req.query.order || 'desc';
         // Get all users with their related data
         // Optional search by username
-        const search = req.query.search?.trim();
+        const searchRaw = req.query.search?.trim();
+        const usernameSearch = searchRaw?.replace(/^@/, '');
+        const phoneDigits = searchRaw ? searchRaw.replace(/\D+/g, '') : '';
+        const searchConditions = [];
+        if (usernameSearch) {
+            searchConditions.push({ username: { contains: usernameSearch, mode: 'insensitive' } });
+        }
+        if (searchRaw) {
+            searchConditions.push({ username: { contains: searchRaw, mode: 'insensitive' } });
+        }
+        if (phoneDigits) {
+            searchConditions.push({ phone: { contains: phoneDigits } });
+        }
+        if (searchRaw && !phoneDigits) {
+            searchConditions.push({ phone: { contains: searchRaw } });
+        }
         const users = await prisma.user.findMany({
             include: {
                 partner: {
@@ -2144,7 +2156,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                 },
                 orders: true
             },
-            where: search ? { username: { contains: search, mode: 'insensitive' } } : undefined,
+            where: searchConditions.length > 0 ? { OR: searchConditions } : undefined,
             orderBy: {
                 createdAt: sortOrder === 'desc' ? 'desc' : 'asc'
             }
@@ -2611,8 +2623,8 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           <div class="controls">
             <div class="sort-controls">
               <div class="sort-group" style="position: relative;">
-                <label>Найти по юзернейм:</label>
-                <input type="text" id="searchUsername" placeholder="@username" style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; font-size:14px;" autocomplete="off" />
+                <label>Найти по юзернейм или телефону:</label>
+                <input type="text" id="searchUsername" placeholder="@username или +7999..." style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; font-size:14px;" autocomplete="off" />
                 <button onclick="searchByUsername()">🔎 Найти</button>
                 <div id="searchSuggestions" style="position:absolute; top:36px; left:0; background:#fff; border:1px solid #e5e7eb; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.1); width:260px; max-height:220px; overflow:auto; display:none; z-index:5"></div>
               </div>
@@ -3102,13 +3114,17 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                   const resp = await fetch('/admin/users/search?q=' + encodeURIComponent(val), { credentials:'include' });
                   const data = await resp.json();
                   if(!Array.isArray(data) || data.length===0){ hide(); return; }
-                  box.innerHTML = data.map(u => '<div class="list-item" style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f3f4f6">' +
-                    (u.username ? '@'+u.username : (u.firstName||'')) +
-                    '</div>').join('');
+                  box.innerHTML = data.map(u => {
+                    const main = u.username ? '@' + u.username : (u.firstName || u.phone || '');
+                    const phoneInfo = u.phone ? '<span style="color:#6b7280; font-size:12px; margin-left:6px;">' + u.phone + '</span>' : '';
+                    return '<div class="list-item" style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f3f4f6">' + main + phoneInfo + '</div>';
+                  }).join('');
                   Array.from(box.children).forEach((el, idx)=>{
                     el.addEventListener('click', function(){
-                      var uname = data[idx].username || '';
-                      if(uname){ window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(uname); }
+                      var targetValue = data[idx].username || data[idx].phone || '';
+                      if(targetValue){
+                        window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(targetValue);
+                      }
                       hide();
                     });
                   });
@@ -3251,12 +3267,20 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
 // Username prefix search (router mounted at /admin → final path /admin/users/search)
 router.get('/users/search', requireAdmin, async (req, res) => {
     try {
-        const q = String(req.query.q || '').trim().replace(/^@/, '');
-        if (!q)
+        const rawQuery = String(req.query.q || '').trim();
+        const sanitizedQuery = rawQuery.replace(/^@/, '');
+        if (!sanitizedQuery)
             return res.json([]);
+        const phoneDigits = sanitizedQuery.replace(/\D+/g, '');
+        const whereConditions = [
+            { username: { startsWith: sanitizedQuery, mode: 'insensitive' } }
+        ];
+        if (phoneDigits.length >= 3) {
+            whereConditions.push({ phone: { contains: phoneDigits } });
+        }
         const users = await prisma.user.findMany({
-            where: { username: { startsWith: q, mode: 'insensitive' } },
-            select: { id: true, username: true, firstName: true },
+            where: { OR: whereConditions },
+            select: { id: true, username: true, firstName: true, phone: true },
             take: 10,
             orderBy: { username: 'asc' }
         });
@@ -3482,7 +3506,7 @@ router.post('/api/categories', requireAdmin, async (req, res) => {
 // API: Create product
 router.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
     try {
-        const { name, price, categoryId, stock, shortDescription, fullDescription, instruction, active, availableInRussia, availableInBali, availableInKazakhstan, availableInBelarus } = req.body;
+        const { name, price, categoryId, stock, shortDescription, fullDescription, instruction, active, availableInRussia, availableInBali } = req.body;
         // Validation
         if (!name || !name.trim()) {
             return res.status(400).json({ success: false, error: 'Название товара обязательно' });
@@ -3537,9 +3561,7 @@ router.post('/api/products', requireAdmin, upload.single('image'), async (req, r
                 imageUrl,
                 isActive: active === 'true' || active === true,
                 availableInRussia: availableInRussia === 'true' || availableInRussia === true,
-                availableInBali: availableInBali === 'true' || availableInBali === true,
-                availableInKazakhstan: availableInKazakhstan === 'true' || availableInKazakhstan === true,
-                availableInBelarus: availableInBelarus === 'true' || availableInBelarus === true
+                availableInBali: availableInBali === 'true' || availableInBali === true
             }
         });
         res.json({ success: true, product });
@@ -4940,9 +4962,11 @@ router.get('/products', requireAdmin, async (req, res) => {
         <a href="/admin" class="btn">← Назад</a>
         
         ${req.query.success === 'image_updated' ? '<div class="alert alert-success">✅ Фото успешно обновлено!</div>' : ''}
+        ${req.query.success === 'product_deleted' ? '<div class="alert alert-success">✅ Товар успешно удален!</div>' : ''}
         ${req.query.error === 'no_image' ? '<div class="alert alert-error">❌ Файл не выбран</div>' : ''}
         ${req.query.error === 'image_upload' ? '<div class="alert alert-error">❌ Ошибка загрузки фото</div>' : ''}
         ${req.query.error === 'product_not_found' ? '<div class="alert alert-error">❌ Товар не найден</div>' : ''}
+        ${req.query.error === 'product_delete_failed' ? '<div class="alert alert-error">❌ Ошибка удаления товара</div>' : ''}
 
         <div class="filters">
           <button type="button" class="filter-btn active" data-filter="all">Все категории (${allProducts.length})</button>
@@ -4994,9 +5018,7 @@ router.get('/products', requireAdmin, async (req, res) => {
             <div style="margin: 8px 0;">
               <span style="font-size: 12px; color: #666;">Регионы:</span>
               ${product.availableInRussia ? '<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇷🇺 Россия</span>' : ''}
-              ${product.availableInBali ? '<span style="background: #f3e5f5; color: #7b1fa2; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇮🇩 Бали</span>' : ''}
-              ${product.availableInKazakhstan ? '<span style="background: #fff3e0; color: #e65100; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇰🇿 Казахстан</span>' : ''}
-              ${product.availableInBelarus ? '<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇧🇾 Беларусь</span>' : ''}
+              ${product.availableInBali ? '<span style="background: #f3e5f5; color: #7b1fa2; padding: 2px 6px; border-radius: 4px; font-size: 11px;">🇮🇩 Бали</span>' : ''}
             </div>
             <p class="product-summary">${product.summary}</p>
             <div class="product-price">${priceFormatted}</div>
@@ -5018,8 +5040,6 @@ router.get('/products', requireAdmin, async (req, res) => {
                 data-active="${product.isActive ? 'true' : 'false'}"
                 data-russia="${product.availableInRussia ? 'true' : 'false'}"
                 data-bali="${product.availableInBali ? 'true' : 'false'}"
-                data-kazakhstan="${product.availableInKazakhstan ? 'true' : 'false'}"
-                data-belarus="${product.availableInBelarus ? 'true' : 'false'}"
                 data-image="${product.imageUrl || ''}"
                 onclick="editProduct(this)"
               >✏️ Редактировать</button>
@@ -5251,9 +5271,19 @@ router.get('/products', requireAdmin, async (req, res) => {
               
               // Ensure checkboxes are properly handled
               const formDataToSend = new FormData();
+              const editPriceInput = document.getElementById('editProductPrice');
+              const editPriceRubInput = document.getElementById('editProductPriceRub');
+              let editPriceValue = formData.get('price') || '';
+              if ((!editPriceValue || Number(editPriceValue) === 0) && editPriceRubInput) {
+                const rubValue = parseFloat(editPriceRubInput.value) || 0;
+                if (rubValue > 0 && editPriceInput) {
+                  editPriceValue = (rubValue / 100).toFixed(2);
+                  editPriceInput.value = editPriceValue;
+                }
+              }
               formDataToSend.append('productId', productId);
               formDataToSend.append('title', formData.get('title') || '');
-              formDataToSend.append('price', formData.get('price') || '0');
+              formDataToSend.append('price', editPriceValue || formData.get('price') || '0');
               formDataToSend.append('summary', formData.get('summary') || '');
               formDataToSend.append('description', formData.get('description') || '');
               formDataToSend.append('categoryId', formData.get('categoryId') || '');
@@ -5434,24 +5464,85 @@ router.post('/products/:id/toggle-active', requireAdmin, async (req, res) => {
         const { id } = req.params;
         const product = await prisma.product.findUnique({ where: { id } });
         if (!product) {
-            return res.redirect('/admin?error=product_not_found');
+            const fallback = req.get('referer') || '/admin/products';
+            return res.redirect(`${fallback}?error=product_not_found`);
         }
         await prisma.product.update({
             where: { id },
             data: { isActive: !product.isActive }
         });
-        res.redirect('/admin?success=product_updated');
+        const redirectUrl = req.get('referer') || '/admin/products';
+        res.redirect(redirectUrl);
     }
     catch (error) {
         console.error('Product toggle error:', error);
-        res.redirect('/admin?error=product_toggle');
+        const fallback = req.get('referer') || '/admin/products';
+        res.redirect(`${fallback}?error=product_toggle`);
+    }
+});
+// Delete product
+router.post('/products/:id/delete', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await prisma.product.findUnique({ where: { id } });
+        if (!product) {
+            const fallback = req.get('referer') || '/admin/products';
+            return res.redirect(`${fallback}?error=product_not_found`);
+        }
+        await prisma.product.delete({
+            where: { id }
+        });
+        const redirectUrl = req.get('referer') || '/admin/products';
+        res.redirect(`${redirectUrl}?success=product_deleted`);
+    }
+    catch (error) {
+        console.error('Product delete error:', error);
+        const fallback = req.get('referer') || '/admin/products';
+        res.redirect(`${fallback}?error=product_delete_failed`);
+    }
+});
+// Upload product image
+router.post('/products/:id/upload-image', requireAdmin, upload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await prisma.product.findUnique({ where: { id } });
+        if (!product) {
+            const fallback = req.get('referer') || '/admin/products';
+            return res.redirect(`${fallback}?error=product_not_found`);
+        }
+        if (!req.file) {
+            const fallback = req.get('referer') || '/admin/products';
+            return res.redirect(`${fallback}?error=no_image`);
+        }
+        // Upload to Cloudinary
+        const result = await new Promise((resolve, reject) => {
+            cloudinary.uploader.upload_stream({ resource_type: 'auto', folder: 'plazma-bot/products' }, (error, result) => {
+                if (error)
+                    reject(error);
+                else
+                    resolve(result);
+            }).end(req.file.buffer);
+        });
+        const imageUrl = result.secure_url;
+        // Update product with new image
+        await prisma.product.update({
+            where: { id },
+            data: { imageUrl }
+        });
+        const redirectUrl = req.get('referer') || '/admin/products';
+        res.redirect(`${redirectUrl}?success=image_updated`);
+    }
+    catch (error) {
+        console.error('Image upload error:', error);
+        const fallback = req.get('referer') || '/admin/products';
+        res.redirect(`${fallback}?error=image_upload`);
     }
 });
 // Update product
 router.post('/products/:productId/update', requireAdmin, upload.single('image'), async (req, res) => {
     try {
         const { productId } = req.params;
-        const { title, price, summary, description, instruction, isActive, categoryId, stock, availableInRussia, availableInBali, availableInKazakhstan, availableInBelarus } = req.body;
+        const { title, price, summary, description, instruction, isActive, categoryId, stock, availableInRussia, availableInBali } = req.body;
         console.log('Update product request:', {
             productId,
             body: req.body,
@@ -5490,10 +5581,6 @@ router.post('/products/:productId/update', requireAdmin, upload.single('image'),
             updateData.availableInRussia = availableInRussia === 'true';
         if (availableInBali !== undefined)
             updateData.availableInBali = availableInBali === 'true';
-        if (availableInKazakhstan !== undefined)
-            updateData.availableInKazakhstan = availableInKazakhstan === 'true';
-        if (availableInBelarus !== undefined)
-            updateData.availableInBelarus = availableInBelarus === 'true';
         if (imageUrl)
             updateData.imageUrl = imageUrl;
         const product = await prisma.product.update({
@@ -6753,28 +6840,73 @@ router.post('/users/:userId/toggle-partner-program', requireAdmin, async (req, r
                     isUnique = true;
                 }
             }
-            await prisma.partnerProfile.create({
+            const now = new Date();
+            const expiresAt = isActive ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) : null; // 1 месяц при активации
+            const newProfile = await prisma.partnerProfile.create({
                 data: {
                     userId: user.id,
                     isActive: isActive,
-                    activatedAt: isActive ? new Date() : null,
+                    activatedAt: isActive ? now : null,
+                    expiresAt: expiresAt,
                     activationType: 'ADMIN',
                     referralCode: referralCode,
                     programType: 'DIRECT'
                 }
             });
+            // Log activation history
+            if (isActive) {
+                await prisma.partnerActivationHistory.create({
+                    data: {
+                        profileId: newProfile.id,
+                        action: 'ACTIVATED',
+                        activationType: 'ADMIN',
+                        reason: 'Активация администратором',
+                        expiresAt: expiresAt,
+                        adminId: req.user?.id,
+                    },
+                });
+            }
             console.log(`✅ Partner profile created and ${isActive ? 'activated' : 'deactivated'}: ${userId}`);
         }
         else {
+            const wasActive = user.partner.isActive;
             // Обновляем существующий профиль
+            const updateData = {
+                isActive: isActive,
+                activationType: 'ADMIN'
+            };
+            if (isActive) {
+                // При активации устанавливаем activatedAt, если его нет
+                if (!user.partner.activatedAt) {
+                    updateData.activatedAt = new Date();
+                }
+                // Если expiresAt не установлен или истек, устанавливаем новый срок (1 месяц)
+                if (!user.partner.expiresAt || new Date(user.partner.expiresAt) < new Date()) {
+                    const now = new Date();
+                    updateData.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 1 месяц
+                }
+            }
+            else {
+                // При деактивации сохраняем expiresAt для истории
+                updateData.activatedAt = user.partner.activatedAt;
+            }
             await prisma.partnerProfile.update({
                 where: { userId: user.id },
-                data: {
-                    isActive: isActive,
-                    activatedAt: isActive && !user.partner.activatedAt ? new Date() : user.partner.activatedAt,
-                    activationType: 'ADMIN'
-                }
+                data: updateData
             });
+            // Log activation/deactivation history only if status changed
+            if (wasActive !== isActive) {
+                await prisma.partnerActivationHistory.create({
+                    data: {
+                        profileId: user.partner.id,
+                        action: isActive ? 'ACTIVATED' : 'DEACTIVATED',
+                        activationType: 'ADMIN',
+                        reason: isActive ? 'Активация администратором' : 'Деактивация администратором',
+                        expiresAt: updateData.expiresAt || user.partner.expiresAt,
+                        adminId: req.user?.id,
+                    },
+                });
+            }
             console.log(`✅ Partner program ${isActive ? 'activated' : 'deactivated'}: ${userId}`);
         }
         return res.json({ success: true, isActive: isActive });
@@ -8647,9 +8779,7 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
           }
           
           // Добавить товар в редактируемый заказ
-          const editOrderProductForm = document.getElementById('editOrderProductForm');
-          if (editOrderProductForm) {
-            editOrderProductForm.addEventListener('submit', function(e) {
+          document.getElementById('addProductForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const productSelect = document.getElementById('productSelect');
@@ -8664,19 +8794,18 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
             const title = selectedOption.dataset.title;
             const price = parseFloat(selectedOption.dataset.price);
             
-              currentEditItems.push({
-                title: title,
-                price: price,
-                quantity: quantity
-              });
-              
-              renderEditItems();
-              
-              // Очищаем форму
-              editOrderProductForm.reset();
-              document.getElementById('productQuantity').value = 1;
+            currentEditItems.push({
+              title: title,
+              price: price,
+              quantity: quantity
             });
-          }
+            
+            renderEditItems();
+            
+            // Очищаем форму
+            document.getElementById('addProductForm').reset();
+            document.getElementById('productQuantity').value = 1;
+          });
           
           // Сохранить изменения заказа
           async function saveOrderChanges() {
@@ -8876,7 +9005,7 @@ router.get('/users/:userId/orders', requireAdmin, async (req, res) => {
             
             <div class="add-product-section">
               <h3>➕ Добавить товар</h3>
-              <form id="editOrderProductForm" class="add-product-form">
+              <form id="addProductForm" class="add-product-form">
                 <div class="form-group">
                   <label for="productSelect">Выберите товар:</label>
                   <select id="productSelect" name="productId" required>
@@ -10030,6 +10159,369 @@ router.post('/media/delete', requireAdmin, async (req, res) => {
     catch (error) {
         console.error('Error deleting media file:', error);
         res.status(500).json({ error: 'Ошибка удаления файла' });
+    }
+});
+// Bot content management page
+router.get('/content', requireAdmin, async (req, res) => {
+    try {
+        const { getAllBotContents } = await import('../services/bot-content-service.js');
+        const contents = await getAllBotContents();
+        // Group by category
+        const contentsByCategory = {};
+        contents.forEach((content) => {
+            const category = content.category || 'other';
+            if (!contentsByCategory[category]) {
+                contentsByCategory[category] = [];
+            }
+            contentsByCategory[category].push(content);
+        });
+        const contentsHtml = Object.entries(contentsByCategory).map(([category, items]) => {
+            const itemsHtml = items.map((content) => `
+        <div class="content-card" data-key="${content.key}">
+          <div class="content-header">
+            <h3>${content.title}</h3>
+            <div class="content-badges">
+              <span class="badge badge-key">${content.key}</span>
+              <span class="badge badge-language">${content.language}</span>
+              <span class="badge badge-status ${content.isActive ? 'active' : 'inactive'}">
+                ${content.isActive ? '✅ Активен' : '❌ Неактивен'}
+              </span>
+            </div>
+          </div>
+          ${content.description ? `<p class="content-description">${content.description}</p>` : ''}
+          <div class="content-preview">
+            <strong>Контент:</strong>
+            <div class="content-text">${content.content.substring(0, 150)}${content.content.length > 150 ? '...' : ''}</div>
+          </div>
+          <div class="content-meta">
+            <span>Обновлен: ${content.updatedAt ? new Date(content.updatedAt).toLocaleDateString() : 'Неизвестно'}</span>
+          </div>
+          <div class="content-actions">
+            <button class="btn-edit" onclick="editContent('${content.key}')">✏️ Редактировать</button>
+            <form method="post" action="/admin/content/toggle" style="display: inline;">
+              <input type="hidden" name="key" value="${content.key}">
+              <button type="submit" class="btn-toggle ${content.isActive ? 'deactivate' : 'activate'}">
+                ${content.isActive ? '⏸️ Деактивировать' : '▶️ Активировать'}
+              </button>
+            </form>
+            <form method="post" action="/admin/content/delete" onsubmit="return confirm('Удалить контент «${content.title}»?')" style="display: inline;">
+              <input type="hidden" name="key" value="${content.key}">
+              <button type="submit" class="btn-delete">🗑️ Удалить</button>
+            </form>
+          </div>
+        </div>
+      `).join('');
+            return `
+        <div class="category-section">
+          <h2 class="category-title">${category === 'other' ? '📝 Другое' : `📁 ${category}`}</h2>
+          <div class="content-grid">
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+        }).join('');
+        res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Управление контентом бота - Plazma Bot Admin Panel</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+          .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .upload-section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .upload-form { display: grid; gap: 15px; }
+          .form-group { display: flex; flex-direction: column; }
+          .form-group label { margin-bottom: 5px; font-weight: bold; color: #333; }
+          .form-group input, .form-group textarea, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+          .form-group textarea { min-height: 120px; resize: vertical; }
+          .upload-btn { padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
+          .upload-btn:hover { background: #0056b3; }
+          .back-btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-bottom: 20px; }
+          .back-btn:hover { background: #0056b3; }
+          .alert { padding: 12px 16px; margin: 16px 0; border-radius: 8px; font-weight: 500; }
+          .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+          .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+          .category-section { margin-bottom: 30px; }
+          .category-title { color: #333; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #007bff; }
+          .content-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+          .content-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+          .content-card:hover { transform: translateY(-5px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+          .content-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+          .content-header h3 { margin: 0; color: #333; font-size: 18px; }
+          .content-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+          .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+          .badge-key { background: #e3f2fd; color: #1976d2; }
+          .badge-language { background: #f3e5f5; color: #7b1fa2; }
+          .badge-status.active { background: #dcfce7; color: #166534; }
+          .badge-status.inactive { background: #fee2e2; color: #991b1b; }
+          .content-description { color: #666; font-size: 14px; margin: 10px 0; }
+          .content-preview { margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 4px; }
+          .content-preview strong { display: block; margin-bottom: 5px; color: #333; }
+          .content-text { color: #555; font-size: 13px; line-height: 1.5; }
+          .content-meta { font-size: 12px; color: #999; margin: 10px 0; }
+          .content-actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+          .btn-edit, .btn-toggle, .btn-delete { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+          .btn-edit { background: #007bff; color: white; }
+          .btn-edit:hover { background: #0056b3; }
+          .btn-toggle.activate { background: #28a745; color: white; }
+          .btn-toggle.deactivate { background: #ffc107; color: black; }
+          .btn-toggle:hover { opacity: 0.8; }
+          .btn-delete { background: #dc3545; color: white; }
+          .btn-delete:hover { background: #c82333; }
+          .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+          .modal-content { background: white; border-radius: 8px; padding: 0; max-width: 700px; width: 95%; max-height: 90vh; overflow-y: auto; }
+          .modal-header { padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+          .modal-header h2 { margin: 0; color: #333; }
+          .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+          .close-btn:hover { color: #333; }
+          .modal-form { padding: 20px; }
+          .modal-footer { padding: 20px; border-top: 1px solid #ddd; display: flex; justify-content: flex-end; gap: 10px; }
+        </style>
+      </head>
+      <body>
+        <a href="/admin" class="back-btn">← Назад в админ-панель</a>
+        <div class="header">
+          <h1>📝 Управление контентом бота</h1>
+          <p>Здесь вы можете создавать и редактировать текстовый контент бота</p>
+        </div>
+        
+        <div class="upload-section">
+          <h2>➕ Создать новый контент</h2>
+          <form class="upload-form" action="/admin/content/create" method="post">
+            <div class="form-group">
+              <label>Ключ (уникальный идентификатор) *</label>
+              <input type="text" name="key" required placeholder="например: welcome_message" pattern="[a-z0-9_]+" title="Только строчные буквы, цифры и подчеркивания">
+              <small style="color: #666; font-size: 12px; margin-top: 5px;">Только строчные буквы, цифры и подчеркивания. Например: welcome_message, about_text</small>
+            </div>
+            <div class="form-group">
+              <label>Название (для админки) *</label>
+              <input type="text" name="title" required placeholder="Например: Приветственное сообщение">
+            </div>
+            <div class="form-group">
+              <label>Описание (для админки)</label>
+              <textarea name="description" placeholder="Описание контента"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Категория</label>
+              <select name="category">
+                <option value="">Без категории</option>
+                <option value="messages">Сообщения</option>
+                <option value="descriptions">Описания</option>
+                <option value="buttons">Кнопки</option>
+                <option value="errors">Ошибки</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Язык *</label>
+              <select name="language" required>
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Контент *</label>
+              <textarea name="content" required placeholder="Введите текст контента"></textarea>
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" name="isActive" checked> Контент активен
+              </label>
+            </div>
+            <button type="submit" class="upload-btn">💾 Создать контент</button>
+          </form>
+        </div>
+        
+        ${req.query.success === 'created' ? '<div class="alert alert-success">✅ Контент успешно создан!</div>' : ''}
+        ${req.query.success === 'updated' ? '<div class="alert alert-success">✅ Контент успешно обновлен!</div>' : ''}
+        ${req.query.success === 'deleted' ? '<div class="alert alert-success">✅ Контент успешно удален!</div>' : ''}
+        ${req.query.error === 'duplicate_key' ? '<div class="alert alert-error">❌ Контент с таким ключом уже существует</div>' : ''}
+        ${req.query.error === 'not_found' ? '<div class="alert alert-error">❌ Контент не найден</div>' : ''}
+        ${req.query.error === 'invalid_key' ? '<div class="alert alert-error">❌ Неверный формат ключа. Используйте только строчные буквы, цифры и подчеркивания</div>' : ''}
+        
+        <div class="header">
+          <h2>📋 Существующий контент (${contents.length})</h2>
+        </div>
+        
+        ${contents.length === 0 ? '<p style="text-align: center; padding: 40px; color: #6c757d;">Пока нет созданного контента. Создайте первый контент выше.</p>' : contentsHtml}
+        
+        <!-- Edit Modal -->
+        <div id="editModal" class="modal-overlay" style="display: none;" onclick="if(event.target === this) closeEditModal()">
+          <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+              <h2>✏️ Редактировать контент</h2>
+              <button class="close-btn" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editForm" class="modal-form" method="post" action="/admin/content/update">
+              <input type="hidden" id="editKey" name="key" value="">
+              <div class="form-group">
+                <label>Название (для админки) *</label>
+                <input type="text" id="editTitle" name="title" required>
+              </div>
+              <div class="form-group">
+                <label>Описание (для админки)</label>
+                <textarea id="editDescription" name="description"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Категория</label>
+                <select id="editCategory" name="category">
+                  <option value="">Без категории</option>
+                  <option value="messages">Сообщения</option>
+                  <option value="descriptions">Описания</option>
+                  <option value="buttons">Кнопки</option>
+                  <option value="errors">Ошибки</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Язык *</label>
+                <select id="editLanguage" name="language" required>
+                  <option value="ru">Русский</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Контент *</label>
+                <textarea id="editContent" name="content" required></textarea>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="editIsActive" name="isActive"> Контент активен
+                </label>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn-toggle" onclick="closeEditModal()" style="background: #6c757d; color: white;">Отмена</button>
+                <button type="submit" class="upload-btn">💾 Сохранить изменения</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        
+        <script>
+          const contents = ${JSON.stringify(contents)};
+          
+          function editContent(key) {
+            const content = contents.find(c => c.key === key);
+            if (!content) return;
+            
+            document.getElementById('editKey').value = content.key;
+            document.getElementById('editTitle').value = content.title;
+            document.getElementById('editDescription').value = content.description || '';
+            document.getElementById('editCategory').value = content.category || '';
+            document.getElementById('editLanguage').value = content.language || 'ru';
+            document.getElementById('editContent').value = content.content;
+            document.getElementById('editIsActive').checked = content.isActive;
+            
+            document.getElementById('editModal').style.display = 'flex';
+          }
+          
+          function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+          }
+        </script>
+      </body>
+      </html>
+    `);
+    }
+    catch (error) {
+        console.error('Error loading content page:', error);
+        res.status(500).send('Ошибка загрузки страницы контента');
+    }
+});
+// Create content
+router.post('/content/create', requireAdmin, async (req, res) => {
+    try {
+        const { key, title, description, category, language, content, isActive } = req.body;
+        // Validate key format
+        if (!/^[a-z0-9_]+$/.test(key)) {
+            return res.redirect('/admin/content?error=invalid_key');
+        }
+        // Check for duplicate
+        const existing = await prisma.botContent.findUnique({
+            where: { key }
+        });
+        if (existing) {
+            return res.redirect('/admin/content?error=duplicate_key');
+        }
+        const { upsertBotContent } = await import('../services/bot-content-service.js');
+        await upsertBotContent({
+            key,
+            title,
+            description: description || null,
+            category: category || null,
+            language: language || 'ru',
+            content,
+            isActive: isActive === 'on'
+        });
+        res.redirect('/admin/content?success=created');
+    }
+    catch (error) {
+        console.error('Error creating content:', error);
+        res.redirect('/admin/content?error=create_failed');
+    }
+});
+// Update content
+router.post('/content/update', requireAdmin, async (req, res) => {
+    try {
+        const { key, title, description, category, language, content, isActive } = req.body;
+        const existing = await prisma.botContent.findUnique({
+            where: { key }
+        });
+        if (!existing) {
+            return res.redirect('/admin/content?error=not_found');
+        }
+        const { upsertBotContent } = await import('../services/bot-content-service.js');
+        await upsertBotContent({
+            key,
+            title,
+            description: description || null,
+            category: category || null,
+            language: language || 'ru',
+            content,
+            isActive: isActive === 'on'
+        });
+        res.redirect('/admin/content?success=updated');
+    }
+    catch (error) {
+        console.error('Error updating content:', error);
+        res.redirect('/admin/content?error=update_failed');
+    }
+});
+// Toggle content status
+router.post('/content/toggle', requireAdmin, async (req, res) => {
+    try {
+        const { key } = req.body;
+        const content = await prisma.botContent.findUnique({
+            where: { key }
+        });
+        if (!content) {
+            return res.status(404).json({ error: 'Контент не найден' });
+        }
+        await prisma.botContent.update({
+            where: { key },
+            data: { isActive: !content.isActive }
+        });
+        res.redirect('/admin/content');
+    }
+    catch (error) {
+        console.error('Error toggling content status:', error);
+        res.redirect('/admin/content?error=toggle_failed');
+    }
+});
+// Delete content
+router.post('/content/delete', requireAdmin, async (req, res) => {
+    try {
+        const { key } = req.body;
+        const { deleteBotContent } = await import('../services/bot-content-service.js');
+        const success = await deleteBotContent(key);
+        if (!success) {
+            return res.redirect('/admin/content?error=not_found');
+        }
+        res.redirect('/admin/content?success=deleted');
+    }
+    catch (error) {
+        console.error('Error deleting content:', error);
+        res.redirect('/admin/content?error=delete_failed');
     }
 });
 // Database backup endpoint

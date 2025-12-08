@@ -1,8 +1,9 @@
 import { logUserAction, ensureUser } from '../../services/user-history.js';
-import { getCartItems, cartItemsToText, clearCart, increaseProductQuantity, decreaseProductQuantity, removeProductFromCart } from '../../services/cart-service.js';
+import { getCartItems, cartItemsToText, clearCart, increaseProductQuantity, decreaseProductQuantity, removeProductFromCart, calculatePriceWithDiscount } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
 import { getBotContent } from '../../services/bot-content-service.js';
 import { prisma } from '../../lib/prisma.js';
+import { checkPartnerActivation } from '../../services/partner-service.js';
 export const cartModule = {
     async register(bot) {
         // Handle "Корзина" button
@@ -31,16 +32,6 @@ export const cartModule = {
             if (ctx.waitingForRussiaAddress) {
                 await handleDeliveryAddress(ctx, 'Россия', text);
                 ctx.waitingForRussiaAddress = false;
-                return;
-            }
-            if (ctx.waitingForKazakhstanAddress) {
-                await handleDeliveryAddress(ctx, 'Казахстан', text);
-                ctx.waitingForKazakhstanAddress = false;
-                return;
-            }
-            if (ctx.waitingForBelarusAddress) {
-                await handleDeliveryAddress(ctx, 'Беларусь', text);
-                ctx.waitingForBelarusAddress = false;
                 return;
             }
             if (ctx.waitingForCustomAddress) {
@@ -83,14 +74,30 @@ export async function showCart(ctx) {
             });
             return;
         }
+        // Check if user has active partner program
+        const hasPartnerDiscount = await checkPartnerActivation(userId);
+        const discountPercent = hasPartnerDiscount ? 10 : 0;
         // Send each cart item separately with quantity controls
         for (const item of cartItems) {
-            const rubPrice = (item.product.price * 100).toFixed(2);
-            const pzPrice = item.product.price.toFixed(2);
-            const itemTotalRub = (item.product.price * item.quantity * 100).toFixed(2);
-            const itemTotalPz = (item.product.price * item.quantity).toFixed(2);
-            const itemText = `🛍️ ${item.product.title}\n📦 Количество: ${item.quantity}\n💰 Цена: ${rubPrice} ₽ / ${pzPrice} PZ\n💵 Итого: ${itemTotalRub} ₽ / ${itemTotalPz} PZ`;
+            const basePrice = item.product.price;
+            const priceInfo = await calculatePriceWithDiscount(userId, basePrice);
+            const originalRubPrice = (basePrice * 100).toFixed(2);
+            const originalPzPrice = basePrice.toFixed(2);
+            const finalRubPrice = (priceInfo.discountedPrice * 100).toFixed(2);
+            const finalPzPrice = priceInfo.discountedPrice.toFixed(2);
+            const itemTotalRub = (priceInfo.discountedPrice * item.quantity * 100).toFixed(2);
+            const itemTotalPz = (priceInfo.discountedPrice * item.quantity).toFixed(2);
+            let itemText = `🛍️ ${item.product.title}\n📦 Количество: ${item.quantity}\n`;
+            if (hasPartnerDiscount) {
+                itemText += `💰 Цена: ~~${originalRubPrice}~~ ${finalRubPrice} ₽ / ~~${originalPzPrice}~~ ${finalPzPrice} PZ\n`;
+                itemText += `🎁 Скидка 10%: -${(priceInfo.discount * 100).toFixed(2)} ₽ / -${priceInfo.discount.toFixed(2)} PZ\n`;
+            }
+            else {
+                itemText += `💰 Цена: ${finalRubPrice} ₽ / ${finalPzPrice} PZ\n`;
+            }
+            itemText += `💵 Итого: ${itemTotalRub} ₽ / ${itemTotalPz} PZ`;
             await ctx.reply(itemText, {
+                parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
                         [
@@ -113,45 +120,26 @@ export async function showCart(ctx) {
                 },
             });
         }
-        // Send total and action buttons
-        const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-        
-        // Check if user has active partner program for 10% discount
-        const partnerProfile = await prisma.partnerProfile.findUnique({
-            where: { userId: userId },
-            select: { isActive: true, expiresAt: true }
-        });
-        
-        let discount = 0;
-        let discountAmount = 0;
-        let total = subtotal;
-        let discountText = '';
-        
-        if (partnerProfile && partnerProfile.isActive) {
-            // Check if partner program hasn't expired
-            const isExpired = partnerProfile.expiresAt && new Date(partnerProfile.expiresAt) < new Date();
-            if (!isExpired) {
-                discount = 0.1; // 10% discount
-                discountAmount = subtotal * discount;
-                total = subtotal - discountAmount;
-                const discountRub = (discountAmount * 100).toFixed(2);
-                const discountPz = discountAmount.toFixed(2);
-                discountText = `\n🎁 Скидка 10%: -${discountRub} ₽ / -${discountPz} PZ`;
+        // Calculate total with discount
+        let total = 0;
+        let totalDiscount = 0;
+        for (const item of cartItems) {
+            const priceInfo = await calculatePriceWithDiscount(userId, item.product.price);
+            total += priceInfo.discountedPrice * item.quantity;
+            if (hasPartnerDiscount) {
+                totalDiscount += priceInfo.discount * item.quantity;
             }
         }
-        
-        const subtotalRub = (subtotal * 100).toFixed(2);
-        const subtotalPz = subtotal.toFixed(2);
         const totalRub = (total * 100).toFixed(2);
         const totalPz = total.toFixed(2);
-        
-        let totalMessage = `💰 Итого к оплате:\n`;
-        if (discount > 0) {
-            totalMessage += `💵 Сумма без скидки: ${subtotalRub} ₽ / ${subtotalPz} PZ${discountText}\n`;
+        let totalText = `💰 Итого к оплате: ${totalRub} ₽ / ${totalPz} PZ`;
+        if (hasPartnerDiscount && totalDiscount > 0) {
+            const discountRub = (totalDiscount * 100).toFixed(2);
+            const discountPz = totalDiscount.toFixed(2);
+            totalText += `\n\n🎁 Скидка партнера (10%): -${discountRub} ₽ / -${discountPz} PZ`;
+            totalText += `\n✨ Применена скидка 10% для партнеров`;
         }
-        totalMessage += `💳 К оплате: ${totalRub} ₽ / ${totalPz} PZ`;
-        
-        await ctx.reply(totalMessage, {
+        await ctx.reply(totalText, {
             reply_markup: {
                 inline_keyboard: [
                     [
@@ -232,30 +220,16 @@ export function registerCartActions(bot) {
         await clearCart(userId);
         await ctx.reply('🗑️ Корзина очищена');
     });
-    // Force checkout (bypass minimum amount check)
-    bot.action('cart:checkout:force', async (ctx) => {
-        await ctx.answerCbQuery();
-        await logUserAction(ctx, 'cart:checkout:force');
-        // Store flag to indicate this is a force checkout
-        ctx.forceCheckout = true;
-        // Call regular checkout handler
-        await handleCheckout(ctx);
-    });
     // Checkout
     bot.action('cart:checkout', async (ctx) => {
         await ctx.answerCbQuery();
         await logUserAction(ctx, 'cart:checkout');
-        await handleCheckout(ctx);
-    });
-    // Extract checkout logic to separate function
-    async function handleCheckout(ctx) {
         const user = await ensureUser(ctx);
         if (!user) {
             await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
             return;
         }
         const userId = user.id;
-        const isForceCheckout = ctx.forceCheckout === true;
         try {
             console.log('🛒 CART CHECKOUT: Starting checkout for user:', userId, user.firstName, user.username);
             const cartItems = await getCartItems(userId);
@@ -265,107 +239,33 @@ export function registerCartActions(bot) {
                 return;
             }
             console.log('🛒 CART CHECKOUT: Found cart items:', cartItems.length);
-            
-            // Check if user has active partner program for 10% discount
-            const partnerProfile = await prisma.partnerProfile.findUnique({
-                where: { userId: userId },
-                select: { isActive: true, expiresAt: true }
-            });
-            
-            let discount = 0;
-            if (partnerProfile && partnerProfile.isActive) {
-                // Check if partner program hasn't expired
-                const isExpired = partnerProfile.expiresAt && new Date(partnerProfile.expiresAt) < new Date();
-                if (!isExpired) {
-                    discount = 0.1; // 10% discount
-                }
-            }
-            
-            // Calculate total order amount in rubles (price * 100)
-            const subtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-            const discountAmount = discount > 0 ? subtotal * discount : 0;
-            const total = subtotal - discountAmount;
-            const totalInRubles = total * 100; // Convert PZ to rubles
-            
-            // Check if order amount is less than 12,000 rubles (skip check if force checkout)
-            const MIN_ORDER_AMOUNT = 12000; // 12,000 rubles
-            if (!isForceCheckout && totalInRubles < MIN_ORDER_AMOUNT) {
-                const missingAmount = MIN_ORDER_AMOUNT - totalInRubles;
-                const missingAmountPz = (missingAmount / 100).toFixed(2);
-                const missingAmountRub = missingAmount.toFixed(2);
-                
-                await ctx.reply(
-                    `💡 Для активации персональной скидки 10% и партнерской программы вы можете дополнить заказ.\n\n` +
-                    `💰 Вам не хватает: ${missingAmountRub} ₽ / ${missingAmountPz} PZ\n\n` +
-                    `🛒 Добавьте товары в корзину и оформите заказ снова.`,
-                    {
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    {
-                                        text: '🛒 Перейти в магазин',
-                                        callback_data: 'cart:go_to_shop',
-                                    },
-                                ],
-                                [
-                                    {
-                                        text: '💳 Оформить заказ как есть',
-                                        callback_data: 'cart:checkout:force',
-                                    },
-                                ],
-                            ],
-                        },
-                    }
-                );
-                return;
-            }
-            
+            // Check if user has active partner program and calculate prices with discount
+            const hasPartnerDiscount = await checkPartnerActivation(userId);
             // Create order in database with discounted prices
-            const itemsPayload = cartItems.map((item) => {
-                const originalPrice = Number(item.product.price);
-                const discountedPrice = discount > 0 ? originalPrice * (1 - discount) : originalPrice;
+            const itemsPayload = await Promise.all(cartItems.map(async (item) => {
+                const priceInfo = await calculatePriceWithDiscount(userId, item.product.price);
                 return {
                     productId: item.productId,
                     title: item.product.title,
-                    price: discountedPrice,
+                    price: priceInfo.discountedPrice, // Save discounted price
+                    originalPrice: priceInfo.originalPrice, // Save original price for reference
                     quantity: item.quantity,
+                    hasDiscount: priceInfo.hasDiscount,
+                    discount: priceInfo.discount,
                 };
-            });
-            
-            // Check if this is a supplementary order (user had a previous order in last 24 hours)
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const previousOrder = await prisma.orderRequest.findFirst({
-                where: {
-                    userId: userId,
-                    createdAt: {
-                        gte: oneDayAgo
-                    }
-                },
-                orderBy: {
-                    createdAt: 'desc'
-                }
-            });
-            
-            const isSupplementaryOrder = !!previousOrder;
-            const orderMessage = isSupplementaryOrder 
-                ? `ДОПОЛНЕННЫЙ ЗАКАЗ через корзину от ${user.firstName || 'Пользователь'}${discount > 0 ? ' (скидка 10% применена)' : ''}`
-                : `Заказ через корзину от ${user.firstName || 'Пользователь'}${discount > 0 ? ' (скидка 10% применена)' : ''}`;
-            
-            console.log('🛒 CART CHECKOUT: Creating order request...', {
-                discount: discount > 0 ? '10%' : 'none',
-                itemsCount: itemsPayload.length,
-                totalInRubles: totalInRubles.toFixed(2),
-                isSupplementaryOrder: isSupplementaryOrder
-            });
+            }));
+            let orderMessage = `Заказ через корзину от ${user.firstName || 'Пользователь'}`;
+            if (hasPartnerDiscount) {
+                orderMessage += '\n🎁 Применена скидка партнера 10%';
+            }
+            console.log('🛒 CART CHECKOUT: Creating order request...');
             await createOrderRequest({
                 userId: userId,
                 message: orderMessage,
                 items: itemsPayload,
             });
             console.log('✅ CART CHECKOUT: Order request created successfully');
-            
-            // Create cart text with discount info
-            const cartText = cartItemsToText(cartItems, discount);
+            const cartText = await cartItemsToText(cartItems, userId);
             // Get user data for phone and address
             const userData = await prisma.user.findUnique({
                 where: { id: userId }
@@ -377,10 +277,7 @@ export function registerCartActions(bot) {
             if (userData?.deliveryAddress) {
                 contactInfo += `\n📍 Адрес доставки: ${userData.deliveryAddress}`;
             }
-            const orderHeader = isSupplementaryOrder 
-                ? `🛍️ ДОПОЛНЕННЫЙ ЗАКАЗ от ${ctx.from?.first_name || 'Пользователь'}`
-                : `🛍️ Новый заказ от ${ctx.from?.first_name || 'Пользователь'}`;
-            const orderText = `${orderHeader}\n\n${cartText}\n\n${contactInfo}`;
+            const orderText = `🛍️ Новый заказ от ${ctx.from?.first_name || 'Пользователь'}\n\n${cartText}\n\n${contactInfo}`;
             // Send order to specific admin with contact button
             const { getBotInstance } = await import('../../lib/bot-instance.js');
             const bot = await getBotInstance();
@@ -584,26 +481,14 @@ export function registerCartActions(bot) {
                     inline_keyboard: [
                         [
                             {
-                                text: '🇷🇺 РФ - город и адрес',
-                                callback_data: 'delivery:russia',
-                            },
-                        ],
-                        [
-                            {
-                                text: '🇰🇿 Казахстан - город и адрес',
-                                callback_data: 'delivery:kazakhstan',
-                            },
-                        ],
-                        [
-                            {
-                                text: '🇧🇾 Беларусь - город и адрес',
-                                callback_data: 'delivery:belarus',
-                            },
-                        ],
-                        [
-                            {
                                 text: '🇮🇩 Бали - район и вилла',
                                 callback_data: 'delivery:bali',
+                            },
+                        ],
+                        [
+                            {
+                                text: '🇷🇺 РФ - город и адрес',
+                                callback_data: 'delivery:russia',
                             },
                         ],
                         [
@@ -656,44 +541,6 @@ export function registerCartActions(bot) {
         // Store state to wait for text input
         ctx.waitingForRussiaAddress = true;
     });
-    bot.action('delivery:kazakhstan', async (ctx) => {
-        await ctx.answerCbQuery();
-        await logUserAction(ctx, 'delivery:kazakhstan');
-        await ctx.reply('🇰🇿 Укажите адрес для Казахстана:\n\n' +
-            'Напишите ваш город и точный адрес (например: "Алматы, пр. Абая, д. 150, кв. 25")', {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: '🔙 Назад к выбору',
-                            callback_data: 'delivery:address',
-                        },
-                    ],
-                ],
-            },
-        });
-        // Store state to wait for text input
-        ctx.waitingForKazakhstanAddress = true;
-    });
-    bot.action('delivery:belarus', async (ctx) => {
-        await ctx.answerCbQuery();
-        await logUserAction(ctx, 'delivery:belarus');
-        await ctx.reply('🇧🇾 Укажите адрес для Беларуси:\n\n' +
-            'Напишите ваш город и точный адрес (например: "Минск, ул. Независимости, д. 95, кв. 10")', {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: '🔙 Назад к выбору',
-                            callback_data: 'delivery:address',
-                        },
-                    ],
-                ],
-            },
-        });
-        // Store state to wait for text input
-        ctx.waitingForBelarusAddress = true;
-    });
     bot.action('delivery:custom', async (ctx) => {
         await ctx.answerCbQuery();
         await logUserAction(ctx, 'delivery:custom');
@@ -726,26 +573,14 @@ export function registerCartActions(bot) {
                 inline_keyboard: [
                     [
                         {
-                            text: '🇷🇺 РФ - город и адрес',
-                            callback_data: 'delivery:russia',
-                        },
-                    ],
-                    [
-                        {
-                            text: '🇰🇿 Казахстан - город и адрес',
-                            callback_data: 'delivery:kazakhstan',
-                        },
-                    ],
-                    [
-                        {
-                            text: '🇧🇾 Беларусь - город и адрес',
-                            callback_data: 'delivery:belarus',
-                        },
-                    ],
-                    [
-                        {
                             text: '🇮🇩 Бали - район и вилла',
                             callback_data: 'delivery:bali',
+                        },
+                    ],
+                    [
+                        {
+                            text: '🇷🇺 РФ - город и адрес',
+                            callback_data: 'delivery:russia',
                         },
                     ],
                     [
