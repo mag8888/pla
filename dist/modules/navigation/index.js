@@ -28,7 +28,6 @@ const NAVIGATION_ACTION_PREFIX = 'nav:menu:';
 const SWITCH_TO_CLASSIC_ACTION = 'nav:mode:classic';
 const DEFAULT_UI_MODE = 'classic';
 const WELCOME_VIDEO_URL = 'https://res.cloudinary.com/dt4r1tigf/video/upload/v1765173370/plazma-bot/videos/dptdbiuaenxomoktgg9i.mp4';
-const PARTNER_IMAGE_URL = 'https://res.cloudinary.com/dt4r1tigf/image/upload/v1765173311/plazma-bot/photos/yl31xntjdhq393ykhomk.jpg';
 async function showSupport(ctx) {
     await ctx.reply('💬 Служба поддержки\n\nНапишите свой вопрос прямо в этот чат — команда Plazma Water ответит как можно быстрее.\n\nЕсли нужен срочный контакт, оставьте номер телефона, и мы перезвоним.');
 }
@@ -503,25 +502,6 @@ ${greeting}`;
                                 width: 1280, // Ширина для прямоугольного формата (16:9)
                                 height: 720, // Высота для прямоугольного формата (16:9)
                             });
-                            // Отправляем картинку для партнерской программы
-                            try {
-                                await ctx.replyWithPhoto(Input.fromURL(PARTNER_IMAGE_URL));
-                            }
-                            catch (photoError) {
-                                console.error('Error sending partner image:', photoError);
-                                // Fallback: пробуем скачать и отправить как буфер
-                                try {
-                                    const response = await fetch(PARTNER_IMAGE_URL);
-                                    if (response.ok) {
-                                        const imageBuffer = await response.arrayBuffer();
-                                        const imageStream = Buffer.from(imageBuffer);
-                                        await ctx.replyWithPhoto({ source: imageStream, filename: 'partner-image.jpg' });
-                                    }
-                                }
-                                catch (fallbackPhotoError) {
-                                    console.error('Fallback photo send failed:', fallbackPhotoError);
-                                }
-                            }
                         }
                         catch (error) {
                             console.error('Error sending referral welcome video:', error);
@@ -538,18 +518,6 @@ ${greeting}`;
                                         width: 1280, // Ширина для прямоугольного формата
                                         height: 720, // Высота для прямоугольного формата
                                     });
-                                    // Отправляем картинку для партнерской программы
-                                    try {
-                                        const imageResponse = await fetch(PARTNER_IMAGE_URL);
-                                        if (imageResponse.ok) {
-                                            const imageBuffer = await imageResponse.arrayBuffer();
-                                            const imageStream = Buffer.from(imageBuffer);
-                                            await ctx.replyWithPhoto({ source: imageStream, filename: 'partner-image.jpg' });
-                                        }
-                                    }
-                                    catch (photoError) {
-                                        console.error('Error sending partner image in fallback:', photoError);
-                                    }
                                 }
                                 else {
                                     throw new Error('Failed to fetch video');

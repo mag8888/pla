@@ -1,4 +1,4 @@
-import { Markup, Telegraf, Input } from 'telegraf';
+import { Markup, Telegraf } from 'telegraf';
 import { PartnerProgramType } from '@prisma/client';
 import { Context } from '../../bot/context.js';
 import { BotModule } from '../../bot/types.js';
@@ -37,8 +37,6 @@ const INVITE_MULTI_ACTION = 'partner:invite:multi';
 const PARTNERS_LEVEL_1_ACTION = 'partner:level:1';
 const PARTNERS_LEVEL_2_ACTION = 'partner:level:2';
 const PARTNERS_LEVEL_3_ACTION = 'partner:level:3';
-
-const PARTNER_IMAGE_URL = 'https://res.cloudinary.com/dt4r1tigf/image/upload/v1765173311/plazma-bot/photos/yl31xntjdhq393ykhomk.jpg';
 
 // Fallback тексты, если контент не найден в БД
 const fallbackProgramIntro = `✨ Описание партнёрской программы
@@ -737,39 +735,9 @@ export async function showPartnerIntro(ctx: Context) {
     }
 
     const programIntro = (await getBotContent('partner_intro')) || fallbackProgramIntro;
-    
-    // Отправляем картинку для партнерской программы
-    try {
-      await ctx.replyWithPhoto(
-        Input.fromURL(PARTNER_IMAGE_URL)
-      );
-    } catch (photoError) {
-      console.error('Error sending partner image:', photoError);
-      // Fallback: пробуем скачать и отправить как буфер
-      try {
-        const response = await fetch(PARTNER_IMAGE_URL);
-        if (response.ok) {
-          const imageBuffer = await response.arrayBuffer();
-          const imageStream = Buffer.from(imageBuffer);
-          await ctx.replyWithPhoto(
-            { source: imageStream, filename: 'partner-image.jpg' }
-          );
-        }
-      } catch (fallbackPhotoError) {
-        console.error('Fallback photo send failed:', fallbackPhotoError);
-      }
-    }
-    
-    // Отправляем текст партнерской программы
     await ctx.reply(programIntro + activationInfo, planKeyboard());
   } catch (error) {
     console.error('💰 Partner: Failed to load intro content', error);
-    // Пробуем отправить картинку даже при ошибке
-    try {
-      await ctx.replyWithPhoto(Input.fromURL(PARTNER_IMAGE_URL));
-    } catch (photoError) {
-      console.error('Error sending partner image in error handler:', photoError);
-    }
     await ctx.reply(fallbackProgramIntro, planKeyboard());
   }
 }
