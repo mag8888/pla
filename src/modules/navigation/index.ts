@@ -48,6 +48,7 @@ const NAVIGATION_ACTION_PREFIX = 'nav:menu:';
 const SWITCH_TO_CLASSIC_ACTION = 'nav:mode:classic';
 const DEFAULT_UI_MODE: UiMode = 'classic';
 const WELCOME_VIDEO_URL = 'https://res.cloudinary.com/dt4r1tigf/video/upload/v1765173370/plazma-bot/videos/dptdbiuaenxomoktgg9i.mp4';
+const GIFT_CHANNEL_URL = 'https://t.me/iplasmanano/534';
 
 async function showSupport(ctx: Context) {
   await ctx.reply(
@@ -268,9 +269,21 @@ async function sendWelcomeVideo(ctx: Context) {
   }
 }
 
+async function sendGiftButton(ctx: Context) {
+  // Отправляем кнопку "Подарок" со ссылкой на канал
+  await ctx.reply(
+    '🎁',
+    Markup.inlineKeyboard([
+      [Markup.button.url('🎁 Подарок', GIFT_CHANNEL_URL)]
+    ])
+  );
+}
+
 async function sendClassicHome(ctx: Context) {
   // Отправляем видео с текстом как единое сообщение
   await sendWelcomeVideo(ctx);
+  // Отправляем кнопку "Подарок"
+  await sendGiftButton(ctx);
   // Клавиатура отправляется отдельно после видео
   await ctx.reply('👇 Выберите раздел:', mainKeyboard());
 }
@@ -283,6 +296,9 @@ async function sendAppHome(
 
   // Сначала отправляем видео с текстом как единое сообщение
   await sendWelcomeVideo(ctx);
+  
+  // Отправляем кнопку "Подарок"
+  await sendGiftButton(ctx);
 
   if (introText) {
     await ctx.reply(introText, Markup.removeKeyboard());
@@ -633,6 +649,9 @@ ${greeting}`;
           }
           
           console.log('🔗 Referral: Welcome message sent');
+          
+          // Отправляем кнопку "Подарок"
+          await sendGiftButton(ctx);
           
           await logUserAction(ctx, 'partner:referral_joined', {
             referralCode,
