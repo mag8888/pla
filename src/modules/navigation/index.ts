@@ -234,28 +234,37 @@ function setUiMode(ctx: Context, mode: UiMode) {
 
 async function sendWelcomeVideo(ctx: Context) {
   try {
-    // Send video directly with streaming support - opens immediately in Telegram
+    // Send video with text as caption - единое сообщение с видео и текстом
     await ctx.replyWithVideo(WELCOME_VIDEO_URL, {
+      caption: greeting, // Текст прикрепляется к видео как подпись
       supports_streaming: true, // Позволяет видео воспроизводиться сразу, не дожидаясь полной загрузки
       disable_notification: false,
+      parse_mode: 'HTML', // Поддержка форматирования в тексте
       // Без кнопок - видео открывается прямо в Telegram
     });
   } catch (error) {
     console.error('Error sending welcome video:', error);
     // Fallback: попробуем отправить как обычное видео без streaming
     try {
-      await ctx.replyWithVideo(WELCOME_VIDEO_URL);
+      await ctx.replyWithVideo(WELCOME_VIDEO_URL, {
+        caption: greeting,
+        parse_mode: 'HTML',
+      });
     } catch (fallbackError) {
       console.error('Fallback video send also failed:', fallbackError);
       // Последний вариант - текст с ссылкой
-      await ctx.reply('✨ Plazma Water — это источник энергии нового поколения.\n\n🎥 Видео: ' + WELCOME_VIDEO_URL);
+      await ctx.reply(greeting + '\n\n🎥 Видео: ' + WELCOME_VIDEO_URL, {
+        parse_mode: 'HTML',
+      });
     }
   }
 }
 
 async function sendClassicHome(ctx: Context) {
-  await ctx.reply(greeting, mainKeyboard());
+  // Отправляем видео с текстом как единое сообщение
   await sendWelcomeVideo(ctx);
+  // Клавиатура отправляется отдельно после видео
+  await ctx.reply('👇 Выберите раздел:', mainKeyboard());
 }
 
 async function sendAppHome(
@@ -264,14 +273,16 @@ async function sendAppHome(
 ) {
   const { introText, includeGreeting = true } = options;
 
+  // Сначала отправляем видео с текстом как единое сообщение
+  await sendWelcomeVideo(ctx);
+
   if (introText) {
     await ctx.reply(introText, Markup.removeKeyboard());
   } else if (includeGreeting) {
-    await ctx.reply(greeting, Markup.removeKeyboard());
+    // Текст уже в подписи к видео, не дублируем
   }
 
   await sendNavigationMenu(ctx);
-  await sendWelcomeVideo(ctx);
 }
 
 async function renderHome(ctx: Context) {
@@ -564,21 +575,27 @@ export const navigationModule: BotModule = {
             }
             
           console.log('🔗 Referral: Sending welcome message with bonus info');
-          await ctx.reply(`👋 Добро пожаловать!
+          
+          // Отправляем видео с текстом как единое сообщение для реферальных пользователей
+          const referralGreeting = `👋 Добро пожаловать!
 
 🎉 Вас пригласил ${partnerProfile.user.firstName || 'партнёр'}
 
-🌀 Добро пожаловать в эру будущего!
-
-Plazma Water - это инновационная космическая эко технология, которая использует передовые наноматериалы в сфере здоровья, долголетия.
-
-⚡️ Быстро, легко и без нагрузки на печень и почки — питание прямо в клетки.
-
-💧 Plazma Water - это инновационный водный раствор, содержащий микроэлементы в уникальной плазменной наноструктуре. Благодаря особой технологии, частицы в составе имеют нано размер и равномерно распределены в воде, что обеспечивает их естественное взаимодействие с биологическими системами организма.
-
-🧬 Усвоение — 99,9% (в отличие от таблеток 1–20%).
-
-В отличие от традиционных форм добавок, где усвоение может быть ограничено, плазменная наноформа способствует более мягкому и естественному включению микроэлементов в обменные процессы. При этом не требуется участие дополнительных вспомогательных веществ, что делает продукт лёгким для восприятия и безопасным при разумном использовании.`);
+${greeting}`;
+          
+          try {
+            await ctx.replyWithVideo(WELCOME_VIDEO_URL, {
+              caption: referralGreeting,
+              supports_streaming: true,
+              parse_mode: 'HTML',
+            });
+          } catch (error) {
+            console.error('Error sending referral welcome video:', error);
+            // Fallback
+            await ctx.reply(referralGreeting);
+            await ctx.replyWithVideo(WELCOME_VIDEO_URL);
+          }
+          
           console.log('🔗 Referral: Welcome message sent');
           
           await logUserAction(ctx, 'partner:referral_joined', {
@@ -588,9 +605,8 @@ Plazma Water - это инновационная космическая эко �
           });
           console.log('🔗 Referral: User action logged');
           
-          // For referral users, send navigation menu without greeting
+          // For referral users, send navigation menu
           await sendNavigationMenu(ctx);
-          await sendWelcomeVideo(ctx);
           return; // Don't call renderHome to avoid duplicate greeting
         } else {
           console.log('🔗 Referral: Partner profile not found for code:', referralCode);
