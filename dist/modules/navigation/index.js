@@ -200,55 +200,24 @@ function setUiMode(ctx, mode) {
 }
 async function sendWelcomeVideo(ctx) {
     try {
-        // Send video directly with streaming support for auto-play
+        // Send video directly with streaming support - opens immediately in Telegram
         await ctx.replyWithVideo(WELCOME_VIDEO_URL, {
             supports_streaming: true, // Позволяет видео воспроизводиться сразу, не дожидаясь полной загрузки
             disable_notification: false,
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: '📖 Подробнее',
-                            callback_data: 'nav:more',
-                        },
-                    ],
-                    [
-                        {
-                            text: '🎁 Подарок',
-                            callback_data: 'nav:gift',
-                        },
-                    ],
-                ],
-            },
+            // Без кнопок - видео открывается прямо в Telegram
         });
     }
     catch (error) {
         console.error('Error sending welcome video:', error);
-        // Fallback to text message with video link
-        await ctx.reply('✨ Plazma Water — это источник энергии нового поколения.', {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: '🎥 Смотреть видео',
-                            url: WELCOME_VIDEO_URL,
-                        },
-                    ],
-                    [
-                        {
-                            text: '📖 Подробнее',
-                            callback_data: 'nav:more',
-                        },
-                    ],
-                    [
-                        {
-                            text: '🎁 Подарок',
-                            callback_data: 'nav:gift',
-                        },
-                    ],
-                ],
-            },
-        });
+        // Fallback: попробуем отправить как обычное видео без streaming
+        try {
+            await ctx.replyWithVideo(WELCOME_VIDEO_URL);
+        }
+        catch (fallbackError) {
+            console.error('Fallback video send also failed:', fallbackError);
+            // Последний вариант - текст с ссылкой
+            await ctx.reply('✨ Plazma Water — это источник энергии нового поколения.\n\n🎥 Видео: ' + WELCOME_VIDEO_URL);
+        }
     }
 }
 async function sendClassicHome(ctx) {
