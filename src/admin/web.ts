@@ -10218,11 +10218,18 @@ router.get('/media', requireAdmin, async (req, res) => {
             <button onclick="navigator.clipboard.writeText('${file.url}'); alert('URL скопирован!');" style="margin-left: 5px; padding: 2px 6px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px;">📋</button>
           </p>
         </div>
-        <div class="media-file-actions" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef;">
-          <button onclick="toggleMediaStatus('${file.id}')" class="toggle-btn ${file.isActive ? 'deactivate' : 'activate'}" style="flex: 1;">
-            ${file.isActive ? '❌ Деактивировать' : '✅ Активировать'}
+        <div class="media-file-actions" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; gap: 10px;">
+            <button onclick="toggleMediaStatus('${file.id}')" class="toggle-btn ${file.isActive ? 'deactivate' : 'activate'}" style="flex: 1;">
+              ${file.isActive ? '❌ Деактивировать' : '✅ Активировать'}
+            </button>
+            <button onclick="deleteMediaFile('${file.id}')" class="delete-btn" style="flex: 1;">🗑️ Удалить</button>
+          </div>
+          ${file.type === 'photo' ? `
+          <button onclick="usePhotoInMessage('${file.url}', '${file.title}')" class="use-photo-btn" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">
+            📤 Использовать в сообщении
           </button>
-          <button onclick="deleteMediaFile('${file.id}')" class="delete-btn" style="flex: 1;">🗑️ Удалить</button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -10273,6 +10280,8 @@ router.get('/media', requireAdmin, async (req, res) => {
           .toggle-btn.deactivate { background: #ffc107; color: black; }
           .delete-btn { background: #dc3545; color: white; }
           .toggle-btn:hover, .delete-btn:hover { opacity: 0.8; }
+          .use-photo-btn { transition: all 0.2s ease; }
+          .use-photo-btn:hover { background: #218838 !important; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3); }
           .back-btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-bottom: 20px; }
           .back-btn:hover { background: #0056b3; }
           .alert { padding: 12px 16px; margin: 16px 0; border-radius: 8px; font-weight: 500; }
@@ -10438,6 +10447,59 @@ router.get('/media', requireAdmin, async (req, res) => {
                 alert('Ошибка при удалении файла');
               }
             }
+          }
+
+          function usePhotoInMessage(photoUrl, photoTitle) {
+            // Копируем URL в буфер обмена
+            navigator.clipboard.writeText(photoUrl).then(() => {
+              // Показываем модальное окно с инструкцией
+              const modal = document.createElement('div');
+              modal.className = 'photo-usage-modal';
+              modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+              
+              modal.innerHTML = \`
+                <div style="background: white; border-radius: 12px; padding: 30px; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                  <h2 style="margin: 0 0 20px 0; color: #333; display: flex; align-items: center; gap: 10px;">
+                    📤 Использовать фото в сообщении
+                  </h2>
+                  <div style="margin-bottom: 20px;">
+                    <p style="margin: 0 0 10px 0; color: #666;"><strong>Фото:</strong> \${photoTitle}</p>
+                    <p style="margin: 0 0 15px 0; color: #28a745; font-weight: bold;">✅ URL скопирован в буфер обмена!</p>
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 15px 0; word-break: break-all; font-size: 12px; color: #495057;">
+                      \${photoUrl}
+                    </div>
+                  </div>
+                  <div style="background: #e7f3ff; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                    <p style="margin: 0 0 10px 0; font-weight: bold; color: #1976d2;">📝 Как использовать:</p>
+                    <ol style="margin: 0; padding-left: 20px; color: #495057; line-height: 1.8;">
+                      <li>Перейдите в раздел <strong>"📝 Контент бота"</strong></li>
+                      <li>Создайте или отредактируйте сообщение</li>
+                      <li>Вставьте URL фото в текст (Ctrl+V)</li>
+                      <li>Или используйте URL в коде бота для отправки фото</li>
+                    </ol>
+                  </div>
+                  <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="this.closest('.photo-usage-modal').remove()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                      Закрыть
+                    </button>
+                    <button onclick="window.location.href='/admin/content'" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">
+                      Перейти к контенту →
+                    </button>
+                  </div>
+                </div>
+              \`;
+              
+              document.body.appendChild(modal);
+              
+              // Закрытие по клику вне модального окна
+              modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                  modal.remove();
+                }
+              });
+            }).catch(err => {
+              alert('Ошибка при копировании URL. Скопируйте вручную: ' + photoUrl);
+            });
           }
         </script>
       </body>
