@@ -584,14 +584,6 @@ export async function showPartnerIntro(ctx) {
             await ctx.reply('❌ Не удалось загрузить данные пользователя.');
             return;
         }
-        // Отправляем картинку перед текстом
-        try {
-            await ctx.replyWithPhoto(PARTNER_IMAGE_URL);
-        }
-        catch (photoError) {
-            console.error('💰 Partner: Failed to send photo:', photoError);
-            // Продолжаем без фото, если не удалось отправить
-        }
         // Проверяем статус партнерской программы
         const dashboard = await getPartnerDashboard(user.id);
         let activationInfo = '';
@@ -619,7 +611,20 @@ export async function showPartnerIntro(ctx) {
             }
         }
         const programIntro = (await getBotContent('partner_intro')) || fallbackProgramIntro;
-        await ctx.reply(programIntro + activationInfo, planKeyboard());
+        const fullText = programIntro + activationInfo;
+        // Отправляем картинку с текстом как подпись
+        try {
+            await ctx.replyWithPhoto(PARTNER_IMAGE_URL, {
+                caption: fullText,
+                ...planKeyboard(),
+                parse_mode: 'HTML',
+            });
+        }
+        catch (photoError) {
+            console.error('💰 Partner: Failed to send photo:', photoError);
+            // Fallback: отправляем только текст, если фото не удалось отправить
+            await ctx.reply(fullText, planKeyboard());
+        }
     }
     catch (error) {
         console.error('💰 Partner: Failed to load intro content', error);
