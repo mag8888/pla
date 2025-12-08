@@ -270,11 +270,11 @@ async function sendWelcomeVideo(ctx: Context) {
 }
 
 async function sendGiftButton(ctx: Context) {
-  // Отправляем кнопку "Подарок" со ссылкой на канал
+  // Отправляем кнопку "Подарок", которая открывает сообщение про матрицы Гаряева
   await ctx.reply(
     '🎁',
     Markup.inlineKeyboard([
-      [Markup.button.url('🎁 Подарок', GIFT_CHANNEL_URL)]
+      [Markup.button.callback('🎁 Подарок', 'nav:gift')]
     ])
   );
 }
