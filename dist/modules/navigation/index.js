@@ -201,11 +201,13 @@ function setUiMode(ctx, mode) {
 async function sendWelcomeVideo(ctx) {
     try {
         // Используем Input.fromURL для правильной загрузки и отправки видео
-        // Это гарантирует, что видео будет отображаться как встроенное, а не ссылка
+        // Указываем параметры для прямоугольного отображения (16:9 формат)
         await ctx.replyWithVideo(Input.fromURL(WELCOME_VIDEO_URL), {
             caption: greeting, // Текст прикрепляется к видео как подпись
             supports_streaming: true, // Позволяет видео воспроизводиться сразу
             parse_mode: 'HTML', // Поддержка форматирования в тексте
+            width: 1280, // Ширина для прямоугольного формата (16:9)
+            height: 720, // Высота для прямоугольного формата (16:9)
         });
     }
     catch (error) {
@@ -222,6 +224,8 @@ async function sendWelcomeVideo(ctx) {
                 caption: greeting,
                 supports_streaming: true,
                 parse_mode: 'HTML',
+                width: 1280, // Ширина для прямоугольного формата
+                height: 720, // Высота для прямоугольного формата
             });
         }
         catch (fallbackError) {
@@ -500,10 +504,13 @@ export const navigationModule = {
 ${greeting}`;
                         try {
                             // Используем Input.fromURL для правильной загрузки видео
+                            // Указываем параметры для прямоугольного отображения (16:9 формат)
                             await ctx.replyWithVideo(Input.fromURL(WELCOME_VIDEO_URL), {
                                 caption: referralGreeting,
                                 supports_streaming: true,
                                 parse_mode: 'HTML',
+                                width: 1280, // Ширина для прямоугольного формата (16:9)
+                                height: 720, // Высота для прямоугольного формата (16:9)
                             });
                         }
                         catch (error) {
@@ -518,6 +525,8 @@ ${greeting}`;
                                         caption: referralGreeting,
                                         supports_streaming: true,
                                         parse_mode: 'HTML',
+                                        width: 1280, // Ширина для прямоугольного формата
+                                        height: 720, // Высота для прямоугольного формата
                                     });
                                 }
                                 else {
