@@ -93,8 +93,3 @@ logs
 
 # Railway specific
 .railway/
-
-# Compiled output (Railway builds from source)
-dist/
-*.js.map
-*.d.ts.map

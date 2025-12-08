@@ -208,49 +208,18 @@ const navigationItems: NavigationItem[] = [
   },
 ];
 
-async function getUiMode(ctx: Context): Promise<UiMode> {
-  // Сначала проверяем сессию (для быстрого доступа)
-  const sessionMode = ctx.session?.uiMode;
-  if (sessionMode === 'app' || sessionMode === 'classic') {
-    return sessionMode;
+function getUiMode(ctx: Context): UiMode {
+  const mode = ctx.session?.uiMode;
+  if (mode === 'app' || mode === 'classic') {
+    return mode;
   }
 
-  // Если в сессии нет, загружаем из базы данных
-  try {
-    const user = await ensureUser(ctx);
-    if (user && 'uiMode' in user && user.uiMode) {
-      const dbMode = user.uiMode as UiMode;
-      // Сохраняем в сессию для быстрого доступа
-      ctx.session.uiMode = dbMode;
-      return dbMode;
-    }
-  } catch (error) {
-    console.error('Error loading uiMode from database:', error);
-  }
-
-  // Если ничего не найдено, используем дефолт
-  const defaultMode = DEFAULT_UI_MODE;
-  ctx.session.uiMode = defaultMode;
-  return defaultMode;
+  ctx.session.uiMode = DEFAULT_UI_MODE;
+  return DEFAULT_UI_MODE;
 }
 
-async function setUiMode(ctx: Context, mode: UiMode) {
-  // Сохраняем в сессию
+function setUiMode(ctx: Context, mode: UiMode) {
   ctx.session.uiMode = mode;
-  
-  // Сохраняем в базу данных для постоянного хранения
-  try {
-    const user = await ensureUser(ctx);
-    if (user && 'telegramId' in user) {
-      await prisma.user.update({
-        where: { telegramId: user.telegramId },
-        data: { uiMode: mode },
-      });
-    }
-  } catch (error) {
-    console.error('Error saving uiMode to database:', error);
-    // Не прерываем выполнение, если не удалось сохранить в БД
-  }
 }
 
 async function sendWelcomeVideo(ctx: Context) {
@@ -325,7 +294,7 @@ async function sendAppHome(
 }
 
 async function renderHome(ctx: Context) {
-  if (await getUiMode(ctx) === 'app') {
+  if (getUiMode(ctx) === 'app') {
     await sendAppHome(ctx);
   } else {
     await sendClassicHome(ctx);
@@ -334,7 +303,7 @@ async function renderHome(ctx: Context) {
 
 
 async function exitAppInterface(ctx: Context) {
-  await setUiMode(ctx, 'classic');
+  setUiMode(ctx, 'classic');
   await sendClassicHome(ctx);
 }
 

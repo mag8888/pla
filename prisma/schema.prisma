@@ -29,11 +29,6 @@ enum PaymentStatus {
   CANCELLED
 }
 
-enum UiMode {
-  classic
-  app
-}
-
 model User {
   id              String          @id @default(auto()) @map("_id") @db.ObjectId
   telegramId      String          @unique
@@ -45,7 +40,6 @@ model User {
   selectedRegion  Region?         @default(RUSSIA)
   deliveryAddress String?         // Адрес доставки пользователя
   balance         Float           @default(0)
-  uiMode          UiMode?         @default(classic) // Настройки интерфейса пользователя
   cartItems       CartItem[]
   histories       UserHistory[]
   partner         PartnerProfile?
