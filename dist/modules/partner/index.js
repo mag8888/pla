@@ -576,12 +576,21 @@ export const partnerModule = {
         });
     },
 };
+const PARTNER_IMAGE_URL = 'https://res.cloudinary.com/dt4r1tigf/image/upload/v1765173311/plazma-bot/photos/yl31xntjdhq393ykhomk.jpg';
 export async function showPartnerIntro(ctx) {
     try {
         const user = await ensureUser(ctx);
         if (!user) {
             await ctx.reply('❌ Не удалось загрузить данные пользователя.');
             return;
+        }
+        // Отправляем картинку перед текстом
+        try {
+            await ctx.replyWithPhoto(PARTNER_IMAGE_URL);
+        }
+        catch (photoError) {
+            console.error('💰 Partner: Failed to send photo:', photoError);
+            // Продолжаем без фото, если не удалось отправить
         }
         // Проверяем статус партнерской программы
         const dashboard = await getPartnerDashboard(user.id);
