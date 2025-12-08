@@ -25,6 +25,14 @@ export async function showRegionSelection(ctx: Context) {
       [
         Markup.button.callback('🇷🇺 Россия', `${REGION_SELECT_PREFIX}RUSSIA`),
         Markup.button.callback('🇮🇩 Бали', `${REGION_SELECT_PREFIX}BALI`)
+      ],
+      [
+        Markup.button.callback('🇦🇪 Дубай', `${REGION_SELECT_PREFIX}DUBAI`),
+        Markup.button.callback('🇰🇿 Казахстан', `${REGION_SELECT_PREFIX}KAZAKHSTAN`)
+      ],
+      [
+        Markup.button.callback('🇧🇾 Беларусь', `${REGION_SELECT_PREFIX}BELARUS`),
+        Markup.button.callback('🌐 Другое', `${REGION_SELECT_PREFIX}OTHER`)
       ]
     ])
   );
@@ -75,8 +83,8 @@ export async function showCategories(ctx: Context, region?: string) {
     }
 
     // Show catalog with products grouped by categories
-    const regionEmoji = region === 'RUSSIA' ? '🇷🇺' : region === 'BALI' ? '🇮🇩' : '🌍';
-    const regionText = region === 'RUSSIA' ? 'Россия' : region === 'BALI' ? 'Бали' : 'Все регионы';
+    const regionEmoji = region === 'RUSSIA' ? '🇷🇺' : region === 'BALI' ? '🇮🇩' : region === 'DUBAI' ? '🇦🇪' : region === 'KAZAKHSTAN' ? '🇰🇿' : region === 'BELARUS' ? '🇧🇾' : '🌐';
+    const regionText = region === 'RUSSIA' ? 'Россия' : region === 'BALI' ? 'Бали' : region === 'DUBAI' ? 'Дубай' : region === 'KAZAKHSTAN' ? 'Казахстан' : region === 'BELARUS' ? 'Беларусь' : region === 'OTHER' ? 'Другое' : 'Все регионы';
     
     // Get cart items count
     const user = await ensureUser(ctx);
@@ -176,10 +184,13 @@ async function sendProductCards(ctx: Context, categoryId: string, region?: strin
       products = products.filter((product: any) => product.availableInRussia);
     } else if (region === 'BALI') {
       products = products.filter((product: any) => product.availableInBali);
+    } else if (region === 'DUBAI' || region === 'KAZAKHSTAN' || region === 'BELARUS' || region === 'OTHER') {
+      // Для новых регионов показываем все товары (можно будет добавить отдельные флаги в БД позже)
+      // products = products; // уже все товары
     }
     
     if (products.length === 0) {
-      const regionText = region === 'RUSSIA' ? 'России' : region === 'BALI' ? 'Бали' : '';
+      const regionText = region === 'RUSSIA' ? 'России' : region === 'BALI' ? 'Бали' : region === 'DUBAI' ? 'Дубая' : region === 'KAZAKHSTAN' ? 'Казахстана' : region === 'BELARUS' ? 'Беларуси' : region === 'OTHER' ? 'других регионов' : '';
       await ctx.reply(`📂 ${category.name}\n\nВ этой категории нет товаров для ${regionText}.`);
       return;
     }
@@ -488,7 +499,8 @@ export const shopModule: BotModule = {
       
       // Save region to user and show categories
       const user = await ensureUser(ctx);
-      if (user && (regionOrAction === 'RUSSIA' || regionOrAction === 'BALI')) {
+      const validRegions = ['RUSSIA', 'BALI', 'DUBAI', 'KAZAKHSTAN', 'BELARUS', 'OTHER'];
+      if (user && validRegions.includes(regionOrAction)) {
         await prisma.user.update({
           where: { id: user.id },
           data: { selectedRegion: regionOrAction as any } as any
