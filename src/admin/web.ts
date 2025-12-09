@@ -3298,12 +3298,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             url.searchParams.set('order', order);
             window.location.href = url.pathname + '?' + url.searchParams.toString();
           }
-          window.searchByUsername = function(){
-            var q = document.getElementById('searchUsername').value.trim();
-            if(!q) return;
-            if(q.startsWith('@')) q = q.slice(1);
-            window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(q);
-          };
+          // Функция searchByUsername уже определена выше в начале скрипта
           (function(){
             var typingTimer; var inputEl = document.getElementById('searchUsername'); var box = document.getElementById('searchSuggestions');
             function hide(){ box.style.display='none'; box.innerHTML=''; }
