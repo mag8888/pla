@@ -3047,6 +3047,24 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       '</div>' +
                     '</div>' +
                     '<div class="message-form-group">' +
+                      '<label>📷 Фото к сообщению:</label>' +
+                      '<div style="display: flex; gap: 10px; margin-bottom: 10px;">' +
+                        '<button type="button" class="btn" onclick="openPhotoGallery()" style="background: #17a2b8; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;">📂 Выбрать из базы</button>' +
+                        '<button type="button" class="btn" onclick="openUploadPhoto()" style="background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;">📤 Загрузить фото</button>' +
+                      '</div>' +
+                      '<div id="selectedPhotoPreview" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">' +
+                        '<div style="display: flex; align-items: center; gap: 10px;">' +
+                          '<img id="selectedPhotoImg" src="" alt="Выбранное фото" style="max-width: 100px; max-height: 100px; border-radius: 4px; object-fit: cover;">' +
+                          '<div style="flex: 1;">' +
+                            '<p id="selectedPhotoTitle" style="margin: 0; font-weight: bold; color: #333;"></p>' +
+                            '<p id="selectedPhotoUrlText" style="margin: 5px 0 0 0; font-size: 12px; color: #6c757d; word-break: break-all;"></p>' +
+                          '</div>' +
+                          '<button type="button" onclick="clearSelectedPhoto()" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">✕</button>' +
+                        '</div>' +
+                      '</div>' +
+                      '<input type="hidden" id="selectedPhotoUrl" value="">' +
+                    '</div>' +
+                    '<div class="message-form-group">' +
                       '<label>' +
                         '<input type="checkbox" id="saveAsTemplate">' +
                         'Сохранить как шаблон' +
@@ -3084,6 +3102,8 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             const selectedUserIds = Array.from(selectedCheckboxes).map(cb => cb.value);
             const subject = document.getElementById('messageSubject').value.trim();
             const text = document.getElementById('messageText').value.trim();
+            const photoUrlInput = document.getElementById('selectedPhotoUrl');
+            const photoUrl = photoUrlInput ? photoUrlInput.value.trim() : '';
             const saveAsTemplate = document.getElementById('saveAsTemplate').checked;
             const errorDiv = document.getElementById('messageError');
             
@@ -3116,6 +3136,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                   userIds: selectedUserIds,
                   subject: subject,
                   text: text,
+                  photoUrl: photoUrl || null,
                   saveAsTemplate: saveAsTemplate
                 })
               });
@@ -9464,7 +9485,7 @@ router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
 // Маршрут для отправки сообщений пользователям
 router.post('/messages/send', requireAdmin, async (req, res) => {
   try {
-    const { userIds, subject, text, saveAsTemplate } = req.body;
+    const { userIds, subject, text, photoUrl, saveAsTemplate } = req.body;
     
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ error: 'Не указаны получатели' });
@@ -9515,20 +9536,38 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           };
           
           const messageText = `📧 ${escapeMarkdown(subject)}\n\n${escapeMarkdown(text)}`;
+          const plainText = `📧 ${subject}\n\n${text}`;
           
           console.log(`📤 Отправка сообщения пользователю ${user.firstName} (ID: ${user.telegramId}):`, messageText);
           
           // Отправляем сообщение
           let result;
-          try {
-            result = await bot.telegram.sendMessage(user.telegramId, messageText, {
-              parse_mode: 'Markdown'
-            });
-          } catch (markdownError) {
-            console.log(`⚠️ Markdown отправка не удалась, пробуем без Markdown: ${markdownError instanceof Error ? markdownError.message : String(markdownError)}`);
-            // Если Markdown не работает, отправляем без форматирования
-            const plainText = `📧 ${subject}\n\n${text}`;
-            result = await bot.telegram.sendMessage(user.telegramId, plainText);
+          
+          // Если есть фото, отправляем фото с текстом как caption
+          if (photoUrl && photoUrl.trim()) {
+            try {
+              result = await bot.telegram.sendPhoto(user.telegramId, photoUrl, {
+                caption: messageText,
+                parse_mode: 'Markdown'
+              });
+            } catch (markdownError) {
+              console.log(`⚠️ Markdown отправка фото не удалась, пробуем без Markdown: ${markdownError instanceof Error ? markdownError.message : String(markdownError)}`);
+              // Если Markdown не работает, отправляем без форматирования
+              result = await bot.telegram.sendPhoto(user.telegramId, photoUrl, {
+                caption: plainText
+              });
+            }
+          } else {
+            // Если фото нет, отправляем обычное текстовое сообщение
+            try {
+              result = await bot.telegram.sendMessage(user.telegramId, messageText, {
+                parse_mode: 'Markdown'
+              });
+            } catch (markdownError) {
+              console.log(`⚠️ Markdown отправка не удалась, пробуем без Markdown: ${markdownError instanceof Error ? markdownError.message : String(markdownError)}`);
+              // Если Markdown не работает, отправляем без форматирования
+              result = await bot.telegram.sendMessage(user.telegramId, plainText);
+            }
           }
           
           console.log(`✅ Сообщение успешно отправлено пользователю ${user.firstName} (@${user.username || 'без username'}), message_id: ${result.message_id}`);
@@ -10621,6 +10660,29 @@ router.post('/media/delete', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error deleting media file:', error);
     res.status(500).json({ error: 'Ошибка удаления файла' });
+  }
+});
+
+// Get active photos for message composer
+router.get('/media/photos', requireAdmin, async (req, res) => {
+  try {
+    const photos = await prisma.mediaFile.findMany({
+      where: {
+        type: 'photo',
+        isActive: true
+      },
+      select: {
+        id: true,
+        title: true,
+        url: true,
+        description: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(photos);
+  } catch (error) {
+    console.error('Error fetching photos:', error);
+    res.status(500).json({ error: 'Ошибка загрузки фото' });
   }
 });
 
