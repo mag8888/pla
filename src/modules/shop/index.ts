@@ -521,9 +521,11 @@ export const shopModule: BotModule = {
       const user = await ensureUser(ctx);
       if (user && (user as any).selectedRegion) {
         // User already has a region selected, show categories directly
+        console.log('🛍️ User has region selected:', (user as any).selectedRegion);
         await showCategories(ctx, (user as any).selectedRegion);
       } else {
         // User needs to select region first
+        console.log('🛍️ User needs to select region first');
         await showRegionSelection(ctx);
       }
     });
