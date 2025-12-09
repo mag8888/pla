@@ -2809,6 +2809,14 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             window.open('/admin/users/' + userId, '_blank', 'width=600,height=400');
           };
           
+          // Функция поиска по username - должна быть определена первой
+          window.searchByUsername = function(){
+            var q = document.getElementById('searchUsername').value.trim();
+            if(!q) return;
+            if(q.startsWith('@')) q = q.slice(1);
+            window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(q);
+          };
+          
           window.showHierarchy = function(userId) {
             window.open('/admin/partners-hierarchy?user=' + userId, '_blank', 'width=800,height=600');
           };
