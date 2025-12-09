@@ -2387,6 +2387,35 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             });
             updateSelectedUsers();
           };
+          
+          // Заглушки для функций, используемых в модальном окне сообщений
+          window.closeMessageModal = function() {
+            console.log('closeMessageModal: waiting for full implementation');
+          };
+          
+          window.sendMessage = function() {
+            console.log('sendMessage: waiting for full implementation');
+          };
+          
+          window.openPhotoGallery = function() {
+            console.log('openPhotoGallery: waiting for full implementation');
+          };
+          
+          window.closePhotoGallery = function() {
+            console.log('closePhotoGallery: waiting for full implementation');
+          };
+          
+          window.selectPhotoFromGallery = function() {
+            console.log('selectPhotoFromGallery: waiting for full implementation');
+          };
+          
+          window.openUploadPhoto = function() {
+            console.log('openUploadPhoto: waiting for full implementation');
+          };
+          
+          window.clearSelectedPhoto = function() {
+            console.log('clearSelectedPhoto: waiting for full implementation');
+          };
         </script>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
