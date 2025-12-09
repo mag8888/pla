@@ -3062,6 +3062,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           };
           
           // Функция для открытия модального окна отправки сообщений
+          // Переопределяем функцию из head секции полной реализацией
           window.openMessageModal = function() {
             const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
             if (selectedCheckboxes.length === 0) {
