@@ -2350,6 +2350,15 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
       <head>
         <title>Детальная информация о пользователях - Plazma Water Admin</title>
         <meta charset="utf-8">
+        <script>
+          // Определяем функцию поиска ДО загрузки HTML, чтобы она была доступна из onclick
+          window.searchByUsername = function(){
+            var q = document.getElementById('searchUsername').value.trim();
+            if(!q) return;
+            if(q.startsWith('@')) q = q.slice(1);
+            window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(q);
+          };
+        </script>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
           .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
@@ -2625,7 +2634,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
               <div class="sort-group" style="position: relative;">
                 <label>Найти по юзернейм или телефону:</label>
                 <input type="text" id="searchUsername" placeholder="@username или +7999..." style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; font-size:14px;" autocomplete="off" />
-                <button onclick="searchByUsername()">🔎 Найти</button>
+                <button id="searchButton" type="button">🔎 Найти</button>
                 <div id="searchSuggestions" style="position:absolute; top:36px; left:0; background:#fff; border:1px solid #e5e7eb; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.1); width:260px; max-height:220px; overflow:auto; display:none; z-index:5"></div>
               </div>
               <div class="sort-group">
