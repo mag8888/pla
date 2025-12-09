@@ -3161,6 +3161,121 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             errorDiv.style.display = 'block';
           };
           
+          window.openPhotoGallery = async function() {
+            try {
+              const response = await fetch('/admin/media/photos', { credentials: 'include' });
+              const photos = await response.json();
+              
+              if (photos.length === 0) {
+                alert('В базе нет доступных фото. Загрузите фото в разделе "Медиа"');
+                return;
+              }
+              
+              const galleryModal = document.createElement('div');
+              galleryModal.id = 'photoGalleryModal';
+              galleryModal.innerHTML = 
+                '<div class="modal-overlay" onclick="closePhotoGallery()">' +
+                  '<div class="modal-content" onclick="event.stopPropagation()" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">' +
+                    '<div class="modal-header">' +
+                      '<h2>📂 Выбрать фото из базы</h2>' +
+                      '<span class="modal-close" onclick="closePhotoGallery()">&times;</span>' +
+                    '</div>' +
+                    '<div class="modal-body" style="padding: 20px;">' +
+                      '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">' +
+                        photos.map(function(photo) {
+                          const safeUrl = photo.url.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                          const safeTitle = photo.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                          return '<div style="cursor: pointer; border: 2px solid #dee2e6; border-radius: 8px; overflow: hidden; transition: all 0.2s;" ' +
+                                 'onmouseover="this.style.borderColor=\'#007bff\'; this.style.transform=\'scale(1.05)\'" ' +
+                                 'onmouseout="this.style.borderColor=\'#dee2e6\'; this.style.transform=\'scale(1)\'" ' +
+                                 'onclick="selectPhotoFromGallery(\'' + safeUrl + '\', \'' + safeTitle + '\')">' +
+                                 '<img src="' + photo.url + '" alt="' + safeTitle + '" style="width: 100%; height: 150px; object-fit: cover;">' +
+                                 '<div style="padding: 8px; background: #f8f9fa; font-size: 12px; color: #333; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
+                                 safeTitle +
+                                 '</div>' +
+                                 '</div>';
+                        }).join('') +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>';
+              
+              document.body.appendChild(galleryModal);
+            } catch (error) {
+              console.error('Error loading photos:', error);
+              alert('Ошибка загрузки фото из базы');
+            }
+          };
+          
+          window.closePhotoGallery = function() {
+            const modal = document.getElementById('photoGalleryModal');
+            if (modal) modal.remove();
+          };
+          
+          window.selectPhotoFromGallery = function(url, title) {
+            const urlInput = document.getElementById('selectedPhotoUrl');
+            const img = document.getElementById('selectedPhotoImg');
+            const titleEl = document.getElementById('selectedPhotoTitle');
+            const urlText = document.getElementById('selectedPhotoUrlText');
+            const preview = document.getElementById('selectedPhotoPreview');
+            
+            if (urlInput) urlInput.value = url;
+            if (img) img.src = url;
+            if (titleEl) titleEl.textContent = title;
+            if (urlText) urlText.textContent = url.substring(0, 50) + '...';
+            if (preview) preview.style.display = 'block';
+            closePhotoGallery();
+          };
+          
+          window.openUploadPhoto = function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = async function(e) {
+              const target = e.target;
+              const file = target.files?.[0];
+              if (!file) return;
+              
+              const formData = new FormData();
+              formData.append('file', file);
+              formData.append('type', 'photo');
+              formData.append('title', 'Фото для сообщения');
+              formData.append('description', 'Загружено из формы отправки сообщения');
+              
+              try {
+                const response = await fetch('/admin/media/upload', {
+                  method: 'POST',
+                  credentials: 'include',
+                  body: formData
+                });
+                
+                if (response.redirected || response.ok) {
+                  const mediaResponse = await fetch('/admin/media/photos', { credentials: 'include' });
+                  const photos = await mediaResponse.json();
+                  if (photos.length > 0 && photos[0].url) {
+                    selectPhotoFromGallery(photos[0].url, photos[0].title);
+                    alert('Фото успешно загружено и добавлено в базу!');
+                  } else {
+                    alert('Фото загружено, но не удалось получить URL. Обновите страницу.');
+                  }
+                } else {
+                  alert('Ошибка загрузки фото');
+                }
+              } catch (error) {
+                console.error('Error uploading photo:', error);
+                alert('Ошибка загрузки фото');
+              }
+            };
+            input.click();
+          };
+          
+          window.clearSelectedPhoto = function() {
+            const urlInput = document.getElementById('selectedPhotoUrl');
+            const preview = document.getElementById('selectedPhotoPreview');
+            if (urlInput) urlInput.value = '';
+            if (preview) preview.style.display = 'none';
+          };
+          
           function applySorting() {
             const sortBy = document.getElementById('sortSelect').value;
             const order = document.getElementById('orderSelect').value;
