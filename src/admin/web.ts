@@ -3153,6 +3153,12 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       '<input type="hidden" id="selectedPhotoUrl" value="">' +
                     '</div>' +
                     '<div class="message-form-group">' +
+                      '<label>🔘 Кнопки к сообщению:</label>' +
+                      '<div id="buttonsContainer" style="margin-top: 10px;">' +
+                      '</div>' +
+                      '<button type="button" onclick="addMessageButton()" style="background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px;">+ Добавить кнопку</button>' +
+                    '</div>' +
+                    '<div class="message-form-group">' +
                       '<label>' +
                         '<input type="checkbox" id="saveAsTemplate">' +
                         'Сохранить как шаблон' +
@@ -3214,6 +3220,28 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             try {
               errorDiv.style.display = 'none';
               
+              // Собираем данные о кнопках
+              const buttons = [];
+              const buttonItems = document.querySelectorAll('.message-button-item');
+              buttonItems.forEach(item => {
+                const buttonId = item.id.replace('button-', '');
+                const type = document.getElementById('buttonType-' + buttonId)?.value;
+                
+                if (type === 'url') {
+                  const text = document.getElementById('buttonText-' + buttonId)?.value.trim();
+                  const url = document.getElementById('buttonUrl-' + buttonId)?.value.trim();
+                  if (text && url) {
+                    buttons.push({ type: 'url', text: text, url: url });
+                  }
+                } else if (type === 'product') {
+                  const productId = document.getElementById('buttonProduct-' + buttonId)?.value;
+                  const action = document.getElementById('buttonProductAction-' + buttonId)?.value;
+                  if (productId) {
+                    buttons.push({ type: 'product', productId: productId, action: action });
+                  }
+                }
+              });
+              
               const response = await fetch('/admin/messages/send', {
                 method: 'POST',
                 headers: {
@@ -3225,6 +3253,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                   subject: subject,
                   text: text,
                   photoUrl: photoUrl || null,
+                  buttons: buttons.length > 0 ? buttons : null,
                   saveAsTemplate: saveAsTemplate
                 })
               });
@@ -9704,7 +9733,7 @@ router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
 // Маршрут для отправки сообщений пользователям
 router.post('/messages/send', requireAdmin, async (req, res) => {
   try {
-    const { userIds, subject, text, photoUrl, saveAsTemplate } = req.body;
+    const { userIds, subject, text, photoUrl, buttons, saveAsTemplate } = req.body;
     
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ error: 'Не указаны получатели' });
@@ -9760,6 +9789,28 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           
           console.log(`📤 Отправка сообщения пользователю ${user.firstName} (ID: ${user.telegramId}):`, messageText);
           
+          // Формируем клавиатуру с кнопками, если они есть
+          let replyMarkup = undefined;
+          if (buttons && Array.isArray(buttons) && buttons.length > 0) {
+            const inlineKeyboard = [];
+            buttons.forEach(button => {
+              if (button.type === 'url' && button.text && button.url) {
+                inlineKeyboard.push([{ text: button.text, url: button.url }]);
+              } else if (button.type === 'product' && button.productId) {
+                const PRODUCT_CART_PREFIX = 'shop:prod:cart:';
+                const PRODUCT_BUY_PREFIX = 'shop:prod:buy:';
+                const callbackData = button.action === 'cart' 
+                  ? `${PRODUCT_CART_PREFIX}${button.productId}`
+                  : `${PRODUCT_BUY_PREFIX}${button.productId}`;
+                const buttonText = button.action === 'cart' ? '🛒 В корзину' : '💳 Купить';
+                inlineKeyboard.push([{ text: buttonText, callback_data: callbackData }]);
+              }
+            });
+            if (inlineKeyboard.length > 0) {
+              replyMarkup = { inline_keyboard: inlineKeyboard };
+            }
+          }
+          
           // Отправляем сообщение
           let result;
           
@@ -9768,25 +9819,30 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
             try {
               result = await bot.telegram.sendPhoto(user.telegramId, photoUrl, {
                 caption: messageText,
-                parse_mode: 'Markdown'
+                parse_mode: 'Markdown',
+                reply_markup: replyMarkup
               });
             } catch (markdownError) {
               console.log(`⚠️ Markdown отправка фото не удалась, пробуем без Markdown: ${markdownError instanceof Error ? markdownError.message : String(markdownError)}`);
               // Если Markdown не работает, отправляем без форматирования
               result = await bot.telegram.sendPhoto(user.telegramId, photoUrl, {
-                caption: plainText
+                caption: plainText,
+                reply_markup: replyMarkup
               });
             }
           } else {
             // Если фото нет, отправляем обычное текстовое сообщение
             try {
               result = await bot.telegram.sendMessage(user.telegramId, messageText, {
-                parse_mode: 'Markdown'
+                parse_mode: 'Markdown',
+                reply_markup: replyMarkup
               });
             } catch (markdownError) {
               console.log(`⚠️ Markdown отправка не удалась, пробуем без Markdown: ${markdownError instanceof Error ? markdownError.message : String(markdownError)}`);
               // Если Markdown не работает, отправляем без форматирования
-              result = await bot.telegram.sendMessage(user.telegramId, plainText);
+              result = await bot.telegram.sendMessage(user.telegramId, plainText, {
+                reply_markup: replyMarkup
+              });
             }
           }
           
