@@ -3171,10 +3171,20 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       '<button type="button" onclick="addMessageButton()" style="background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px;">+ Добавить кнопку</button>' +
                     '</div>' +
                     '<div class="message-form-group">' +
+                      '<label>📋 Шаблоны сообщений:</label>' +
+                      '<div style="display: flex; gap: 10px; margin-bottom: 10px;">' +
+                        '<select id="templateSelect" onchange="loadTemplate()" style="flex: 1; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">' +
+                          '<option value="">Выберите шаблон...</option>' +
+                        '</select>' +
+                        '<button type="button" onclick="loadTemplates()" style="background: #6c757d; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer;">🔄 Обновить</button>' +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="message-form-group">' +
                       '<label>' +
                         '<input type="checkbox" id="saveAsTemplate">' +
                         'Сохранить как шаблон' +
                       '</label>' +
+                      '<input type="text" id="templateName" placeholder="Название шаблона" style="margin-left: 10px; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; display: none; width: 200px;">' +
                     '</div>' +
                     '<div class="message-error" id="messageError" style="display: none;"></div>' +
                   '</div>' +
@@ -3211,6 +3221,8 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             const photoUrlInput = document.getElementById('selectedPhotoUrl');
             const photoUrl = photoUrlInput ? photoUrlInput.value.trim() : '';
             const saveAsTemplate = document.getElementById('saveAsTemplate').checked;
+            const templateNameInput = document.getElementById('templateName');
+            const templateName = templateNameInput ? templateNameInput.value.trim() : '';
             const errorDiv = document.getElementById('messageError');
             
             // Валидация
@@ -9959,7 +9971,7 @@ router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
 // Маршрут для отправки сообщений пользователям
 router.post('/messages/send', requireAdmin, async (req, res) => {
   try {
-    const { userIds, subject, text, photoUrl, buttons, saveAsTemplate } = req.body;
+    const { userIds, subject, text, photoUrl, buttons, saveAsTemplate, templateName } = req.body;
     
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ error: 'Не указаны получатели' });
@@ -10006,8 +10018,9 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           
           // Формируем сообщение с экранированием Markdown символов
           const escapeMarkdown = (text: string) => {
-            // Экранируем только специальные символы Markdown, но не дефис и не слэш
-            return text.replace(/([_*\[\]()~`>#+=|{}.!])/g, '\\$1');
+            // Экранируем только специальные символы Markdown, но не дефис, не слэш и не точку
+            // Точка не является специальным символом в Markdown в обычном контексте
+            return text.replace(/([_*\[\]()~`>#+=|{}!])/g, '\\$1');
           };
           
           const messageText = `📧 ${escapeMarkdown(subject)}\n\n${escapeMarkdown(text)}`;
@@ -10106,19 +10119,18 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
     }
     
     // Сохраняем шаблон если нужно
-    if (saveAsTemplate) {
+    if (saveAsTemplate && templateName) {
       try {
-        await prisma.userHistory.create({
+        await prisma.messageTemplate.create({
           data: {
-            userId: userIds[0], // Используем первого пользователя для шаблона
-            action: 'MESSAGE_TEMPLATE_SAVED',
-            payload: {
-              subject,
-              text,
-              savedBy: 'admin'
-            }
+            name: templateName,
+            subject,
+            text,
+            photoUrl: photoUrl || null,
+            buttons: buttons && buttons.length > 0 ? buttons : null
           }
         });
+        console.log('✅ Шаблон сохранен:', templateName);
       } catch (error) {
         console.error('Error saving template:', error);
       }
@@ -10135,6 +10147,35 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error sending messages:', error);
     res.status(500).json({ error: 'Ошибка отправки сообщений' });
+  }
+});
+
+// API для получения списка шаблонов
+router.get('/messages/templates', requireAdmin, async (req, res) => {
+  try {
+    const templates = await prisma.messageTemplate.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(templates);
+  } catch (error) {
+    console.error('Error loading templates:', error);
+    res.status(500).json({ error: 'Ошибка загрузки шаблонов' });
+  }
+});
+
+// API для получения одного шаблона
+router.get('/messages/templates/:id', requireAdmin, async (req, res) => {
+  try {
+    const template = await prisma.messageTemplate.findUnique({
+      where: { id: req.params.id }
+    });
+    if (!template) {
+      return res.status(404).json({ error: 'Шаблон не найден' });
+    }
+    res.json(template);
+  } catch (error) {
+    console.error('Error loading template:', error);
+    res.status(500).json({ error: 'Ошибка загрузки шаблона' });
   }
 });
 
