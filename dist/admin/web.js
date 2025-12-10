@@ -3383,12 +3383,21 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                 const result = await response.json();
                 if (result.success && result.data) {
                   window.productsList = result.data;
+                } else if (Array.isArray(result)) {
+                  // Если API возвращает массив напрямую
+                  window.productsList = result;
                 } else {
-                  window.productsList = await response.json();
+                  console.error('Неожиданный формат ответа API:', result);
+                  window.productsList = [];
                 }
+                console.log('Загружено товаров:', window.productsList.length);
+              } else {
+                console.error('Ошибка загрузки товаров: HTTP', response.status);
+                window.productsList = [];
               }
             } catch (error) {
               console.error('Ошибка загрузки товаров:', error);
+              window.productsList = [];
             }
           };
           
@@ -3400,8 +3409,13 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
               return;
             }
             
+            // Если товары еще не загружены, загружаем их
             if (!window.productsList || window.productsList.length === 0) {
-              setTimeout(() => window.loadProductsIntoSelect(selectId), 500);
+              window.loadProductsForButtons().then(() => {
+                setTimeout(() => window.loadProductsIntoSelect(selectId), 100);
+              }).catch(() => {
+                select.innerHTML = '<option value="">Ошибка загрузки товаров</option>';
+              });
               return;
             }
             
