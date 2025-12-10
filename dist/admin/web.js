@@ -3674,7 +3674,24 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           function applySorting() {
             const sortBy = document.getElementById('sortSelect').value;
             const order = document.getElementById('orderSelect').value;
-            window.location.href = '/admin/users-detailed?sort=' + sortBy + '&order=' + order;
+            const urlParams = new URLSearchParams(window.location.search);
+            const page = urlParams.get('page') || '1';
+            const search = urlParams.get('search') || '';
+            let url = '/admin/users-detailed?sort=' + sortBy + '&order=' + order;
+            if (page !== '1') url += '&page=' + page;
+            if (search) url += '&search=' + encodeURIComponent(search);
+            window.location.href = url;
+          }
+          
+          function goToPage(pageNum) {
+            if (pageNum < 1) return;
+            const urlParams = new URLSearchParams(window.location.search);
+            const sortBy = urlParams.get('sort') || 'orders';
+            const order = urlParams.get('order') || 'desc';
+            const search = urlParams.get('search') || '';
+            let url = '/admin/users-detailed?sort=' + sortBy + '&order=' + order + '&page=' + pageNum;
+            if (search) url += '&search=' + encodeURIComponent(search);
+            window.location.href = url;
           }
           function applyFilter(filter){
             const url = new URL(window.location.href);
