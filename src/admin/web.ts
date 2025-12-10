@@ -2159,6 +2159,9 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
   try {
     const sortBy = req.query.sort as string || 'orders';
     const sortOrder = req.query.order as string || 'desc';
+    const page = parseInt(req.query.page as string || '1', 10);
+    const perPage = 100;
+    const skip = (page - 1) * perPage;
     
     // Get all users with their related data
     // Optional search by username
@@ -2179,6 +2182,13 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
       searchConditions.push({ phone: { contains: searchRaw } });
     }
     
+    // Получаем общее количество пользователей для пагинации
+    const totalUsers = await prisma.user.count({
+      where: searchConditions.length > 0 ? { OR: searchConditions } : undefined
+    });
+    
+    const totalPages = Math.ceil(totalUsers / perPage);
+    
     const users = await prisma.user.findMany({
       include: {
         partner: {
@@ -2192,7 +2202,9 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
       where: searchConditions.length > 0 ? { OR: searchConditions } : undefined,
       orderBy: {
         createdAt: sortOrder === 'desc' ? 'desc' : 'asc'
-      }
+      },
+      take: perPage,
+      skip: skip
     });
 
     // Helper function to count partners by level (based on hierarchy depth)
@@ -2788,7 +2800,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           
           <div class="stats-bar">
             <div class="stat-item" style="cursor:pointer" onclick="applyFilter('all')">
-              <div class="stat-number">${sortedUsers.length}</div>
+              <div class="stat-number">${totalUsers}</div>
               <div class="stat-label">Всего пользователей</div>
             </div>
             <div class="stat-item" style="cursor:pointer" onclick="applyFilter('with_balance')">
@@ -2808,6 +2820,14 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
               <div class="stat-label">Общий баланс партнёров</div>
             </div>
           </div>
+          
+          ${totalPages > 1 ? `
+            <div class="pagination" style="margin: 20px 0; display: flex; justify-content: center; align-items: center; gap: 10px;">
+              <button onclick="goToPage(${page - 1})" ${page === 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : 'style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;"'}>← Предыдущая</button>
+              <span style="padding: 8px 16px;">Страница ${page} из ${totalPages}</span>
+              <button onclick="goToPage(${page + 1})" ${page === totalPages ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : 'style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;"'}>Следующая →</button>
+            </div>
+          ` : ''}
           
           ${sortedUsers.length === 0 ? `
             <div class="empty-state">
