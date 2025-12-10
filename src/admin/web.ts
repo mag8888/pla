@@ -3696,7 +3696,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
               originalOpenMessageModal();
             }
             // Загружаем шаблоны после открытия модального окна
-            setTimeout(() => {
+            setTimeout(function() {
               if (typeof window.loadTemplates === 'function') {
                 window.loadTemplates();
               }
