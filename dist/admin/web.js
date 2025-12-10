@@ -3402,20 +3402,33 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           };
           
           // Загрузка товаров в выпадающий список
-          window.loadProductsIntoSelect = function(selectId) {
+          window.loadProductsIntoSelect = function(selectId, retryCount = 0) {
+            const MAX_RETRIES = 5;
             const select = document.getElementById(selectId);
             if (!select) {
-              setTimeout(() => window.loadProductsIntoSelect(selectId), 500);
+              if (retryCount < MAX_RETRIES) {
+                setTimeout(() => window.loadProductsIntoSelect(selectId, retryCount + 1), 200);
+              }
               return;
             }
             
             // Если товары еще не загружены, загружаем их
             if (!window.productsList || window.productsList.length === 0) {
-              window.loadProductsForButtons().then(() => {
-                setTimeout(() => window.loadProductsIntoSelect(selectId), 100);
-              }).catch(() => {
-                select.innerHTML = '<option value="">Ошибка загрузки товаров</option>';
-              });
+              if (retryCount < MAX_RETRIES) {
+                if (!window.productsLoading) {
+                  window.productsLoading = true;
+                  window.loadProductsForButtons().then(() => {
+                    window.productsLoading = false;
+                    window.loadProductsIntoSelect(selectId, retryCount + 1);
+                  }).catch((error) => {
+                    window.productsLoading = false;
+                    console.error('Ошибка загрузки товаров:', error);
+                    select.innerHTML = '<option value="">Ошибка загрузки товаров</option>';
+                  });
+                }
+              } else {
+                select.innerHTML = '<option value="">Товары не загружены</option>';
+              }
               return;
             }
             
@@ -3526,24 +3539,70 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           }
           // Функция searchByUsername уже определена выше в начале скрипта
           (function(){
-            var typingTimer; var inputEl = document.getElementById('searchUsername'); var box = document.getElementById('searchSuggestions');
-            function hide(){ box.style.display='none'; box.innerHTML=''; }
-            inputEl.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); searchByUsername(); hide(); }});
+            var typingTimer;
+            var searchAbortController = null;
+            var inputEl = document.getElementById('searchUsername');
+            var box = document.getElementById('searchSuggestions');
+            
+            if (!inputEl || !box) {
+              console.warn('Search elements not found');
+              return;
+            }
+            
+            function hide(){ 
+              if (box) {
+                box.style.display='none'; 
+                box.innerHTML=''; 
+              }
+              if (searchAbortController) {
+                searchAbortController.abort();
+                searchAbortController = null;
+              }
+            }
+            
+            inputEl.addEventListener('keydown', function(e){ 
+              if(e.key==='Enter'){ 
+                e.preventDefault(); 
+                if (typeof window.searchByUsername === 'function') {
+                  window.searchByUsername(); 
+                }
+                hide(); 
+              }
+            });
+            
             inputEl.addEventListener('input', function(){
               clearTimeout(typingTimer);
               var val = inputEl.value.trim();
               if(val.startsWith('@')) val = val.slice(1);
               if(!val){ hide(); return; }
+              
               typingTimer = setTimeout(async function(){
+                // Отменяем предыдущий запрос, если он еще выполняется
+                if (searchAbortController) {
+                  searchAbortController.abort();
+                }
+                searchAbortController = new AbortController();
+                
                 try{
-                  const resp = await fetch('/admin/users/search?q=' + encodeURIComponent(val), { credentials:'include' });
+                  const resp = await fetch('/admin/users/search?q=' + encodeURIComponent(val), { 
+                    credentials:'include',
+                    signal: searchAbortController.signal
+                  });
+                  
+                  if (!resp.ok) {
+                    hide();
+                    return;
+                  }
+                  
                   const data = await resp.json();
                   if(!Array.isArray(data) || data.length===0){ hide(); return; }
+                  
                   box.innerHTML = data.map(u => {
                     const main = u.username ? '@' + u.username : (u.firstName || u.phone || '');
                     const phoneInfo = u.phone ? '<span style="color:#6b7280; font-size:12px; margin-left:6px;">' + u.phone + '</span>' : '';
                     return '<div class="list-item" style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f3f4f6">' + main + phoneInfo + '</div>';
                   }).join('');
+                  
                   Array.from(box.children).forEach((el, idx)=>{
                     el.addEventListener('click', function(){
                       var targetValue = data[idx].username || data[idx].phone || '';
@@ -3554,10 +3613,20 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                     });
                   });
                   box.style.display = 'block';
-                }catch(e){ hide(); }
-              }, 250);
+                }catch(e){ 
+                  if (e.name !== 'AbortError') {
+                    console.error('Search error:', e);
+                  }
+                  hide(); 
+                }
+              }, 300);
             });
-            document.addEventListener('click', function(e){ if(!box.contains(e.target) && e.target !== inputEl){ hide(); } });
+            
+            document.addEventListener('click', function(e){ 
+              if(box && inputEl && !box.contains(e.target) && e.target !== inputEl){ 
+                hide(); 
+              } 
+            });
           })();
           
           window.openChangeInviter = async function(userId, userName) {
