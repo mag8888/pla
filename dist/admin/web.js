@@ -3378,6 +3378,97 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             if (preview) preview.style.display = 'none';
           };
           
+          // Загрузка списка шаблонов
+          window.loadTemplates = async function() {
+            try {
+              const response = await fetch('/admin/messages/templates', {
+                credentials: 'include'
+              });
+              if (response.ok) {
+                const templates = await response.json();
+                const select = document.getElementById('templateSelect');
+                if (select) {
+                  select.innerHTML = '<option value="">Выберите шаблон...</option>';
+                  templates.forEach((template: any) => {
+                    const option = document.createElement('option');
+                    option.value = template.id;
+                    option.textContent = template.name || 'Без названия';
+                    select.appendChild(option);
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Ошибка загрузки шаблонов:', error);
+            }
+          };
+          
+          // Загрузка шаблона в форму
+          window.loadTemplate = async function() {
+            const select = document.getElementById('templateSelect');
+            if (!select || !select.value) return;
+            
+            try {
+              const response = await fetch('/admin/messages/templates/' + select.value, {
+                credentials: 'include'
+              });
+              if (response.ok) {
+                const template = await response.json();
+                const subjectInput = document.getElementById('messageSubject');
+                const textInput = document.getElementById('messageText');
+                const photoUrlInput = document.getElementById('selectedPhotoUrl');
+                const charCount = document.getElementById('charCount');
+                
+                if (subjectInput) subjectInput.value = template.subject || '';
+                if (textInput) {
+                  textInput.value = template.text || '';
+                  if (charCount) charCount.textContent = textInput.value.length;
+                }
+                if (photoUrlInput && template.photoUrl) {
+                  photoUrlInput.value = template.photoUrl;
+                  const preview = document.getElementById('selectedPhotoPreview');
+                  const img = document.getElementById('selectedPhotoImg');
+                  if (preview && img) {
+                    img.src = template.photoUrl;
+                    preview.style.display = 'block';
+                  }
+                }
+                
+                // Загружаем кнопки если есть
+                if (template.buttons && Array.isArray(template.buttons)) {
+                  const container = document.getElementById('buttonsContainer');
+                  if (container) {
+                    container.innerHTML = '';
+                    window.buttonCounter = 0;
+                    template.buttons.forEach((button: any) => {
+                      window.addMessageButton();
+                      const buttonId = window.buttonCounter;
+                      const typeSelect = document.getElementById('buttonType-' + buttonId);
+                      if (typeSelect) {
+                        typeSelect.value = button.type;
+                        window.toggleButtonFields(buttonId);
+                        if (button.type === 'url') {
+                          const textInput = document.getElementById('buttonText-' + buttonId);
+                          const urlInput = document.getElementById('buttonUrl-' + buttonId);
+                          if (textInput) textInput.value = button.text || '';
+                          if (urlInput) urlInput.value = button.url || '';
+                        } else if (button.type === 'product') {
+                          const productSelect = document.getElementById('buttonProduct-' + buttonId);
+                          const actionSelect = document.getElementById('buttonProductAction-' + buttonId);
+                          if (productSelect) productSelect.value = button.productId || '';
+                          if (actionSelect) actionSelect.value = button.action || 'cart';
+                          // Загружаем товары в select если нужно
+                          setTimeout(() => window.loadProductsIntoSelect('buttonProduct-' + buttonId), 500);
+                        }
+                      }
+                    });
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Ошибка загрузки шаблона:', error);
+            }
+          };
+          
           // Инициализация переменных для кнопок
           if (!window.buttonCounter) {
             window.buttonCounter = 0;
