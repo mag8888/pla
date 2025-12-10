@@ -3627,6 +3627,28 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             }
           };
           
+          // Инициализация загрузки шаблонов при открытии модального окна
+          const originalOpenMessageModal = window.openMessageModal;
+          window.openMessageModal = function() {
+            if (typeof originalOpenMessageModal === 'function') {
+              originalOpenMessageModal();
+            }
+            // Загружаем шаблоны после открытия модального окна
+            setTimeout(() => {
+              if (typeof window.loadTemplates === 'function') {
+                window.loadTemplates();
+              }
+              // Показываем поле названия шаблона при установке чекбокса
+              const saveAsTemplateCheckbox = document.getElementById('saveAsTemplate');
+              const templateNameInput = document.getElementById('templateName');
+              if (saveAsTemplateCheckbox && templateNameInput) {
+                saveAsTemplateCheckbox.addEventListener('change', function() {
+                  templateNameInput.style.display = this.checked ? 'inline-block' : 'none';
+                });
+              }
+            }, 100);
+          };
+          
           function applySorting() {
             const sortBy = document.getElementById('sortSelect').value;
             const order = document.getElementById('orderSelect').value;
