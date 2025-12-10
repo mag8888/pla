@@ -3217,15 +3217,31 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                           const colorDefault = '#dee2e6';
                           const colorBg = '#f8f9fa';
                           const colorText = '#333';
-                          return '<div style="cursor: pointer; border: 2px solid ' + colorDefault + '; border-radius: 8px; overflow: hidden; transition: all 0.2s;" ' +
-                                 'onmouseover="this.style.borderColor=\'' + colorHover + '\'; this.style.transform=\'scale(1.05)\'" ' +
-                                 'onmouseout="this.style.borderColor=\'' + colorDefault + '\'; this.style.transform=\'scale(1)\'" ' +
-                                 'onclick="selectPhotoFromGallery(\'' + safeUrl + '\', \'' + safeTitle + '\')">' +
-                                 '<img src="' + photo.url.replace(/"/g, '&quot;') + '" alt="' + safeTitle + '" style="width: 100%; height: 150px; object-fit: cover;">' +
-                                 '<div style="padding: 8px; background: ' + colorBg + '; font-size: 12px; color: ' + colorText + '; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
-                                 safeTitle +
-                                 '</div>' +
-                                 '</div>';
+                          const div = document.createElement('div');
+                          div.style.cssText = 'cursor: pointer; border: 2px solid ' + colorDefault + '; border-radius: 8px; overflow: hidden; transition: all 0.2s;';
+                          div.onmouseover = function() {
+                            this.style.borderColor = colorHover;
+                            this.style.transform = 'scale(1.05)';
+                          };
+                          div.onmouseout = function() {
+                            this.style.borderColor = colorDefault;
+                            this.style.transform = 'scale(1)';
+                          };
+                          div.onclick = function() {
+                            if (typeof window.selectPhotoFromGallery === 'function') {
+                              window.selectPhotoFromGallery(safeUrl, safeTitle);
+                            }
+                          };
+                          const img = document.createElement('img');
+                          img.src = photo.url;
+                          img.alt = safeTitle;
+                          img.style.cssText = 'width: 100%; height: 150px; object-fit: cover;';
+                          const titleDiv = document.createElement('div');
+                          titleDiv.style.cssText = 'padding: 8px; background: ' + colorBg + '; font-size: 12px; color: ' + colorText + '; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+                          titleDiv.textContent = safeTitle;
+                          div.appendChild(img);
+                          div.appendChild(titleDiv);
+                          return div.outerHTML;
                         }).join('') +
                       '</div>' +
                     '</div>' +
