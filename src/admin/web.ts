@@ -9790,9 +9790,9 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           console.log(`📤 Отправка сообщения пользователю ${user.firstName} (ID: ${user.telegramId}):`, messageText);
           
           // Формируем клавиатуру с кнопками, если они есть
-          let replyMarkup: { inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> } | undefined = undefined;
+          let replyMarkup: { inline_keyboard: Array<Array<any>> } | undefined = undefined;
           if (buttons && Array.isArray(buttons) && buttons.length > 0) {
-            const inlineKeyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> = [];
+            const inlineKeyboard: Array<Array<any>> = [];
             buttons.forEach(button => {
               if (button.type === 'url' && button.text && button.url) {
                 inlineKeyboard.push([{ text: button.text, url: button.url }]);
