@@ -2366,7 +2366,10 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             var q = document.getElementById('searchUsername').value.trim();
             if(!q) return;
             if(q.startsWith('@')) q = q.slice(1);
-            window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(q);
+            const urlParams = new URLSearchParams(window.location.search);
+            const sortBy = urlParams.get('sort') || 'orders';
+            const order = urlParams.get('order') || 'desc';
+            window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(q) + '&sort=' + sortBy + '&order=' + order + '&page=1';
           };
           
           window.updateSelectedUsers = function() {
@@ -3772,7 +3775,10 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                     el.addEventListener('click', function(){
                       var targetValue = data[idx].username || data[idx].phone || '';
                       if(targetValue){
-                        window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(targetValue);
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const sortBy = urlParams.get('sort') || 'orders';
+                        const order = urlParams.get('order') || 'desc';
+                        window.location.href = '/admin/users-detailed?search=' + encodeURIComponent(targetValue) + '&sort=' + sortBy + '&order=' + order + '&page=1';
                       }
                       hide();
                     });
