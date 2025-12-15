@@ -20,8 +20,32 @@ import cron from 'node-cron';
 async function bootstrap() {
   try {
     // Try to connect to database first
-    await prisma.$connect();
-    console.log('Database connected');
+    try {
+      await prisma.$connect();
+      console.log('Database connected');
+    } catch (connectError: any) {
+      const errorMessage = connectError.message || connectError.meta?.message || '';
+      const errorKind = (connectError as any).kind || '';
+      
+      if (errorMessage.includes('Authentication failed') || 
+          errorMessage.includes('SCRAM failure') ||
+          errorKind.includes('AuthenticationFailed')) {
+        console.error('❌ MongoDB Authentication Error:');
+        console.error('   The connection string contains invalid credentials.');
+        console.error('   Please check your MONGO_URL or DATABASE_URL in Railway Variables.');
+        console.error('   See FIX_MONGODB_AUTH.md for instructions.');
+        console.error('');
+        console.error('   Common solutions:');
+        console.error('   1. Recreate MongoDB service in Railway');
+        console.error('   2. Update DATABASE_URL to use ${{MongoDB.MONGO_URL}}');
+        console.error('   3. Check if MONGO_URL format is correct');
+        console.error('');
+        console.warn('⚠️  Bot will continue with mock data until database is fixed.');
+        // Не пробрасываем ошибку, чтобы бот продолжал работать
+      } else {
+        throw connectError; // Пробрасываем другие ошибки
+      }
+    }
     
     // Try to apply migrations on startup if database is available
     // This is a fallback if migrations weren't applied during build
