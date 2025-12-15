@@ -13,7 +13,8 @@ export const env = {
   botWebhookUrl: process.env.BOT_WEBHOOK_URL,
   botWebhookSecret: process.env.BOT_WEBHOOK_SECRET,
   adminChatId: process.env.ADMIN_CHAT_ID,
-  databaseUrl: requireEnv('DATABASE_URL'),
+  // DATABASE_URL или MONGO_URL (опционально, так как приложение может работать без БД)
+  databaseUrl: process.env.DATABASE_URL || process.env.MONGO_URL || undefined,
   adminEmail: requireEnv('ADMIN_EMAIL'),
   adminPassword: requireEnv('ADMIN_PASSWORD'),
   publicBaseUrl: process.env.PUBLIC_BASE_URL || 'http://localhost:3000',
