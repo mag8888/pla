@@ -1,4 +1,4 @@
-import { Markup, Input } from 'telegraf';
+import { Markup } from 'telegraf';
 import { logUserAction, ensureUser, checkUserContact } from '../../services/user-history.js';
 import { upsertPartnerReferral, recordPartnerTransaction } from '../../services/partner-service.js';
 import { env } from '../../config/env.js';
@@ -199,16 +199,27 @@ function isBotBlockedError(error) {
         errorMessage.includes('bot was blocked') ||
         errorMessage.includes('Forbidden: bot was blocked'));
 }
+// Проверяет, является ли ошибка ошибкой неправильного типа контента
+function isWrongContentTypeError(error) {
+    if (!error)
+        return false;
+    const errorMessage = error.message || error.description || '';
+    const errorCode = error.response?.error_code || error.error_code;
+    return (errorCode === 400 &&
+        (errorMessage.includes('wrong type of the web page content') ||
+            errorMessage.includes('Bad Request: wrong type')));
+}
 async function sendWelcomeVideo(ctx) {
+    // Пробуем сначала отправить через прямой URL (без Input.fromURL)
+    // Если не получится, используем fallback через загрузку файла
     try {
-        // Используем Input.fromURL для правильной загрузки и отправки видео
-        // Указываем параметры для прямоугольного отображения (16:9 формат)
-        await ctx.replyWithVideo(Input.fromURL(WELCOME_VIDEO_URL), {
-            caption: greeting, // Текст прикрепляется к видео как подпись
-            supports_streaming: true, // Позволяет видео воспроизводиться сразу
-            parse_mode: 'HTML', // Поддержка форматирования в тексте
-            width: 1280, // Ширина для прямоугольного формата (16:9)
-            height: 720, // Высота для прямоугольного формата (16:9)
+        // Пробуем отправить через прямой URL
+        await ctx.replyWithVideo(WELCOME_VIDEO_URL, {
+            caption: greeting,
+            supports_streaming: true,
+            parse_mode: 'HTML',
+            width: 1280,
+            height: 720,
         });
     }
     catch (error) {
@@ -217,8 +228,14 @@ async function sendWelcomeVideo(ctx) {
             console.log('Bot was blocked by user, skipping welcome video');
             return;
         }
-        console.error('Error sending welcome video:', error);
-        // Fallback: пробуем скачать и отправить как буфер
+        // Если ошибка связана с типом контента, сразу переходим к fallback
+        if (isWrongContentTypeError(error)) {
+            console.log('Video URL not recognized, using fallback method');
+        }
+        else {
+            console.error('Error sending welcome video:', error);
+        }
+        // Fallback: загружаем видео и отправляем как буфер
         try {
             const response = await fetch(WELCOME_VIDEO_URL);
             if (!response.ok) {
@@ -230,8 +247,8 @@ async function sendWelcomeVideo(ctx) {
                 caption: greeting,
                 supports_streaming: true,
                 parse_mode: 'HTML',
-                width: 1280, // Ширина для прямоугольного формата
-                height: 720, // Высота для прямоугольного формата
+                width: 1280,
+                height: 720,
             });
         }
         catch (fallbackError) {
@@ -564,14 +581,13 @@ export const navigationModule = {
 
 ${greeting}`;
                         try {
-                            // Используем Input.fromURL для правильной загрузки видео
-                            // Указываем параметры для прямоугольного отображения (16:9 формат)
-                            await ctx.replyWithVideo(Input.fromURL(WELCOME_VIDEO_URL), {
+                            // Пробуем отправить через прямой URL
+                            await ctx.replyWithVideo(WELCOME_VIDEO_URL, {
                                 caption: referralGreeting,
                                 supports_streaming: true,
                                 parse_mode: 'HTML',
-                                width: 1280, // Ширина для прямоугольного формата (16:9)
-                                height: 720, // Высота для прямоугольного формата (16:9)
+                                width: 1280,
+                                height: 720,
                             });
                         }
                         catch (error) {
@@ -580,24 +596,28 @@ ${greeting}`;
                                 console.log('Bot was blocked by user, skipping referral welcome video');
                                 return;
                             }
-                            console.error('Error sending referral welcome video:', error);
-                            // Fallback: пробуем скачать и отправить как буфер
+                            // Если ошибка связана с типом контента, сразу переходим к fallback
+                            if (isWrongContentTypeError(error)) {
+                                console.log('Referral video URL not recognized, using fallback method');
+                            }
+                            else {
+                                console.error('Error sending referral welcome video:', error);
+                            }
+                            // Fallback: загружаем видео и отправляем как буфер
                             try {
                                 const response = await fetch(WELCOME_VIDEO_URL);
-                                if (response.ok) {
-                                    const videoBuffer = await response.arrayBuffer();
-                                    const videoStream = Buffer.from(videoBuffer);
-                                    await ctx.replyWithVideo({ source: videoStream, filename: 'welcome-video.mp4' }, {
-                                        caption: referralGreeting,
-                                        supports_streaming: true,
-                                        parse_mode: 'HTML',
-                                        width: 1280, // Ширина для прямоугольного формата
-                                        height: 720, // Высота для прямоугольного формата
-                                    });
+                                if (!response.ok) {
+                                    throw new Error(`Failed to fetch video: ${response.statusText}`);
                                 }
-                                else {
-                                    throw new Error('Failed to fetch video');
-                                }
+                                const videoBuffer = await response.arrayBuffer();
+                                const videoStream = Buffer.from(videoBuffer);
+                                await ctx.replyWithVideo({ source: videoStream, filename: 'welcome-video.mp4' }, {
+                                    caption: referralGreeting,
+                                    supports_streaming: true,
+                                    parse_mode: 'HTML',
+                                    width: 1280,
+                                    height: 720,
+                                });
                             }
                             catch (fallbackError) {
                                 // Если и fallback не удался из-за блокировки, просто выходим
