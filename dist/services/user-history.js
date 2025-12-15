@@ -27,7 +27,9 @@ function isDatabaseConnectionError(error) {
         errorMessage.includes('Server selection timeout') ||
         errorMessage.includes('No available servers') ||
         errorMessage.includes('I/O error: timed out') ||
-        errorMessage.includes('Connection pool timeout'));
+        errorMessage.includes('Connection pool timeout') ||
+        errorMessage.includes('Transactions are not supported') // MongoDB Atlas free tier
+    );
 }
 export async function ensureUser(ctx) {
     const from = ctx.from;
@@ -41,23 +43,42 @@ export async function ensureUser(ctx) {
         languageCode: from.language_code ?? null,
     };
     try {
-        const user = await prisma.user.upsert({
+        // Используем findUnique + create/update вместо upsert
+        // чтобы избежать транзакций (MongoDB Atlas free tier не поддерживает транзакции)
+        let user = await prisma.user.findUnique({
             where: { telegramId: data.telegramId },
-            update: {
-                firstName: data.firstName,
-                lastName: data.lastName,
-                username: data.username,
-                languageCode: data.languageCode,
-            },
-            create: {
-                ...data,
-                id: generateObjectId(from.id),
-            },
         });
+        if (user) {
+            // Обновляем существующего пользователя
+            user = await prisma.user.update({
+                where: { telegramId: data.telegramId },
+                data: {
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    username: data.username,
+                    languageCode: data.languageCode,
+                },
+            });
+        }
+        else {
+            // Создаем нового пользователя
+            user = await prisma.user.create({
+                data: {
+                    ...data,
+                    id: generateObjectId(from.id),
+                },
+            });
+        }
         return user;
     }
     catch (error) {
-        console.warn('Failed to ensure user:', error);
+        // Проверяем, является ли это ошибкой подключения или транзакций
+        if (isDatabaseConnectionError(error)) {
+            console.warn('Database unavailable, using mock user:', error.message?.substring(0, 100));
+        }
+        else {
+            console.warn('Failed to ensure user:', error.message?.substring(0, 100));
+        }
         // Return mock user object to continue without DB
         return {
             id: generateObjectId(from.id),
