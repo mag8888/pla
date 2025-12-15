@@ -5,14 +5,20 @@ function isDatabaseError(error) {
         return false;
     const errorCode = error.code;
     const errorMessage = error.message || error.meta?.message || '';
+    const errorKind = error.kind || '';
     return (errorCode === 'P2010' || // Raw query failed
         errorCode === 'P1001' || // Can't reach database server
         errorCode === 'P1002' || // Connection timeout
+        errorCode === 'P1013' || // Invalid connection string
         errorMessage.includes('Server selection timeout') ||
         errorMessage.includes('No available servers') ||
         errorMessage.includes('I/O error: timed out') ||
         errorMessage.includes('Connection pool timeout') ||
-        errorMessage.includes('Transactions are not supported'));
+        errorMessage.includes('Transactions are not supported') ||
+        errorMessage.includes('Authentication failed') ||
+        errorMessage.includes('SCRAM failure') ||
+        errorKind.includes('AuthenticationFailed') ||
+        errorKind.includes('Authentication'));
 }
 export async function ensureInitialData() {
     try {

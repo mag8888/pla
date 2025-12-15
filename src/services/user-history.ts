@@ -241,8 +241,15 @@ export async function logUserAction(ctx: Context, action: string, payload?: any)
         payload: payload ?? undefined,
       },
     });
-  } catch (error) {
-    console.warn('Failed to log user action:', error);
+  } catch (error: any) {
+    // Проверяем, является ли это ошибкой подключения/аутентификации
+    if (isDatabaseConnectionError(error)) {
+      // Не логируем ошибки аутентификации/подключения, так как они уже обрабатываются
+      // и бот продолжает работать с mock данными
+      return;
+    }
+    // Логируем только другие ошибки
+    console.warn('Failed to log user action (non-critical):', error.message?.substring(0, 100));
     // Continue without logging if DB fails
   }
 }
