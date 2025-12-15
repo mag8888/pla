@@ -11,30 +11,48 @@ if (dbUrl) {
 // Fix MongoDB connection string for Railway and Atlas compatibility
 let fixedDbUrl: string | undefined = undefined;
 if (dbUrl) {
-  let url = dbUrl
-    .replace('retrywrites=true', 'retryWrites=true'); // Fix case sensitivity
-  
-  // Проверяем, есть ли имя базы данных в строке подключения
-  // Формат должен быть: mongodb://host:port/database или mongodb://user:pass@host:port/database
-  // Если слэша нет после порта, добавляем имя базы данных
-  if (url.startsWith('mongodb://') && !url.includes('mongodb+srv://')) {
-    // Для обычного mongodb:// (не mongodb+srv://)
-    const urlMatch = url.match(/^mongodb:\/\/([^/]+)(\/.*)?(\?.*)?$/);
-    if (urlMatch) {
-      const hostPart = urlMatch[1]; // user:pass@host:port или host:port
-      const dbPart = urlMatch[2]; // /database или undefined
-      const queryPart = urlMatch[3] || ''; // ?options или ''
-      
-      // Если нет имени базы данных, добавляем по умолчанию
-      if (!dbPart || dbPart === '/') {
-        const defaultDb = process.env.MONGODB_DB_NAME || 'plazma_bot';
-        url = `mongodb://${hostPart}/${defaultDb}${queryPart}`;
-        console.log(`Added default database name: ${defaultDb}`);
+  try {
+    // Используем URL парсер для правильной обработки строки подключения
+    let url = dbUrl.trim();
+    
+    // Исправляем регистр для retryWrites
+    url = url.replace('retrywrites=true', 'retryWrites=true');
+    
+    // Для mongodb:// (не mongodb+srv://) проверяем и исправляем формат
+    if (url.startsWith('mongodb://') && !url.includes('mongodb+srv://')) {
+      try {
+        // Парсим URL для проверки формата
+        const urlObj = new URL(url);
+        
+        // Если нет pathname (имени базы данных), добавляем по умолчанию
+        if (!urlObj.pathname || urlObj.pathname === '/') {
+          const defaultDb = process.env.MONGODB_DB_NAME || 'plazma_bot';
+          urlObj.pathname = `/${defaultDb}`;
+          url = urlObj.toString();
+          console.log(`Added default database name: ${defaultDb}`);
+        }
+      } catch (urlError) {
+        // Если URL парсер не смог распарсить (возможно, из-за специальных символов в пароле),
+        // пробуем простую проверку и добавление имени БД
+        if (!url.includes('/') || url.match(/^mongodb:\/\/[^/]+$/)) {
+          const defaultDb = process.env.MONGODB_DB_NAME || 'plazma_bot';
+          // Добавляем имя БД перед query параметрами или в конец
+          if (url.includes('?')) {
+            url = url.replace('?', `/${defaultDb}?`);
+          } else {
+            url = `${url}/${defaultDb}`;
+          }
+          console.log(`Added default database name (fallback): ${defaultDb}`);
+        }
       }
     }
+    
+    fixedDbUrl = url;
+  } catch (error) {
+    console.error('Error processing database URL:', error);
+    // Используем исходную строку, если обработка не удалась
+    fixedDbUrl = dbUrl;
   }
-  
-  fixedDbUrl = url;
 }
 
 export const prisma = new PrismaClient({

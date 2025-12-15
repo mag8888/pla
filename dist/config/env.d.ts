@@ -4,7 +4,7 @@ export declare const env: {
     botWebhookUrl: string | undefined;
     botWebhookSecret: string | undefined;
     adminChatId: string | undefined;
-    databaseUrl: string;
+    databaseUrl: string | undefined;
     adminEmail: string;
     adminPassword: string;
     publicBaseUrl: string;
