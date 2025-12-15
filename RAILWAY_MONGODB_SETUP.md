@@ -104,11 +104,28 @@ railway logs
 - ✅ `Prisma Client generated successfully`
 - ✅ `Database connected`
 
-## 📊 Миграция данных из MongoDB Atlas
+## 📊 Миграция данных
 
-Если у вас уже есть данные в MongoDB Atlas:
+### Вариант 1: Восстановление из бэкапа Cloudinary (Рекомендуется) ⭐
 
-### Вариант 1: Экспорт/Импорт через mongodump/mongorestore
+Если у вас есть бэкапы в Cloudinary (автоматические или ручные):
+
+```bash
+# Через Railway CLI
+railway link
+railway run npm run restore
+```
+
+Скрипт автоматически:
+1. Найдет последний бэкап в Cloudinary
+2. Скачает его
+3. Восстановит все данные в новую базу
+
+**Подробная инструкция:** См. [RESTORE_FROM_BACKUP.md](./RESTORE_FROM_BACKUP.md)
+
+### Вариант 2: Экспорт/Импорт через mongodump/mongorestore
+
+Если нужно мигрировать напрямую из MongoDB Atlas:
 
 ```bash
 # 1. Экспорт из Atlas
@@ -119,7 +136,7 @@ mongodump --uri="mongodb+srv://user:pass@cluster.mongodb.net/plazma" --out=./bac
 mongorestore --uri="mongodb://mongo:27017/plazma" ./backup/plazma
 ```
 
-### Вариант 2: Через Railway CLI
+### Вариант 3: Через Railway CLI
 
 ```bash
 # 1. Подключитесь к Railway
@@ -132,7 +149,7 @@ mongodump --uri="YOUR_ATLAS_URI" --out=./backup
 railway run mongorestore --uri="$MONGO_URL" ./backup/plazma
 ```
 
-### Вариант 3: Через MongoDB Compass
+### Вариант 4: Через MongoDB Compass
 
 1. Подключитесь к MongoDB Atlas через Compass
 2. Экспортируйте коллекции
