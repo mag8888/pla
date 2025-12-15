@@ -1,5 +1,24 @@
 # 🚂 Настройка Railway для Web App
 
+## 🗄️ Настройка базы данных MongoDB на Railway
+
+### Вариант 1: MongoDB на Railway (Рекомендуется)
+
+1. **Добавьте MongoDB плагин:**
+   - В Railway Dashboard нажмите **"+ New"** → **"Database"** → **"Add MongoDB"**
+   - Railway автоматически создаст MongoDB инстанс
+
+2. **Настройте подключение:**
+   - Railway автоматически создаст переменную `MONGO_URL` в MongoDB сервисе
+   - В основном сервисе (бот) добавьте переменную `DATABASE_URL` со значением: `${{MongoDB.MONGO_URL}}`
+   - Это создаст Reference Variable, которая автоматически синхронизируется
+
+**Подробная инструкция:** См. [RAILWAY_MONGODB_SETUP.md](./RAILWAY_MONGODB_SETUP.md)
+
+### Вариант 2: MongoDB Atlas (внешний)
+
+Если вы используете MongoDB Atlas, просто добавьте переменную `DATABASE_URL` с вашей строкой подключения.
+
 ## Переменные окружения
 
 Добавьте следующие переменные в Railway Dashboard:
@@ -12,11 +31,15 @@
 
 ```env
 BOT_TOKEN=your_bot_token_from_botfather
-DATABASE_URL=your_mongodb_connection_string
+DATABASE_URL=${{MongoDB.MONGO_URL}}  # Для Railway MongoDB (Reference Variable)
+# ИЛИ
+DATABASE_URL=your_mongodb_atlas_connection_string  # Для MongoDB Atlas
 SESSION_SECRET=your_random_session_secret_key
 PUBLIC_BASE_URL=https://plazma-production.up.railway.app
 WEBAPP_URL=https://plazma-production.up.railway.app/webapp
 ```
+
+**Примечание:** Приложение автоматически использует `DATABASE_URL` или `MONGO_URL` (если `DATABASE_URL` не установлен).
 
 ### 3. Автоматические переменные Railway
 
