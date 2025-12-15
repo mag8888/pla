@@ -17,6 +17,7 @@
     "migrate:deploy": "node scripts/migrate-safe.js",
     "prisma:generate": "prisma generate",
     "backup": "node scripts/backup-database-railway.js",
+    "restore": "node scripts/restore-from-cloudinary.js",
     "setup-webapp": "node scripts/setup-webapp.js",
     "setup-railway": "node scripts/setup-railway-webapp.js",
     "check-video": "node scripts/check-video-size.js",
