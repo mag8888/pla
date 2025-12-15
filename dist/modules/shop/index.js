@@ -474,10 +474,16 @@ export const shopModule = {
             const user = await ensureUser(ctx);
             const validRegions = ['RUSSIA', 'BALI', 'DUBAI', 'KAZAKHSTAN', 'BELARUS', 'OTHER'];
             if (user && validRegions.includes(regionOrAction)) {
-                await prisma.user.update({
-                    where: { id: user.id },
-                    data: { selectedRegion: regionOrAction }
-                });
+                try {
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { selectedRegion: regionOrAction }
+                    });
+                }
+                catch (error) {
+                    // Если БД недоступна, продолжаем работу с выбранным регионом в памяти
+                    console.warn('Failed to save region to database (non-critical):', error.message?.substring(0, 100));
+                }
                 await logUserAction(ctx, 'shop:region_selected', { region: regionOrAction });
                 await showCategories(ctx, regionOrAction);
             }

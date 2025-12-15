@@ -545,10 +545,15 @@ export const shopModule: BotModule = {
       const user = await ensureUser(ctx);
       const validRegions: Array<'RUSSIA' | 'BALI' | 'DUBAI' | 'KAZAKHSTAN' | 'BELARUS' | 'OTHER'> = ['RUSSIA', 'BALI', 'DUBAI', 'KAZAKHSTAN', 'BELARUS', 'OTHER'];
       if (user && validRegions.includes(regionOrAction as any)) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { selectedRegion: regionOrAction as 'RUSSIA' | 'BALI' | 'DUBAI' | 'KAZAKHSTAN' | 'BELARUS' | 'OTHER' }
-        });
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { selectedRegion: regionOrAction as 'RUSSIA' | 'BALI' | 'DUBAI' | 'KAZAKHSTAN' | 'BELARUS' | 'OTHER' }
+          });
+        } catch (error: any) {
+          // Если БД недоступна, продолжаем работу с выбранным регионом в памяти
+          console.warn('Failed to save region to database (non-critical):', error.message?.substring(0, 100));
+        }
         await logUserAction(ctx, 'shop:region_selected', { region: regionOrAction });
         await showCategories(ctx, regionOrAction);
       }

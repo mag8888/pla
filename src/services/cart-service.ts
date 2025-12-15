@@ -12,22 +12,37 @@ export async function getCartItems(userId: string) {
 }
 
 export async function addProductToCart(userId: string, productId: string) {
-  return prisma.cartItem.upsert({
+  // Используем findUnique + create/update вместо upsert для избежания транзакций
+  const existingItem = await prisma.cartItem.findUnique({
     where: {
       userId_productId: {
         userId,
         productId,
       },
     },
-    update: {
-      quantity: { increment: 1 },
-    },
-    create: {
-      userId,
-      productId,
-      quantity: 1,
-    },
   });
+
+  if (existingItem) {
+    return prisma.cartItem.update({
+      where: {
+        userId_productId: {
+          userId,
+          productId,
+        },
+      },
+      data: {
+        quantity: { increment: 1 },
+      },
+    });
+  } else {
+    return prisma.cartItem.create({
+      data: {
+        userId,
+        productId,
+        quantity: 1,
+      },
+    });
+  }
 }
 
 export async function clearCart(userId: string) {
@@ -35,24 +50,37 @@ export async function clearCart(userId: string) {
 }
 
 export async function increaseProductQuantity(userId: string, productId: string) {
-  return prisma.cartItem.upsert({
+  // Используем findUnique + create/update вместо upsert для избежания транзакций
+  const existingItem = await prisma.cartItem.findUnique({
     where: {
       userId_productId: {
         userId,
         productId,
       },
     },
-    update: {
-      quantity: {
-        increment: 1,
-      },
-    },
-    create: {
-      userId,
-      productId,
-      quantity: 1,
-    },
   });
+
+  if (existingItem) {
+    return prisma.cartItem.update({
+      where: {
+        userId_productId: {
+          userId,
+          productId,
+        },
+      },
+      data: {
+        quantity: { increment: 1 },
+      },
+    });
+  } else {
+    return prisma.cartItem.create({
+      data: {
+        userId,
+        productId,
+        quantity: 1,
+      },
+    });
+  }
 }
 
 export async function decreaseProductQuantity(userId: string, productId: string) {

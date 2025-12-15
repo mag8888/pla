@@ -44,30 +44,37 @@ export async function getAllBotContents() {
  */
 export async function upsertBotContent(data) {
     try {
-        const content = await prisma.botContent.upsert({
-            where: {
-                key: data.key,
-            },
-            update: {
-                title: data.title,
-                content: data.content,
-                description: data.description,
-                category: data.category,
-                language: data.language || 'ru',
-                isActive: data.isActive !== undefined ? data.isActive : true,
-                updatedAt: new Date(),
-            },
-            create: {
-                key: data.key,
-                title: data.title,
-                content: data.content,
-                description: data.description,
-                category: data.category,
-                language: data.language || 'ru',
-                isActive: data.isActive !== undefined ? data.isActive : true,
-            },
+        // Используем findUnique + create/update вместо upsert для избежания транзакций
+        const existing = await prisma.botContent.findUnique({
+            where: { key: data.key },
         });
-        return content;
+        if (existing) {
+            return prisma.botContent.update({
+                where: { key: data.key },
+                data: {
+                    title: data.title,
+                    content: data.content,
+                    description: data.description,
+                    category: data.category,
+                    language: data.language || 'ru',
+                    isActive: data.isActive !== undefined ? data.isActive : true,
+                    updatedAt: new Date(),
+                },
+            });
+        }
+        else {
+            return prisma.botContent.create({
+                data: {
+                    key: data.key,
+                    title: data.title,
+                    content: data.content,
+                    description: data.description,
+                    category: data.category,
+                    language: data.language || 'ru',
+                    isActive: data.isActive !== undefined ? data.isActive : true,
+                },
+            });
+        }
     }
     catch (error) {
         console.error('Error upserting bot content:', error);

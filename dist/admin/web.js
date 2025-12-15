@@ -10196,31 +10196,63 @@ router.post('/orders/:orderId/pay', requireAdmin, async (req, res) => {
                 error: `Недостаточно средств. Требуется: ${totalAmount.toFixed(2)} PZ, доступно: ${order.user.balance.toFixed(2)} PZ`
             });
         }
-        // Start transaction
-        await prisma.$transaction(async (tx) => {
-            // Deduct amount from user balance
-            await tx.user.update({
-                where: { id: order.user.id },
-                data: { balance: { decrement: totalAmount } }
-            });
-            // Update order status to COMPLETED
-            await tx.orderRequest.update({
-                where: { id: orderId },
-                data: { status: 'COMPLETED' }
-            });
-            // Create transaction record
-            await tx.userHistory.create({
-                data: {
-                    userId: order.user.id,
-                    action: 'ORDER_PAYMENT',
-                    payload: {
-                        orderId: orderId,
-                        amount: -totalAmount,
-                        description: `Оплата заказа #${orderId.slice(-8)}`
+        // Start transaction (fallback to individual operations if transactions not supported)
+        try {
+            await prisma.$transaction(async (tx) => {
+                // Deduct amount from user balance
+                await tx.user.update({
+                    where: { id: order.user.id },
+                    data: { balance: { decrement: totalAmount } }
+                });
+                // Update order status to COMPLETED
+                await tx.orderRequest.update({
+                    where: { id: orderId },
+                    data: { status: 'COMPLETED' }
+                });
+                // Create transaction record
+                await tx.userHistory.create({
+                    data: {
+                        userId: order.user.id,
+                        action: 'ORDER_PAYMENT',
+                        payload: {
+                            orderId: orderId,
+                            amount: -totalAmount,
+                            description: `Оплата заказа #${orderId.slice(-8)}`
+                        }
                     }
-                }
+                });
             });
-        });
+        }
+        catch (error) {
+            // Fallback if transactions are not supported (MongoDB Atlas free tier)
+            const errorMessage = error.message || error.meta?.message || '';
+            if (errorMessage.includes('Transactions are not supported')) {
+                console.warn('Transactions not supported, using individual operations');
+                // Perform operations individually without transaction
+                await prisma.user.update({
+                    where: { id: order.user.id },
+                    data: { balance: { decrement: totalAmount } }
+                });
+                await prisma.orderRequest.update({
+                    where: { id: orderId },
+                    data: { status: 'COMPLETED' }
+                });
+                await prisma.userHistory.create({
+                    data: {
+                        userId: order.user.id,
+                        action: 'ORDER_PAYMENT',
+                        payload: {
+                            orderId: orderId,
+                            amount: -totalAmount,
+                            description: `Оплата заказа #${orderId.slice(-8)}`
+                        }
+                    }
+                });
+            }
+            else {
+                throw error; // Re-throw if it's a different error
+            }
+        }
         // Check if this purchase qualifies for referral program activation (120 PZ)
         if (totalAmount >= 120) {
             try {
