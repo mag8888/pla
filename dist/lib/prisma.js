@@ -69,11 +69,72 @@ if (dbUrl) {
         fixedDbUrl = dbUrl;
     }
 }
+// Кастомный логгер для фильтрации ошибок аутентификации
+const customLogger = {
+    log: (level, message) => {
+        // Фильтруем ошибки аутентификации из логов
+        if (level === 'error' || level === 'warn') {
+            const lowerMessage = message.toLowerCase();
+            if (lowerMessage.includes('authentication failed') ||
+                lowerMessage.includes('scram failure') ||
+                lowerMessage.includes('authenticationfailed')) {
+                // Не логируем ошибки аутентификации, так как они уже обрабатываются
+                return;
+            }
+        }
+        // Логируем остальные сообщения
+        if (level === 'query') {
+            // Логируем только важные запросы, не все
+            return;
+        }
+        console.log(`[Prisma ${level}]`, message);
+    },
+    error: (message) => {
+        const lowerMessage = message.toLowerCase();
+        if (lowerMessage.includes('authentication failed') ||
+            lowerMessage.includes('scram failure') ||
+            lowerMessage.includes('authenticationfailed')) {
+            // Не логируем ошибки аутентификации
+            return;
+        }
+        console.error('[Prisma error]', message);
+    },
+    warn: (message) => {
+        const lowerMessage = message.toLowerCase();
+        if (lowerMessage.includes('authentication failed') ||
+            lowerMessage.includes('scram failure') ||
+            lowerMessage.includes('authenticationfailed')) {
+            // Не логируем ошибки аутентификации
+            return;
+        }
+        console.warn('[Prisma warn]', message);
+    },
+    info: (message) => {
+        console.log('[Prisma info]', message);
+    },
+    debug: (message) => {
+        // Не логируем debug сообщения
+    },
+};
 export const prisma = new PrismaClient({
     datasources: fixedDbUrl ? {
         db: {
             url: fixedDbUrl
         }
     } : undefined,
-    log: ['query', 'info', 'warn', 'error'],
+    log: [
+        { level: 'info', emit: 'event' },
+        { level: 'warn', emit: 'event' },
+        { level: 'error', emit: 'event' },
+    ],
+});
+// Обработка событий логирования Prisma
+prisma.$on('info', (e) => {
+    customLogger.info(e.message);
+});
+prisma.$on('warn', (e) => {
+    customLogger.warn(e.message);
+});
+prisma.$on('error', (e) => {
+    customLogger.error(e.message);
 });

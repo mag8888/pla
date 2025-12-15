@@ -76,11 +76,76 @@ if (dbUrl) {
   }
 }
 
+// Кастомный логгер для фильтрации ошибок аутентификации
+const customLogger = {
+  log: (level: string, message: string) => {
+    // Фильтруем ошибки аутентификации из логов
+    if (level === 'error' || level === 'warn') {
+      const lowerMessage = message.toLowerCase();
+      if (lowerMessage.includes('authentication failed') ||
+          lowerMessage.includes('scram failure') ||
+          lowerMessage.includes('authenticationfailed')) {
+        // Не логируем ошибки аутентификации, так как они уже обрабатываются
+        return;
+      }
+    }
+    // Логируем остальные сообщения
+    if (level === 'query') {
+      // Логируем только важные запросы, не все
+      return;
+    }
+    console.log(`[Prisma ${level}]`, message);
+  },
+  error: (message: string) => {
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes('authentication failed') ||
+        lowerMessage.includes('scram failure') ||
+        lowerMessage.includes('authenticationfailed')) {
+      // Не логируем ошибки аутентификации
+      return;
+    }
+    console.error('[Prisma error]', message);
+  },
+  warn: (message: string) => {
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes('authentication failed') ||
+        lowerMessage.includes('scram failure') ||
+        lowerMessage.includes('authenticationfailed')) {
+      // Не логируем ошибки аутентификации
+      return;
+    }
+    console.warn('[Prisma warn]', message);
+  },
+  info: (message: string) => {
+    console.log('[Prisma info]', message);
+  },
+  debug: (message: string) => {
+    // Не логируем debug сообщения
+  },
+};
+
 export const prisma = new PrismaClient({
   datasources: fixedDbUrl ? {
     db: {
       url: fixedDbUrl
     }
   } : undefined,
-  log: ['query', 'info', 'warn', 'error'],
+  log: [
+    { level: 'info', emit: 'event' },
+    { level: 'warn', emit: 'event' },
+    { level: 'error', emit: 'event' },
+  ],
+});
+
+// Обработка событий логирования Prisma
+prisma.$on('info' as any, (e: any) => {
+  customLogger.info(e.message);
+});
+
+prisma.$on('warn' as any, (e: any) => {
+  customLogger.warn(e.message);
+});
+
+prisma.$on('error' as any, (e: any) => {
+  customLogger.error(e.message);
 });
