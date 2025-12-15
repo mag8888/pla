@@ -8,6 +8,18 @@ function generateObjectId(telegramId: number): string {
   return hex.substring(0, 24);
 }
 
+// Проверяет, заблокирован ли бот пользователем
+function isBotBlockedError(error: any): boolean {
+  if (!error) return false;
+  const errorMessage = error.message || error.description || '';
+  const errorCode = error.response?.error_code || error.error_code;
+  return (
+    errorCode === 403 ||
+    errorMessage.includes('bot was blocked') ||
+    errorMessage.includes('Forbidden: bot was blocked')
+  );
+}
+
 export async function ensureUser(ctx: Context) {
   const from = ctx.from;
   if (!from) return null;
@@ -68,13 +80,23 @@ export async function checkUserContact(ctx: Context): Promise<boolean> {
   }
 
   // Если нет ни username, ни phone - запрашиваем телефон
-  await ctx.reply(
-    '📱 Для продолжения работы с ботом необходимо указать номер телефона.\n\n' +
-    'Пожалуйста, нажмите кнопку ниже, чтобы поделиться своим номером телефона:',
-    Markup.keyboard([
-      [Markup.button.contactRequest('📱 Поделиться номером телефона')]
-    ]).resize()
-  );
+  try {
+    await ctx.reply(
+      '📱 Для продолжения работы с ботом необходимо указать номер телефона.\n\n' +
+      'Пожалуйста, нажмите кнопку ниже, чтобы поделиться своим номером телефона:',
+      Markup.keyboard([
+        [Markup.button.contactRequest('📱 Поделиться номером телефона')]
+      ]).resize()
+    );
+  } catch (error) {
+    // Если бот заблокирован пользователем, просто выходим без ошибки
+    if (isBotBlockedError(error)) {
+      console.log('Bot was blocked by user, skipping phone request');
+      return false;
+    }
+    // Для других ошибок пробрасываем дальше
+    throw error;
+  }
 
   return false;
 }
@@ -104,13 +126,39 @@ export async function handlePhoneNumber(ctx: Context): Promise<void> {
       data: { phone: phoneNumber } as any
     });
 
-    await ctx.reply(
-      '✅ Спасибо! Номер телефона успешно сохранен.\n\nТеперь вы можете пользоваться всеми функциями бота.',
-      Markup.removeKeyboard()
-    );
+    try {
+      await ctx.reply(
+        '✅ Спасибо! Номер телефона успешно сохранен.\n\nТеперь вы можете пользоваться всеми функциями бота.',
+        Markup.removeKeyboard()
+      );
+    } catch (replyError) {
+      // Если бот заблокирован, просто выходим без ошибки
+      if (isBotBlockedError(replyError)) {
+        console.log('Bot was blocked by user, skipping phone confirmation');
+        return;
+      }
+      throw replyError;
+    }
   } catch (error) {
+    // Если бот заблокирован, просто выходим без ошибки
+    if (isBotBlockedError(error)) {
+      console.log('Bot was blocked by user, skipping phone number save');
+      return;
+    }
+    
     console.error('Failed to save phone number:', error);
-    await ctx.reply('❌ Ошибка при сохранении номера телефона. Попробуйте позже.');
+    
+    try {
+      await ctx.reply('❌ Ошибка при сохранении номера телефона. Попробуйте позже.');
+    } catch (replyError) {
+      // Если бот заблокирован, просто выходим без ошибки
+      if (isBotBlockedError(replyError)) {
+        console.log('Bot was blocked by user, skipping error message');
+        return;
+      }
+      // Для других ошибок пробрасываем дальше
+      throw replyError;
+    }
   }
 }
 
