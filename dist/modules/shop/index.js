@@ -43,11 +43,16 @@ export async function showCategories(ctx, region) {
         const categories = await getActiveCategories();
         console.log('🛍️ Found active categories:', categories.length);
         // Debug: also check all categories
-        const allCategories = await prisma.category.findMany();
-        console.log('🛍️ Total categories in DB:', allCategories.length);
-        allCategories.forEach(cat => {
-            console.log(`  - ${cat.name} (ID: ${cat.id}, Active: ${cat.isActive})`);
-        });
+        try {
+            const allCategories = await prisma.category.findMany();
+            console.log('🛍️ Total categories in DB:', allCategories.length);
+            allCategories.forEach(cat => {
+                console.log(`  - ${cat.name} (ID: ${cat.id}, Active: ${cat.isActive})`);
+            });
+        }
+        catch (error) {
+            console.warn('Failed to fetch all categories for debug (non-critical):', error);
+        }
         if (categories.length === 0) {
             console.log('🛍️ No active categories found, showing empty message');
             // Получаем баланс пользователя
@@ -463,67 +468,155 @@ export const shopModule = {
         });
         // Handle region selection
         bot.action(new RegExp(`^${REGION_SELECT_PREFIX}(.+)$`), async (ctx) => {
-            const match = ctx.match;
-            const regionOrAction = match[1];
-            await ctx.answerCbQuery();
-            if (regionOrAction === 'change') {
-                await showRegionSelection(ctx);
-                return;
+            try {
+                const match = ctx.match;
+                const regionOrAction = match[1];
+                await ctx.answerCbQuery();
+                if (regionOrAction === 'change') {
+                    await showRegionSelection(ctx);
+                    return;
+                }
+                // Save region to user and show categories
+                const user = await ensureUser(ctx);
+                const validRegions = ['RUSSIA', 'BALI', 'DUBAI', 'KAZAKHSTAN', 'BELARUS', 'OTHER'];
+                if (!user) {
+                    await ctx.reply('❌ Ошибка загрузки данных пользователя. Попробуйте позже.');
+                    return;
+                }
+                if (validRegions.includes(regionOrAction)) {
+                    try {
+                        await prisma.user.update({
+                            where: { id: user.id },
+                            data: { selectedRegion: regionOrAction }
+                        });
+                    }
+                    catch (error) {
+                        // Если БД недоступна, продолжаем работу с выбранным регионом в памяти
+                        console.warn('Failed to save region to database (non-critical):', error.message?.substring(0, 100));
+                    }
+                    await logUserAction(ctx, 'shop:region_selected', { region: regionOrAction });
+                    await showCategories(ctx, regionOrAction);
+                }
+                else {
+                    await ctx.reply('❌ Неверный регион. Попробуйте выбрать снова.');
+                }
             }
-            // Save region to user and show categories
-            const user = await ensureUser(ctx);
-            const validRegions = ['RUSSIA', 'BALI', 'DUBAI', 'KAZAKHSTAN', 'BELARUS', 'OTHER'];
-            if (user && validRegions.includes(regionOrAction)) {
+            catch (error) {
+                console.error('Error in region selection handler:', error);
                 try {
-                    await prisma.user.update({
-                        where: { id: user.id },
-                        data: { selectedRegion: regionOrAction }
-                    });
+                    await ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
                 }
-                catch (error) {
-                    // Если БД недоступна, продолжаем работу с выбранным регионом в памяти
-                    console.warn('Failed to save region to database (non-critical):', error.message?.substring(0, 100));
+                catch (replyError) {
+                    // Игнорируем ошибки отправки сообщений
                 }
-                await logUserAction(ctx, 'shop:region_selected', { region: regionOrAction });
-                await showCategories(ctx, regionOrAction);
             }
         });
         bot.action(new RegExp(`^${CATEGORY_ACTION_PREFIX}(.+)$`), async (ctx) => {
-            const match = ctx.match;
-            const categoryId = match[1];
-            await ctx.answerCbQuery();
-            // Get user's selected region
-            const user = await ensureUser(ctx);
-            const region = user?.selectedRegion || 'RUSSIA';
-            await logUserAction(ctx, 'shop:category', { categoryId, region });
-            await sendProductCards(ctx, categoryId, region);
+            try {
+                const match = ctx.match;
+                const categoryId = match[1];
+                await ctx.answerCbQuery();
+                // Get user's selected region
+                const user = await ensureUser(ctx);
+                const region = user?.selectedRegion || 'RUSSIA';
+                await logUserAction(ctx, 'shop:category', { categoryId, region });
+                await sendProductCards(ctx, categoryId, region);
+            }
+            catch (error) {
+                console.error('Error in category selection handler:', error);
+                try {
+                    await ctx.reply('❌ Ошибка загрузки категории. Попробуйте позже.');
+                }
+                catch (replyError) {
+                    // Игнорируем ошибки отправки сообщений
+                }
+            }
         });
         bot.action(new RegExp(`^${PRODUCT_MORE_PREFIX}(.+)$`), async (ctx) => {
-            const match = ctx.match;
-            const productId = match[1];
-            await handleProductMore(ctx, productId);
+            try {
+                const match = ctx.match;
+                const productId = match[1];
+                await handleProductMore(ctx, productId);
+            }
+            catch (error) {
+                console.error('Error in product more handler:', error);
+                try {
+                    await ctx.answerCbQuery('❌ Ошибка загрузки товара');
+                    await ctx.reply('❌ Ошибка загрузки товара. Попробуйте позже.');
+                }
+                catch (replyError) {
+                    // Игнорируем ошибки отправки сообщений
+                }
+            }
         });
         bot.action(new RegExp(`^${PRODUCT_INSTRUCTION_PREFIX}(.+)$`), async (ctx) => {
-            const match = ctx.match;
-            const productId = match[1];
-            await handleProductInstruction(ctx, productId);
+            try {
+                const match = ctx.match;
+                const productId = match[1];
+                await handleProductInstruction(ctx, productId);
+            }
+            catch (error) {
+                console.error('Error in product instruction handler:', error);
+                try {
+                    await ctx.answerCbQuery('❌ Ошибка загрузки инструкции');
+                    await ctx.reply('❌ Ошибка загрузки инструкции. Попробуйте позже.');
+                }
+                catch (replyError) {
+                    // Игнорируем ошибки отправки сообщений
+                }
+            }
         });
         bot.action(new RegExp(`^${PRODUCT_CART_PREFIX}(.+)$`), async (ctx) => {
-            const match = ctx.match;
-            const productId = match[1];
-            await handleAddToCart(ctx, productId);
+            try {
+                const match = ctx.match;
+                const productId = match[1];
+                await handleAddToCart(ctx, productId);
+            }
+            catch (error) {
+                console.error('Error in add to cart handler:', error);
+                try {
+                    await ctx.answerCbQuery('❌ Ошибка добавления в корзину');
+                    await ctx.reply('❌ Ошибка добавления в корзину. Попробуйте позже.');
+                }
+                catch (replyError) {
+                    // Игнорируем ошибки отправки сообщений
+                }
+            }
         });
         bot.action(new RegExp(`^${PRODUCT_BUY_PREFIX}(.+)$`), async (ctx) => {
-            const match = ctx.match;
-            const productId = match[1];
-            await handleBuy(ctx, productId);
+            try {
+                const match = ctx.match;
+                const productId = match[1];
+                await handleBuy(ctx, productId);
+            }
+            catch (error) {
+                console.error('Error in buy handler:', error);
+                try {
+                    await ctx.answerCbQuery('❌ Ошибка оформления заказа');
+                    await ctx.reply('❌ Ошибка оформления заказа. Попробуйте позже.');
+                }
+                catch (replyError) {
+                    // Игнорируем ошибки отправки сообщений
+                }
+            }
         });
         // Handle cart button from shop
         bot.action('shop:cart', async (ctx) => {
-            await ctx.answerCbQuery();
-            await logUserAction(ctx, 'shop:cart');
-            const { showCart } = await import('../cart/index.js');
-            await showCart(ctx);
+            try {
+                await ctx.answerCbQuery();
+                await logUserAction(ctx, 'shop:cart');
+                const { showCart } = await import('../cart/index.js');
+                await showCart(ctx);
+            }
+            catch (error) {
+                console.error('Error in cart handler:', error);
+                try {
+                    await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
+                }
+                catch (replyError) {
+                    // Игнорируем ошибки отправки сообщений
+                }
+            }
         });
         // Handle payment methods
         bot.action('payment:card', async (ctx) => {

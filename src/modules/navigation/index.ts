@@ -185,8 +185,17 @@ const navigationItems: NavigationItem[] = [
     description: 'Истории сообщества и результаты клиентов',
     badgeKey: 'reviews',
     handler: async (ctx) => {
-      const { showReviews } = await import('../reviews/index.js');
-      await showReviews(ctx);
+      try {
+        const { showReviews } = await import('../reviews/index.js');
+        await showReviews(ctx);
+      } catch (error) {
+        console.error('⭐ Navigation: Failed to show reviews', error);
+        try {
+          await ctx.reply('❌ Ошибка при загрузке отзывов. Попробуйте позже.');
+        } catch (replyError) {
+          // Игнорируем ошибки отправки сообщений
+        }
+      }
     },
   },
   {
@@ -806,9 +815,18 @@ ${greeting}`;
     });
 
     bot.hears('⭐ Отзывы', async (ctx) => {
-      await logUserAction(ctx, 'menu:reviews');
-      const { showReviews } = await import('../reviews/index.js');
-      await showReviews(ctx);
+      try {
+        await logUserAction(ctx, 'menu:reviews');
+        const { showReviews } = await import('../reviews/index.js');
+        await showReviews(ctx);
+      } catch (error) {
+        console.error('⭐ Navigation: Failed to show reviews', error);
+        try {
+          await ctx.reply('❌ Ошибка при загрузке отзывов. Попробуйте позже.');
+        } catch (replyError) {
+          // Игнорируем ошибки отправки сообщений
+        }
+      }
     });
 
     bot.hears('ℹ️ О PLASMA', async (ctx) => {

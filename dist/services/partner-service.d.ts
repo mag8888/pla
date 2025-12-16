@@ -72,9 +72,9 @@ export declare function getPartnerDashboard(userId: string): Promise<{
         referrals: {
             id: string;
             contact: string | null;
+            level: number;
             createdAt: Date;
             profileId: string;
-            level: number;
             referredId: string | null;
             referralType: import(".prisma/client").$Enums.PartnerProgramType;
         }[];
@@ -132,18 +132,18 @@ export declare function calculateDualSystemBonuses(orderUserId: string, orderAmo
 export declare function createPartnerReferral(profileId: string, level: number, referredId?: string, contact?: string, referralType?: 'DIRECT' | 'MULTI_LEVEL'): Promise<{
     id: string;
     contact: string | null;
+    level: number;
     createdAt: Date;
     profileId: string;
-    level: number;
     referredId: string | null;
     referralType: import(".prisma/client").$Enums.PartnerProgramType;
 }>;
 export declare function upsertPartnerReferral(profileId: string, level: number, referredId?: string, contact?: string, referralType?: 'DIRECT' | 'MULTI_LEVEL'): Promise<{
     id: string;
     contact: string | null;
+    level: number;
     createdAt: Date;
     profileId: string;
-    level: number;
     referredId: string | null;
     referralType: import(".prisma/client").$Enums.PartnerProgramType;
 }>;
