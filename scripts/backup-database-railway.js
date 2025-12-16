@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,7 +10,10 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const prisma = new PrismaClient();
+// Используем тот же PrismaClient из lib/prisma.ts, который поддерживает DATABASE_URL || MONGO_URL
+// Импортируем через относительный путь
+const prismaModule = await import('../dist/lib/prisma.js');
+const prisma = prismaModule.prisma;
 
 // Configure Cloudinary
 cloudinary.config({
@@ -38,6 +40,20 @@ async function uploadToCloudinary(filePath) {
 async function exportDatabase() {
   let filepath = null;
   try {
+    // Проверяем доступность БД перед подключением
+    const dbUrl = process.env.DATABASE_URL || process.env.MONGO_URL;
+    if (!dbUrl) {
+      console.warn('⚠️  DATABASE_URL or MONGO_URL not found. Skipping backup.');
+      return {
+        success: false,
+        error: 'Database URL not configured',
+        filename: null,
+        filepath: null,
+        fileSize: '0 MB',
+        statistics: {}
+      };
+    }
+    
     console.log('🔄 Подключение к базе данных...');
     await prisma.$connect();
     console.log('✅ Подключено успешно!');
@@ -218,12 +234,50 @@ async function exportDatabase() {
       statistics: exportData.statistics
     };
 
-  } catch (error) {
-    console.error('❌ Ошибка при экспорте:', error);
+  } catch (error: any) {
+    // Проверяем, является ли это ошибкой подключения/аутентификации
+    const errorMessage = error.message || error.meta?.message || '';
+    const errorCode = error.code;
+    const errorKind = (error as any).kind || '';
+    
+    if (errorCode === 'P1012' || errorMessage.includes('Environment variable not found')) {
+      console.warn('⚠️  DATABASE_URL or MONGO_URL not found. Skipping backup.');
+      return {
+        success: false,
+        error: 'Database URL not configured',
+        filename: null,
+        filepath: null,
+        fileSize: '0 MB',
+        statistics: {}
+      };
+    }
+    
+    if (errorMessage.includes('Authentication failed') || 
+        errorMessage.includes('SCRAM failure') ||
+        errorKind.includes('AuthenticationFailed') ||
+        errorCode === 'P1013') {
+      console.warn('⚠️  Database authentication failed. Skipping backup.');
+      console.warn('💡 Please fix MongoDB connection string. See FIX_MONGODB_AUTH.md');
+      return {
+        success: false,
+        error: 'Database authentication failed',
+        filename: null,
+        filepath: null,
+        fileSize: '0 MB',
+        statistics: {}
+      };
+    }
+    
+    // Для других ошибок логируем и пробрасываем
+    console.error('❌ Ошибка при экспорте:', error.message?.substring(0, 200));
     throw error;
   } finally {
-    await prisma.$disconnect();
-    console.log('🔌 Соединение с базой данных закрыто');
+    try {
+      await prisma.$disconnect();
+      console.log('🔌 Соединение с базой данных закрыто');
+    } catch (disconnectError) {
+      // Игнорируем ошибки при отключении
+    }
   }
 }
 
