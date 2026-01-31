@@ -537,7 +537,7 @@ export const navigationModule: BotModule = {
         '/audio - Звуковые матрицы\n' +
         '/reviews - Отзывы клиентов\n' +
         '/about - О PLASMA Water\n' +
-        '/add_balance - Пополнить баланс через Lava\n' +
+        '/add_balance - Пополнить баланс\n' +
         '/support - Поддержка 24/7\n' +
         '/app - Открыть веб-приложение\n\n' +
         'Или используйте кнопки меню для навигации!',
