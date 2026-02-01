@@ -10,10 +10,8 @@ export interface IReview extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const Review: mongoose.Model<IReview, {}, {}, {}, mongoose.Document<unknown, {}, IReview, {}, mongoose.DefaultSchemaOptions> & IReview & Required<{
+export declare const Review: mongoose.Model<IReview, {}, {}, {}, mongoose.Document<unknown, {}, IReview, {}, {}> & IReview & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IReview>;
+}, any>;

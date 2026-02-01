@@ -3,6 +3,7 @@ export declare enum TransactionType {
     CREDIT = "CREDIT",
     DEBIT = "DEBIT"
 }
+export { TransactionType as PartnerTransactionType };
 export interface IPartnerTransaction extends Document {
     _id: string;
     profileId: string;
@@ -11,10 +12,8 @@ export interface IPartnerTransaction extends Document {
     description: string;
     createdAt: Date;
 }
-export declare const PartnerTransaction: mongoose.Model<IPartnerTransaction, {}, {}, {}, mongoose.Document<unknown, {}, IPartnerTransaction, {}, mongoose.DefaultSchemaOptions> & IPartnerTransaction & Required<{
+export declare const PartnerTransaction: mongoose.Model<IPartnerTransaction, {}, {}, {}, mongoose.Document<unknown, {}, IPartnerTransaction, {}, {}> & IPartnerTransaction & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IPartnerTransaction>;
+}, any>;

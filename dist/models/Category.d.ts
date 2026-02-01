@@ -1,6 +1,7 @@
 import mongoose, { Document } from 'mongoose';
 export interface ICategory extends Document {
     _id: string;
+    id?: string;
     name: string;
     slug: string;
     description?: string;
@@ -8,10 +9,8 @@ export interface ICategory extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const Category: mongoose.Model<ICategory, {}, {}, {}, mongoose.Document<unknown, {}, ICategory, {}, mongoose.DefaultSchemaOptions> & ICategory & Required<{
+export declare const Category: mongoose.Model<ICategory, {}, {}, {}, mongoose.Document<unknown, {}, ICategory, {}, {}> & ICategory & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, ICategory>;
+}, any>;

@@ -4,6 +4,8 @@ export var TransactionType;
     TransactionType["CREDIT"] = "CREDIT";
     TransactionType["DEBIT"] = "DEBIT";
 })(TransactionType || (TransactionType = {}));
+// Re-export for convenience
+export { TransactionType as PartnerTransactionType };
 const PartnerTransactionSchema = new Schema({
     profileId: {
         type: Schema.Types.ObjectId,

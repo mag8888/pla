@@ -9,10 +9,8 @@ export interface IPartnerReferral extends Document {
     referralType: PartnerProgramType;
     createdAt: Date;
 }
-export declare const PartnerReferral: mongoose.Model<IPartnerReferral, {}, {}, {}, mongoose.Document<unknown, {}, IPartnerReferral, {}, mongoose.DefaultSchemaOptions> & IPartnerReferral & Required<{
+export declare const PartnerReferral: mongoose.Model<IPartnerReferral, {}, {}, {}, mongoose.Document<unknown, {}, IPartnerReferral, {}, {}> & IPartnerReferral & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IPartnerReferral>;
+}, any>;

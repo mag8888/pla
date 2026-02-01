@@ -6,10 +6,8 @@ export interface IUserHistory extends Document {
     payload?: any;
     createdAt: Date;
 }
-export declare const UserHistory: mongoose.Model<IUserHistory, {}, {}, {}, mongoose.Document<unknown, {}, IUserHistory, {}, mongoose.DefaultSchemaOptions> & IUserHistory & Required<{
+export declare const UserHistory: mongoose.Model<IUserHistory, {}, {}, {}, mongoose.Document<unknown, {}, IUserHistory, {}, {}> & IUserHistory & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IUserHistory>;
+}, any>;

@@ -117,7 +117,7 @@ router.get('/categories', async (req, res) => {
         const categories = await getActiveCategories();
         const response = {
             success: true,
-            data: categories.map(cat => ({
+            data: categories.map((cat) => ({
                 id: cat.id,
                 name: cat.name,
                 slug: cat.slug,

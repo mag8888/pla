@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
-export interface IAudioFile extends Document {
-  _id: string;
+export interface IAudioFile extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
   title: string;
   description?: string;
   fileId: string;

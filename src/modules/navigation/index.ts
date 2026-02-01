@@ -489,8 +489,8 @@ async function collectMenuStats(ctx: Context): Promise<MenuStats> {
       const user = await ensureUser(ctx);
       if (user) {
       const { getCartItems } = await import('../../services/cart-service.js');
-        const cartItems = await getCartItems(user.id);
-      const totalQuantity = cartItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+        const cartItems = await getCartItems(user._id.toString());
+      const totalQuantity = cartItems.reduce((sum: number, item: any) => sum + (item.quantity ?? 0), 0);
       if (totalQuantity > 0) {
         stats.cart = String(totalQuantity);
         }
@@ -636,7 +636,7 @@ export const navigationModule: BotModule = {
             
             // Use upsert to create or get existing referral record
             const referralLevel = programType === 'DIRECT' ? 1 : 1; // Both start at level 1
-            const referral = await upsertPartnerReferral(partnerProfile.id, referralLevel, user.id, undefined, programType);
+            const referral = await upsertPartnerReferral(partnerProfile._id.toString(), referralLevel, user._id.toString(), undefined, programType as PartnerProgramType);
             
             // Award bonus only if this is a new user and new referral record
             const isNewReferral = referral.createdAt.getTime() > Date.now() - 5000; // Created within last 5 seconds
@@ -647,7 +647,7 @@ export const navigationModule: BotModule = {
               const existingBonus = await prisma.partnerTransaction.findFirst({
                 where: {
                   profileId: partnerProfile.id,
-                  description: `Бонус за приглашение друга (${user.id})`
+                  description: `Бонус за приглашение друга (${user._id.toString()})`
                 }
               });
               
@@ -657,8 +657,8 @@ export const navigationModule: BotModule = {
                 await recordPartnerTransaction(
                   partnerProfile.id, 
                   3, 
-                  `Бонус за приглашение друга (${user.id})`, 
-                  'CREDIT'
+                  `Бонус за приглашение друга (${user._id.toString()})`, 
+                  TransactionType.CREDIT
                 );
                 console.log('🔗 Referral: Bonus awarded successfully');
               } else {

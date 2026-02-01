@@ -8,10 +8,8 @@ export interface IOrderRequest extends Document {
     status: string;
     createdAt: Date;
 }
-export declare const OrderRequest: mongoose.Model<IOrderRequest, {}, {}, {}, mongoose.Document<unknown, {}, IOrderRequest, {}, mongoose.DefaultSchemaOptions> & IOrderRequest & Required<{
+export declare const OrderRequest: mongoose.Model<IOrderRequest, {}, {}, {}, mongoose.Document<unknown, {}, IOrderRequest, {}, {}> & IOrderRequest & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IOrderRequest>;
+}, any>;

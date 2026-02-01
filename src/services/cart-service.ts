@@ -4,12 +4,12 @@ import mongoose from 'mongoose';
 
 export async function getCartItems(userId: string) {
   try {
-    const items = await CartItem.find({ userId: new mongoose.Types.ObjectId(userId) })
+    const items = await CartItem.find({ userId: userId })
       .populate('productId')
       .sort({ createdAt: -1 })
       .lean();
     
-    return items.map(item => ({
+    return items.map((item: any) => ({
       ...item,
       product: item.productId,
     }));

@@ -1,4 +1,5 @@
-import { PartnerProgramType, TransactionType } from '../models/PartnerProfile.js';
+import { PartnerProgramType } from '../models/PartnerProfile.js';
+import { TransactionType } from '../models/PartnerTransaction.js';
 import { PartnerProfile, PartnerReferral, PartnerTransaction, User, UserHistory } from '../models/index.js';
 import { randomBytes } from 'crypto';
 import { env } from '../config/env.js';
@@ -188,8 +189,8 @@ export async function getPartnerList(userId: string) {
   // Combine user data with referral data
   const directPartnersMap = new Map();
   directReferrals
-    .filter(ref => ref.referredId)
-    .forEach(ref => {
+    .filter((ref: any) => ref.referredId)
+    .forEach((ref: any) => {
       const user = ref.referredId as any;
       if (user && !directPartnersMap.has(user._id.toString())) {
         directPartnersMap.set(user._id.toString(), {
@@ -205,8 +206,8 @@ export async function getPartnerList(userId: string) {
 
   const multiPartnersMap = new Map();
   multiReferrals
-    .filter(ref => ref.referredId)
-    .forEach(ref => {
+    .filter((ref: any) => ref.referredId)
+    .forEach((ref: any) => {
       const user = ref.referredId as any;
       if (user && !multiPartnersMap.has(user._id.toString())) {
         multiPartnersMap.set(user._id.toString(), {
@@ -253,7 +254,7 @@ export async function recalculatePartnerBonuses(profileId: string) {
   
   console.log(`📊 Found ${allTransactions.length} transactions for profile ${profileId}`);
   
-  const totalBonus = allTransactions.reduce((sum, tx) => {
+  const totalBonus = allTransactions.reduce((sum: number, tx: any) => {
     const amount = tx.type === TransactionType.CREDIT ? tx.amount : -tx.amount;
     console.log(`  - Transaction: ${tx.type} ${tx.amount} PZ (${tx.description})`);
     return sum + amount;
@@ -370,12 +371,12 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
   
   if (allPartnerReferrals.length === 0) {
     console.log(`❌ No partner referrals found for user ${orderUserId}`);
-    return;
+    return [];
   }
   
   console.log(`🔍 Found ${allPartnerReferrals.length} partners in chain for user ${orderUserId}`);
 
-  const bonuses = [];
+  const bonuses: any[] = [];
 
   for (const referral of allPartnerReferrals) {
     const partnerProfile = referral.profileId as any;

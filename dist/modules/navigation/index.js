@@ -421,7 +421,7 @@ async function collectMenuStats(ctx) {
             const user = await ensureUser(ctx);
             if (user) {
                 const { getCartItems } = await import('../../services/cart-service.js');
-                const cartItems = await getCartItems(user.id);
+                const cartItems = await getCartItems(user._id.toString());
                 const totalQuantity = cartItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
                 if (totalQuantity > 0) {
                     stats.cart = String(totalQuantity);
@@ -540,7 +540,7 @@ export const navigationModule = {
                         console.log('🔗 Referral: User ensured, upserting referral record');
                         // Use upsert to create or get existing referral record
                         const referralLevel = programType === 'DIRECT' ? 1 : 1; // Both start at level 1
-                        const referral = await upsertPartnerReferral(partnerProfile.id, referralLevel, user.id, undefined, programType);
+                        const referral = await upsertPartnerReferral(partnerProfile._id.toString(), referralLevel, user._id.toString(), undefined, programType);
                         // Award bonus only if this is a new user and new referral record
                         const isNewReferral = referral.createdAt.getTime() > Date.now() - 5000; // Created within last 5 seconds
                         const shouldReward = !isExistingUser && isNewReferral;
@@ -549,13 +549,13 @@ export const navigationModule = {
                             const existingBonus = await prisma.partnerTransaction.findFirst({
                                 where: {
                                     profileId: partnerProfile.id,
-                                    description: `Бонус за приглашение друга (${user.id})`
+                                    description: `Бонус за приглашение друга (${user._id.toString()})`
                                 }
                             });
                             if (!existingBonus) {
                                 // Award 3PZ to the inviter only if not already awarded
                                 console.log('🔗 Referral: Awarding 3PZ bonus to inviter for new user');
-                                await recordPartnerTransaction(partnerProfile.id, 3, `Бонус за приглашение друга (${user.id})`, 'CREDIT');
+                                await recordPartnerTransaction(partnerProfile.id, 3, `Бонус за приглашение друга (${user._id.toString()})`, TransactionType.CREDIT);
                                 console.log('🔗 Referral: Bonus awarded successfully');
                             }
                             else {

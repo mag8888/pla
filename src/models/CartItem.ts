@@ -1,9 +1,9 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface ICartItem extends Document {
   _id: string;
-  userId: string;
-  productId: string;
+  userId: mongoose.Types.ObjectId;
+  productId: mongoose.Types.ObjectId;
   quantity: number;
   createdAt: Date;
 }

@@ -5,6 +5,9 @@ export enum TransactionType {
   DEBIT = 'DEBIT',
 }
 
+// Re-export for convenience
+export { TransactionType as PartnerTransactionType };
+
 export interface IPartnerTransaction extends Document {
   _id: string;
   profileId: string;

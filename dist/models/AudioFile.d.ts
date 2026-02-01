@@ -12,10 +12,8 @@ export interface IAudioFile extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const AudioFile: mongoose.Model<IAudioFile, {}, {}, {}, mongoose.Document<unknown, {}, IAudioFile, {}, mongoose.DefaultSchemaOptions> & IAudioFile & Required<{
+export declare const AudioFile: mongoose.Model<IAudioFile, {}, {}, {}, mongoose.Document<unknown, {}, IAudioFile, {}, {}> & IAudioFile & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IAudioFile>;
+}, any>;

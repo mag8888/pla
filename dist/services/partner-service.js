@@ -1,4 +1,5 @@
-import { PartnerProgramType, TransactionType } from '../models/PartnerProfile.js';
+import { PartnerProgramType } from '../models/PartnerProfile.js';
+import { TransactionType } from '../models/PartnerTransaction.js';
 import { PartnerProfile, PartnerReferral, PartnerTransaction, User, UserHistory } from '../models/index.js';
 import { randomBytes } from 'crypto';
 import mongoose from 'mongoose';
@@ -158,8 +159,8 @@ export async function getPartnerList(userId) {
     // Combine user data with referral data
     const directPartnersMap = new Map();
     directReferrals
-        .filter(ref => ref.referredId)
-        .forEach(ref => {
+        .filter((ref) => ref.referredId)
+        .forEach((ref) => {
         const user = ref.referredId;
         if (user && !directPartnersMap.has(user._id.toString())) {
             directPartnersMap.set(user._id.toString(), {
@@ -174,8 +175,8 @@ export async function getPartnerList(userId) {
     });
     const multiPartnersMap = new Map();
     multiReferrals
-        .filter(ref => ref.referredId)
-        .forEach(ref => {
+        .filter((ref) => ref.referredId)
+        .forEach((ref) => {
         const user = ref.referredId;
         if (user && !multiPartnersMap.has(user._id.toString())) {
             multiPartnersMap.set(user._id.toString(), {
@@ -305,7 +306,7 @@ export async function calculateDualSystemBonuses(orderUserId, orderAmount, order
     const allPartnerReferrals = await findAllPartnerChain(orderUserId);
     if (allPartnerReferrals.length === 0) {
         console.log(`❌ No partner referrals found for user ${orderUserId}`);
-        return;
+        return [];
     }
     console.log(`🔍 Found ${allPartnerReferrals.length} partners in chain for user ${orderUserId}`);
     const bonuses = [];

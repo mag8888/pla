@@ -1,6 +1,7 @@
 import mongoose, { Document } from 'mongoose';
 export interface IProduct extends Document {
     _id: string;
+    id?: string;
     title: string;
     summary: string;
     description?: string;
@@ -15,10 +16,8 @@ export interface IProduct extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const Product: mongoose.Model<IProduct, {}, {}, {}, mongoose.Document<unknown, {}, IProduct, {}, mongoose.DefaultSchemaOptions> & IProduct & Required<{
+export declare const Product: mongoose.Model<IProduct, {}, {}, {}, mongoose.Document<unknown, {}, IProduct, {}, {}> & IProduct & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IProduct>;
+}, any>;

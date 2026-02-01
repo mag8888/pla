@@ -17,10 +17,8 @@ export interface IPayment extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const Payment: mongoose.Model<IPayment, {}, {}, {}, mongoose.Document<unknown, {}, IPayment, {}, mongoose.DefaultSchemaOptions> & IPayment & Required<{
+export declare const Payment: mongoose.Model<IPayment, {}, {}, {}, mongoose.Document<unknown, {}, IPayment, {}, {}> & IPayment & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IPayment>;
+}, any>;

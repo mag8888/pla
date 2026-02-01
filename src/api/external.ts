@@ -60,7 +60,7 @@ router.get('/catalog', async (req: Request, res: Response) => {
 
     // Для каждой категории получаем товары
     const catalog = await Promise.all(
-      categories.map(async (category) => {
+      categories.map(async (category: any) => {
         const products = await prisma.product.findMany({
           where: {
             categoryId: category.id,
@@ -134,7 +134,7 @@ router.get('/categories', async (req: Request, res: Response) => {
 
     const response: ApiResponse<CategoryApiResponse[]> = {
       success: true,
-      data: categories.map(cat => ({
+      data: categories.map((cat: any) => ({
         id: cat.id,
         name: cat.name,
         slug: cat.slug,

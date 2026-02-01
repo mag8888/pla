@@ -6,10 +6,8 @@ export interface ICartItem extends Document {
     quantity: number;
     createdAt: Date;
 }
-export declare const CartItem: mongoose.Model<ICartItem, {}, {}, {}, mongoose.Document<unknown, {}, ICartItem, {}, mongoose.DefaultSchemaOptions> & ICartItem & Required<{
+export declare const CartItem: mongoose.Model<ICartItem, {}, {}, {}, mongoose.Document<unknown, {}, ICartItem, {}, {}> & ICartItem & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, ICartItem>;
+}, any>;

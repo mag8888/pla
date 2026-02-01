@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
-export interface IBotContent extends Document {
-  _id: string;
+export interface IBotContent extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
   key: string;
   title: string;
   content: string;

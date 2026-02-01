@@ -20,10 +20,8 @@ export interface IPartnerProfile extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const PartnerProfile: mongoose.Model<IPartnerProfile, {}, {}, {}, mongoose.Document<unknown, {}, IPartnerProfile, {}, mongoose.DefaultSchemaOptions> & IPartnerProfile & Required<{
+export declare const PartnerProfile: mongoose.Model<IPartnerProfile, {}, {}, {}, mongoose.Document<unknown, {}, IPartnerProfile, {}, {}> & IPartnerProfile & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IPartnerProfile>;
+}, any>;

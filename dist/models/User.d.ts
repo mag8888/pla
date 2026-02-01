@@ -9,6 +9,7 @@ export declare enum Region {
 }
 export interface IUser extends Document {
     _id: string;
+    id?: string;
     telegramId: string;
     firstName?: string;
     lastName?: string;
@@ -21,10 +22,8 @@ export interface IUser extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const User: mongoose.Model<IUser, {}, {}, {}, mongoose.Document<unknown, {}, IUser, {}, mongoose.DefaultSchemaOptions> & IUser & Required<{
+export declare const User: mongoose.Model<IUser, {}, {}, {}, mongoose.Document<unknown, {}, IUser, {}, {}> & IUser & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IUser>;
+}, any>;

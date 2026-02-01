@@ -11,10 +11,8 @@ export interface IBotContent extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export declare const BotContent: mongoose.Model<IBotContent, {}, {}, {}, mongoose.Document<unknown, {}, IBotContent, {}, mongoose.DefaultSchemaOptions> & IBotContent & Required<{
+export declare const BotContent: mongoose.Model<IBotContent, {}, {}, {}, mongoose.Document<unknown, {}, IBotContent, {}, {}> & IBotContent & Required<{
     _id: string;
 }> & {
     __v: number;
-} & {
-    id: string;
-}, any, IBotContent>;
+}, any>;
