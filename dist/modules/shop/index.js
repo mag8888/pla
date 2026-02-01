@@ -40,8 +40,20 @@ export async function showCategories(ctx, region) {
     await logUserAction(ctx, 'shop:open', { region });
     try {
         console.log('🛍️ Loading categories for region:', region);
-        const categories = await getActiveCategories();
-        console.log('🛍️ Found active categories:', categories.length);
+        // Добавляем таймаут для операций БД
+        let categories = [];
+        try {
+            categories = await Promise.race([
+                getActiveCategories(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 5000))
+            ]);
+            console.log('🛍️ Found active categories:', categories.length);
+        }
+        catch (dbError) {
+            console.error('❌ Error loading categories from DB:', dbError.message?.substring(0, 100));
+            // Продолжаем с пустым массивом категорий
+            categories = [];
+        }
         // Debug: also check all categories
         try {
             const allCategories = await prisma.category.findMany();
@@ -62,8 +74,18 @@ export async function showCategories(ctx, region) {
                 return;
             }
             const userBalance = Number(user?.balance || 0);
-            // Check partner program status
-            const hasPartnerDiscount = await checkPartnerActivation(user.id);
+            // Check partner program status with timeout
+            let hasPartnerDiscount = false;
+            try {
+                hasPartnerDiscount = await Promise.race([
+                    checkPartnerActivation(user.id),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 3000))
+                ]);
+            }
+            catch (error) {
+                console.warn('Failed to check partner activation (non-critical):', error);
+                // Продолжаем с false
+            }
             let partnerInfo = '';
             if (hasPartnerDiscount) {
                 partnerInfo = '\n\n🎁 Ваша скидка 10%\n✅ У вас активная партнерская программа';
@@ -93,11 +115,15 @@ export async function showCategories(ctx, region) {
         let cartItemsCount = 0;
         if (user) {
             try {
-                const cartItems = await getCartItems(user.id);
+                const cartItems = await Promise.race([
+                    getCartItems(user.id),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 3000))
+                ]);
                 cartItemsCount = cartItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
             }
             catch (error) {
-                console.warn('Failed to get cart items count:', error);
+                console.warn('Failed to get cart items count (non-critical):', error);
+                // Продолжаем с 0
             }
         }
         const keyboard = [
@@ -167,8 +193,18 @@ export async function showCategories(ctx, region) {
             return;
         }
         const userBalance = Number(user?.balance || 0);
-        // Check partner program status
-        const hasPartnerDiscount = await checkPartnerActivation(user.id);
+        // Check partner program status with timeout
+        let hasPartnerDiscount = false;
+        try {
+            hasPartnerDiscount = await Promise.race([
+                checkPartnerActivation(user.id),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 3000))
+            ]);
+        }
+        catch (error) {
+            console.warn('Failed to check partner activation (non-critical):', error);
+            // Продолжаем с false
+        }
         let partnerInfo = '';
         if (hasPartnerDiscount) {
             partnerInfo = '\n\n🎁 Ваша скидка 10%\n✅ У вас активная партнерская программа';
@@ -495,7 +531,20 @@ export const shopModule = {
                         console.warn('Failed to save region to database (non-critical):', error.message?.substring(0, 100));
                     }
                     await logUserAction(ctx, 'shop:region_selected', { region: regionOrAction });
-                    await showCategories(ctx, regionOrAction);
+                    // Показываем категории с обработкой ошибок
+                    try {
+                        await showCategories(ctx, regionOrAction);
+                    }
+                    catch (categoriesError) {
+                        console.error('❌ Error showing categories after region selection:', categoriesError);
+                        // Показываем пользователю понятное сообщение
+                        try {
+                            await ctx.reply('❌ Произошла ошибка при загрузке каталога. Пожалуйста, попробуйте позже или выберите другой регион.');
+                        }
+                        catch (replyError) {
+                            // Игнорируем ошибки отправки
+                        }
+                    }
                 }
                 else {
                     await ctx.reply('❌ Неверный регион. Попробуйте выбрать снова.');
