@@ -4,7 +4,8 @@ import mongoose from 'mongoose';
 
 export async function getCartItems(userId: string) {
   try {
-    const items = await CartItem.find({ userId: userId })
+    const userIdObj = new mongoose.Types.ObjectId(userId);
+    const items = await CartItem.find({ userId: userIdObj })
       .populate('productId')
       .sort({ createdAt: -1 })
       .lean();
@@ -12,6 +13,8 @@ export async function getCartItems(userId: string) {
     return items.map((item: any) => ({
       ...item,
       product: item.productId,
+      // Сохраняем оригинальный productId как строку для callback_data
+      productIdString: item.productId?._id?.toString() || item.productId?.toString() || String(item.productId),
     }));
   } catch (error: any) {
     console.error('❌ Cart: Error fetching cart items:', error.message?.substring(0, 100));
@@ -101,6 +104,14 @@ export async function increaseProductQuantity(userId: string, productId: string)
 
 export async function decreaseProductQuantity(userId: string, productId: string) {
   try {
+    // Валидация входных данных
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error(`Invalid userId format: ${userId}`);
+    }
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      throw new Error(`Invalid productId format: ${productId}`);
+    }
+    
     const userIdObj = new mongoose.Types.ObjectId(userId);
     const productIdObj = new mongoose.Types.ObjectId(productId);
     
@@ -110,19 +121,49 @@ export async function decreaseProductQuantity(userId: string, productId: string)
     });
 
     if (!item) {
+      console.warn(`⚠️ Cart: Item not found (userId: ${userId}, productId: ${productId})`);
       return null;
     }
 
     if (item.quantity <= 1) {
       await CartItem.findByIdAndDelete(item._id);
+      console.log(`✅ Cart: Item deleted (quantity was 1 or less)`);
       return null;
     }
 
     item.quantity -= 1;
     await item.save();
+    console.log(`✅ Cart: Quantity decreased to ${item.quantity}`);
     return item;
   } catch (error: any) {
-    console.error('❌ Cart: Error decreasing quantity:', error.message?.substring(0, 100));
+    const errorMessage = error.message || '';
+    const errorName = error.name || '';
+    
+    // Обрабатываем ошибки валидации ObjectId
+    if (errorMessage.includes('Invalid') || errorMessage.includes('Cast to ObjectId')) {
+      console.error(`❌ Cart: Invalid ObjectId in decreaseProductQuantity:`, {
+        userId,
+        productId,
+        error: errorMessage,
+      });
+      throw new Error('Неверный формат идентификатора товара');
+    }
+    
+    // Обрабатываем ошибки подключения к БД
+    const isConnectionError = 
+      errorName === 'MongoServerError' ||
+      errorName === 'MongoNetworkError' ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('Authentication failed') ||
+      errorMessage.includes('SCRAM failure');
+    
+    if (isConnectionError) {
+      console.error('❌ Cart: Database connection error in decreaseProductQuantity:', errorMessage.substring(0, 100));
+      throw new Error('База данных временно недоступна. Попробуйте позже.');
+    }
+    
+    console.error('❌ Cart: Unexpected error decreasing quantity:', error);
     throw error;
   }
 }

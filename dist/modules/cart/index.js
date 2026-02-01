@@ -3,6 +3,7 @@ import { getCartItems, cartItemsToText, clearCart, increaseProductQuantity, decr
 import { createOrderRequest } from '../../services/order-service.js';
 import { getBotContent } from '../../services/bot-content-service.js';
 import { checkPartnerActivation } from '../../services/partner-service.js';
+import mongoose from 'mongoose';
 export const cartModule = {
     async register(bot) {
         // Handle "Корзина" button
@@ -99,6 +100,15 @@ export async function showCart(ctx) {
                 itemText += `💰 Цена: ${finalRubPrice} ₽ / ${finalPzPrice} PZ\n`;
             }
             itemText += `💵 Итого: ${itemTotalRub} ₽ / ${itemTotalPz} PZ`;
+            // Получаем productId для callback_data
+            const productIdForCallback = item.productIdString ||
+                item.product?._id?.toString() ||
+                item.productId?._id?.toString() ||
+                String(item.productId || '');
+            if (!productIdForCallback) {
+                console.error('❌ Cart: Cannot determine productId for callback_data:', item);
+                continue; // Пропускаем этот товар, если не можем определить ID
+            }
             await ctx.reply(itemText, {
                 parse_mode: 'Markdown',
                 reply_markup: {
@@ -106,17 +116,17 @@ export async function showCart(ctx) {
                         [
                             {
                                 text: '➖ Убрать 1',
-                                callback_data: `cart:decrease:${item.productId?.toString() || item.product?._id?.toString() || ''}`,
+                                callback_data: `cart:decrease:${productIdForCallback}`,
                             },
                             {
                                 text: '➕ Добавить 1',
-                                callback_data: `cart:increase:${item.productId?.toString() || item.product?._id?.toString() || ''}`,
+                                callback_data: `cart:increase:${productIdForCallback}`,
                             },
                         ],
                         [
                             {
                                 text: '🗑️ Удалить товар',
-                                callback_data: `cart:remove:${item.productId?.toString() || item.product?._id?.toString() || ''}`,
+                                callback_data: `cart:remove:${productIdForCallback}`,
                             },
                         ],
                     ],
@@ -416,7 +426,12 @@ export function registerCartActions(bot) {
         await ctx.answerCbQuery();
         await logUserAction(ctx, 'cart:decrease');
         const match = ctx.match;
-        const productId = match[1];
+        const productId = match[1]?.trim();
+        if (!productId) {
+            console.error('❌ Cart: Empty productId in decrease callback');
+            await ctx.reply('❌ Ошибка: не указан товар. Попробуйте обновить корзину.');
+            return;
+        }
         const user = await ensureUser(ctx);
         if (!user) {
             await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
@@ -428,6 +443,13 @@ export function registerCartActions(bot) {
             return;
         }
         try {
+            console.log(`🛍️ Cart: Decreasing quantity for userId: ${userId}, productId: ${productId}`);
+            // Проверяем, что productId валидный ObjectId
+            if (!mongoose.Types.ObjectId.isValid(productId)) {
+                console.error(`❌ Cart: Invalid productId format: ${productId}`);
+                await ctx.reply('❌ Ошибка: неверный формат товара. Попробуйте обновить корзину.');
+                return;
+            }
             const result = await decreaseProductQuantity(userId, productId);
             // Проверяем результат операции
             if (result === null) {
@@ -448,16 +470,22 @@ export function registerCartActions(bot) {
         }
         catch (error) {
             console.error('❌ Error decreasing quantity:', error);
-            // Обрабатываем специфичные ошибки Prisma
-            if (error?.code === 'P2025') {
-                // Товар уже удален - просто обновляем корзину
-                const cartItems = await getCartItems(userId);
-                if (cartItems.length > 0) {
-                    await showCart(ctx);
-                }
-                else {
-                    await ctx.reply('🛍️ Корзина пуста.');
-                }
+            console.error('❌ Error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack?.substring(0, 200),
+            });
+            // Обрабатываем ошибки MongoDB
+            if (error?.name === 'CastError' || error?.message?.includes('Cast to ObjectId')) {
+                console.error(`❌ Cart: Invalid ObjectId format for productId: ${productId}`);
+                await ctx.reply('❌ Ошибка: неверный формат товара. Попробуйте обновить корзину.');
+                return;
+            }
+            // Обрабатываем ошибки подключения к БД
+            if (error?.message?.includes('База данных временно недоступна') ||
+                error?.name === 'MongoServerError' ||
+                error?.name === 'MongoNetworkError') {
+                await ctx.reply('❌ База данных временно недоступна. Попробуйте позже.');
                 return;
             }
             await ctx.reply('❌ Ошибка изменения количества. Попробуйте позже.');
