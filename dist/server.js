@@ -204,14 +204,9 @@ async function bootstrap() {
             }
         }
         // Wait a bit to ensure old instances are stopped
-        if (!webhookCleared) {
-            console.log('⏳ Waiting 5 seconds for other bot instances to stop...');
-            await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-        else {
-            // Still wait a bit to be safe
-            await new Promise(resolve => setTimeout(resolve, 2000));
-        }
+        // Railway может запускать несколько контейнеров одновременно при деплое
+        console.log('⏳ Waiting 10 seconds for other bot instances to stop...');
+        await new Promise(resolve => setTimeout(resolve, 10000));
         // Try to launch bot with retry logic
         let botLaunched = false;
         for (let attempt = 1; attempt <= 3; attempt++) {
@@ -225,20 +220,23 @@ async function bootstrap() {
             }
             catch (error) {
                 if (error.response?.error_code === 409) {
-                    const waitTime = 3000 * attempt; // 3s, 6s, 9s
+                    const waitTime = 5000 * attempt; // 5s, 10s, 15s
                     console.log(`⚠️  Bot conflict detected (attempt ${attempt}/3), waiting ${waitTime / 1000}s before retry...`);
-                    console.log('💡 This usually means another bot instance is still running. Railway will stop it automatically.');
+                    console.log('💡 This usually means another bot instance is still running.');
+                    console.log('💡 Railway will stop old instances automatically. Web server will continue running.');
                     await new Promise(resolve => setTimeout(resolve, waitTime));
                 }
                 else {
-                    console.error('❌ Bot launch failed, but web server is running:', error);
+                    console.error('❌ Bot launch failed (non-409 error), but web server is running:', error);
                     break; // Don't retry for other errors
                 }
             }
         }
         if (!botLaunched) {
             console.error('❌ Failed to launch bot after 3 attempts. Web server will continue running.');
-            console.log('💡 The bot may start on next deployment when old instances are fully stopped.');
+            console.log('💡 The bot will start automatically on next deployment when Railway fully stops old instances.');
+            console.log('💡 This is normal during Railway deployments. The web server (admin panel, API) will work normally.');
+            console.log('💡 To manually retry bot launch, redeploy the service.');
         }
         process.once('SIGINT', () => {
             void bot.stop('SIGINT');
