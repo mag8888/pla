@@ -313,36 +313,64 @@ async function sendProductCards(ctx, categoryId, region) {
     }
 }
 async function handleAddToCart(ctx, productId) {
-    const user = await ensureUser(ctx);
-    if (!user) {
-        await ctx.reply('Не удалось определить пользователя. Попробуйте позже.');
-        return;
-    }
-    const product = await getProductById(productId);
-    if (!product) {
-        await ctx.reply('Товар не найден.');
-        return;
-    }
-    await addProductToCart(user.id, product.id);
-    await logUserAction(ctx, 'shop:add-to-cart', { productId: product.id });
-    await ctx.answerCbQuery('Добавлено в корзину ✅');
-    // Get updated cart info for button
-    const cartItems = await getCartItems(user.id);
-    const totalQuantity = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const totalSum = cartItems.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 0)), 0);
-    const cartButtonText = `🛒 Корзина (${totalQuantity} 💧, ${totalSum.toFixed(2)} PZ)`;
-    await ctx.reply(`«${product.title}» добавлен(а) в корзину.`, {
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    {
-                        text: cartButtonText,
-                        callback_data: 'shop:cart'
-                    }
-                ]
-            ]
+    try {
+        const user = await ensureUser(ctx);
+        if (!user) {
+            await ctx.reply('Не удалось определить пользователя. Попробуйте позже.');
+            return;
         }
-    });
+        const product = await getProductById(productId);
+        if (!product) {
+            await ctx.reply('Товар не найден.');
+            return;
+        }
+        try {
+            await addProductToCart(user.id, product.id);
+        }
+        catch (cartError) {
+            // Ошибка уже обработана в addProductToCart с информативным сообщением
+            // Пробрасываем дальше для обработки в обработчике
+            throw cartError;
+        }
+        // Логируем действие с обработкой ошибок
+        try {
+            await logUserAction(ctx, 'shop:add-to-cart', { productId: product.id });
+        }
+        catch (logError) {
+            // Игнорируем ошибки логирования
+            console.warn('Failed to log add to cart action (non-critical):', logError);
+        }
+        await ctx.answerCbQuery('Добавлено в корзину ✅');
+        // Get updated cart info for button with error handling
+        let cartItems = [];
+        try {
+            cartItems = await getCartItems(user.id);
+        }
+        catch (cartError) {
+            // Если не удалось получить корзину, продолжаем без кнопки
+            console.warn('Failed to get cart items (non-critical):', cartError);
+        }
+        const totalQuantity = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const totalSum = cartItems.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 0)), 0);
+        const cartButtonText = `🛒 Корзина (${totalQuantity} 💧, ${totalSum.toFixed(2)} PZ)`;
+        await ctx.reply(`«${product.title}» добавлен(а) в корзину.`, {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: cartButtonText,
+                            callback_data: 'shop:cart'
+                        }
+                    ]
+                ]
+            }
+        });
+    }
+    catch (error) {
+        // Ошибка уже обработана в addProductToCart или других местах
+        // Пробрасываем дальше для обработки в обработчике
+        throw error;
+    }
 }
 async function handleProductMore(ctx, productId) {
     const product = await getProductById(productId);
