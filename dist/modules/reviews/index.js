@@ -28,7 +28,23 @@ export const reviewsModule = {
 };
 export async function showReviews(ctx) {
     try {
-        const reviews = await getActiveReviews();
+        // Добавляем таймаут для загрузки отзывов
+        let reviews = [];
+        try {
+            reviews = await Promise.race([
+                getActiveReviews(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 5000))
+            ]);
+        }
+        catch (dbError) {
+            console.error('⭐ Reviews: Error loading reviews from DB:', dbError.message?.substring(0, 100));
+            // Показываем сообщение об ошибке и кнопку для отзыва
+            const keyboard = Markup.inlineKeyboard([
+                [Markup.button.url('💬 Оставить отзыв', 'https://iplazma.tilda.ws/comment')]
+            ]);
+            await ctx.reply('❌ Ошибка при загрузке отзывов. Попробуйте позже.', keyboard);
+            return;
+        }
         if (reviews.length === 0) {
             const keyboard = Markup.inlineKeyboard([
                 [Markup.button.url('💬 Оставить отзыв', 'https://iplazma.tilda.ws/comment')]
@@ -56,6 +72,24 @@ export async function showReviews(ctx) {
     }
     catch (error) {
         console.error('⭐ Reviews: Failed to show reviews', error);
-        await ctx.reply('❌ Ошибка при загрузке отзывов. Попробуйте позже.');
+        // Проверяем, не является ли это ошибкой БД
+        const errorMessage = error.message || error.meta?.message || '';
+        const errorKind = error.kind || '';
+        const errorName = error.name || '';
+        const isDbError = error.code === 'P2010' || error.code === 'P1001' || error.code === 'P1002' || error.code === 'P1013' ||
+            errorName === 'ConnectorError' || errorName === 'PrismaClientUnknownRequestError' ||
+            errorMessage.includes('ConnectorError') || errorMessage.includes('Authentication failed') ||
+            errorMessage.includes('SCRAM failure') || errorMessage.includes('replica set') ||
+            errorKind.includes('AuthenticationFailed') || errorKind.includes('ConnectorError');
+        // Показываем кнопку для отзыва даже при ошибке
+        const keyboard = Markup.inlineKeyboard([
+            [Markup.button.url('💬 Оставить отзыв', 'https://iplazma.tilda.ws/comment')]
+        ]);
+        if (isDbError) {
+            await ctx.reply('❌ Ошибка при загрузке отзывов. База данных временно недоступна. Попробуйте позже.', keyboard);
+        }
+        else {
+            await ctx.reply('❌ Ошибка при загрузке отзывов. Попробуйте позже.', keyboard);
+        }
     }
 }
