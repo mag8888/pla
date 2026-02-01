@@ -152,8 +152,18 @@ export async function showCategories(ctx, region) {
             return;
         }
         const userBalance = Number(user?.balance || 0);
-        // Check partner program status
-        const hasPartnerDiscount = await checkPartnerActivation(user.id);
+        // Check partner program status with timeout
+        let hasPartnerDiscount = false;
+        try {
+            hasPartnerDiscount = await Promise.race([
+                checkPartnerActivation(user.id),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 3000))
+            ]);
+        }
+        catch (error) {
+            console.warn('Failed to check partner activation (non-critical):', error);
+            // Продолжаем с false
+        }
         let partnerInfo = '';
         if (hasPartnerDiscount) {
             partnerInfo = '\n\n🎁 Ваша скидка 10%\n✅ У вас активная партнерская программа';
