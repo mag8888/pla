@@ -1,6 +1,6 @@
-import mongoose, { Document } from 'mongoose';
-export interface IBotContent extends Document {
-    _id: string;
+import mongoose, { Document, Types } from 'mongoose';
+export interface IBotContent extends Document<mongoose.Types.ObjectId> {
+    _id: mongoose.Types.ObjectId;
     key: string;
     title: string;
     content: string;
@@ -12,7 +12,7 @@ export interface IBotContent extends Document {
     updatedAt: Date;
 }
 export declare const BotContent: mongoose.Model<IBotContent, {}, {}, {}, mongoose.Document<unknown, {}, IBotContent, {}, {}> & IBotContent & Required<{
-    _id: string;
+    _id: Types.ObjectId;
 }> & {
     __v: number;
 }, any>;

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IReview extends Document {
-  _id: string;
+export interface IReview extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
   name: string;
   photoUrl?: string;
   content: string;

@@ -5,9 +5,9 @@ export enum PartnerProgramType {
   MULTI_LEVEL = 'MULTI_LEVEL',
 }
 
-export interface IPartnerProfile extends Document {
-  _id: string;
-  userId: string;
+export interface IPartnerProfile extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   isActive: boolean;
   activatedAt?: Date;
   expiresAt?: Date;

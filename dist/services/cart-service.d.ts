@@ -2,23 +2,23 @@ import { ICartItem } from '../models/index.js';
 import mongoose from 'mongoose';
 export declare function getCartItems(userId: string): Promise<any[]>;
 export declare function addProductToCart(userId: string, productId: string): Promise<mongoose.Document<unknown, {}, ICartItem, {}, {}> & ICartItem & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }>;
 export declare function clearCart(userId: string): Promise<void>;
 export declare function increaseProductQuantity(userId: string, productId: string): Promise<mongoose.Document<unknown, {}, ICartItem, {}, {}> & ICartItem & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }>;
 export declare function decreaseProductQuantity(userId: string, productId: string): Promise<(mongoose.Document<unknown, {}, ICartItem, {}, {}> & ICartItem & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }) | null>;
 export declare function removeProductFromCart(userId: string, productId: string): Promise<(mongoose.Document<unknown, {}, ICartItem, {}, {}> & ICartItem & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }) | null>;

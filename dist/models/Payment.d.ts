@@ -5,9 +5,9 @@ export declare enum PaymentStatus {
     FAILED = "FAILED",
     CANCELLED = "CANCELLED"
 }
-export interface IPayment extends Document {
-    _id: string;
-    userId: string;
+export interface IPayment extends Document<mongoose.Types.ObjectId> {
+    _id: mongoose.Types.ObjectId;
+    userId: mongoose.Types.ObjectId;
     orderId: string;
     invoiceId: string;
     amount: number;
@@ -18,7 +18,7 @@ export interface IPayment extends Document {
     updatedAt: Date;
 }
 export declare const Payment: mongoose.Model<IPayment, {}, {}, {}, mongoose.Document<unknown, {}, IPayment, {}, {}> & IPayment & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }, any>;

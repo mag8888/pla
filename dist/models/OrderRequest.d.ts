@@ -1,7 +1,7 @@
 import mongoose, { Document } from 'mongoose';
-export interface IOrderRequest extends Document {
-    _id: string;
-    userId?: string;
+export interface IOrderRequest extends Document<mongoose.Types.ObjectId> {
+    _id: mongoose.Types.ObjectId;
+    userId?: mongoose.Types.ObjectId;
     contact?: string;
     message: string;
     itemsJson: any;
@@ -9,7 +9,7 @@ export interface IOrderRequest extends Document {
     createdAt: Date;
 }
 export declare const OrderRequest: mongoose.Model<IOrderRequest, {}, {}, {}, mongoose.Document<unknown, {}, IOrderRequest, {}, {}> & IOrderRequest & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }, any>;

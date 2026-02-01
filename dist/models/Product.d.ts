@@ -1,6 +1,6 @@
 import mongoose, { Document } from 'mongoose';
-export interface IProduct extends Document {
-    _id: string;
+export interface IProduct extends Document<mongoose.Types.ObjectId> {
+    _id: mongoose.Types.ObjectId;
     id?: string;
     title: string;
     summary: string;
@@ -12,12 +12,12 @@ export interface IProduct extends Document {
     isActive: boolean;
     availableInRussia: boolean;
     availableInBali: boolean;
-    categoryId: string;
+    categoryId: mongoose.Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
 }
 export declare const Product: mongoose.Model<IProduct, {}, {}, {}, mongoose.Document<unknown, {}, IProduct, {}, {}> & IProduct & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }, any>;

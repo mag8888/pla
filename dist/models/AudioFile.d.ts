@@ -1,6 +1,6 @@
-import mongoose, { Document } from 'mongoose';
-export interface IAudioFile extends Document {
-    _id: string;
+import mongoose, { Document, Types } from 'mongoose';
+export interface IAudioFile extends Document<mongoose.Types.ObjectId> {
+    _id: mongoose.Types.ObjectId;
     title: string;
     description?: string;
     fileId: string;
@@ -13,7 +13,7 @@ export interface IAudioFile extends Document {
     updatedAt: Date;
 }
 export declare const AudioFile: mongoose.Model<IAudioFile, {}, {}, {}, mongoose.Document<unknown, {}, IAudioFile, {}, {}> & IAudioFile & Required<{
-    _id: string;
+    _id: Types.ObjectId;
 }> & {
     __v: number;
 }, any>;

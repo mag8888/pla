@@ -7,9 +7,9 @@ export enum PaymentStatus {
   CANCELLED = 'CANCELLED',
 }
 
-export interface IPayment extends Document {
-  _id: string;
-  userId: string;
+export interface IPayment extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   orderId: string;
   invoiceId: string;
   amount: number;

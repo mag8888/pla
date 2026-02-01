@@ -3,7 +3,9 @@ import { Context } from '../../bot/context.js';
 import { BotModule } from '../../bot/types.js';
 import { logUserAction, ensureUser, checkUserContact, handlePhoneNumber } from '../../services/user-history.js';
 import { upsertPartnerReferral, recordPartnerTransaction } from '../../services/partner-service.js';
-import { prisma } from '../../lib/prisma.js';
+import { PartnerProfile, User, PartnerTransaction } from '../../models/index.js';
+import { TransactionType } from '../../models/PartnerTransaction.js';
+import { PartnerProgramType } from '../../models/PartnerProfile.js';
 import { env } from '../../config/env.js';
 
 const greeting = `🌀 Добро пожаловать в эру будущего!
@@ -602,24 +604,22 @@ export const navigationModule: BotModule = {
         
         try {
           // Find partner profile by referral code
-          const { prisma } = await import('../../lib/prisma.js');
           console.log('🔗 Referral: Searching for partner profile with code:', referralCode);
           
-          const partnerProfile = await prisma.partnerProfile.findUnique({
-            where: { referralCode },
-            include: { user: true }
-          });
+          const partnerProfile = await PartnerProfile.findOne({ referralCode })
+            .populate('userId')
+            .lean();
           
           console.log('🔗 Referral: Found partner profile:', partnerProfile ? 'YES' : 'NO');
           
           if (partnerProfile) {
             // Check if user already existed before ensuring
-            let existingUserBeforeEnsure: { id: string } | null = null;
+            let existingUserBeforeEnsure: { _id: string } | null = null;
             if (ctx.from?.id) {
-              existingUserBeforeEnsure = await prisma.user.findUnique({
-                where: { telegramId: ctx.from.id.toString() },
-                select: { id: true }
-              });
+              const existing = await User.findOne({ telegramId: ctx.from.id.toString() }).select('_id').lean();
+              if (existing) {
+                existingUserBeforeEnsure = { _id: (existing as any)._id.toString() };
+              }
             }
             
             // Ensure user exists first
@@ -636,26 +636,24 @@ export const navigationModule: BotModule = {
             
             // Use upsert to create or get existing referral record
             const referralLevel = programType === 'DIRECT' ? 1 : 1; // Both start at level 1
-            const referral = await upsertPartnerReferral(partnerProfile._id.toString(), referralLevel, user._id.toString(), undefined, programType as PartnerProgramType);
+            const referral = await upsertPartnerReferral((partnerProfile as any)._id.toString(), referralLevel, user._id.toString(), undefined, programType as PartnerProgramType);
             
             // Award bonus only if this is a new user and new referral record
-            const isNewReferral = referral.createdAt.getTime() > Date.now() - 5000; // Created within last 5 seconds
+            const isNewReferral = new Date(referral.createdAt).getTime() > Date.now() - 5000; // Created within last 5 seconds
             const shouldReward = !isExistingUser && isNewReferral;
             
             if (shouldReward) {
               // Check if bonus was already awarded for this user
-              const existingBonus = await prisma.partnerTransaction.findFirst({
-                where: {
-                  profileId: partnerProfile.id,
-                  description: `Бонус за приглашение друга (${user._id.toString()})`
-                }
-              });
+              const existingBonus = await PartnerTransaction.findOne({
+                profileId: (partnerProfile as any)._id.toString(),
+                description: `Бонус за приглашение друга (${user._id.toString()})`
+              }).lean();
               
               if (!existingBonus) {
                 // Award 3PZ to the inviter only if not already awarded
                 console.log('🔗 Referral: Awarding 3PZ bonus to inviter for new user');
                 await recordPartnerTransaction(
-                  partnerProfile.id, 
+                  (partnerProfile as any)._id.toString(), 
                   3, 
                   `Бонус за приглашение друга (${user._id.toString()})`, 
                   TransactionType.CREDIT
@@ -674,11 +672,15 @@ export const navigationModule: BotModule = {
             // Send notification to inviter only for new referrals
             if (shouldReward) {
               try {
-                console.log('🔗 Referral: Sending notification to inviter:', partnerProfile.user.telegramId);
+                const partnerUser = partnerProfile.userId as any;
+                const telegramId = partnerUser?.telegramId || (await User.findById(partnerProfile.userId).select('telegramId').lean())?.telegramId;
+                console.log('🔗 Referral: Sending notification to inviter:', telegramId);
                 const joinedLabel = user.username ? `@${user.username}` : (user.firstName || 'пользователь');
                 const text = `🎉 Ваш счет пополнен на 3PZ — присоединился ${joinedLabel}!\n\nПриглашайте больше друзей и получайте продукцию за бонусы!`;
-                await ctx.telegram.sendMessage(partnerProfile.user.telegramId, text);
-                console.log('🔗 Referral: Notification sent successfully');
+                if (telegramId) {
+                  await ctx.telegram.sendMessage(telegramId, text);
+                  console.log('🔗 Referral: Notification sent successfully');
+                }
               } catch (error) {
                 console.warn('🔗 Referral: Failed to send notification to inviter:', error);
               }
@@ -689,9 +691,11 @@ export const navigationModule: BotModule = {
           console.log('🔗 Referral: Sending welcome message with bonus info');
           
           // Отправляем видео с текстом как единое сообщение для реферальных пользователей
+          const partnerUser = partnerProfile.userId as any;
+          const firstName = partnerUser?.firstName || (await User.findById(partnerProfile.userId).select('firstName').lean())?.firstName || 'партнёр';
           const referralGreeting = `👋 Добро пожаловать!
 
-🎉 Вас пригласил ${partnerProfile.user.firstName || 'партнёр'}
+🎉 Вас пригласил ${firstName}
 
 ${greeting}`;
           
@@ -768,7 +772,7 @@ ${greeting}`;
           
           await logUserAction(ctx, 'partner:referral_joined', {
             referralCode,
-            partnerId: partnerProfile.id,
+            partnerId: (partnerProfile as any)._id.toString(),
             programType
           });
           console.log('🔗 Referral: User action logged');

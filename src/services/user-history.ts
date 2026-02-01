@@ -83,12 +83,12 @@ export async function ensureUser(ctx: Context): Promise<IUser | null> {
     
     // Return mock user object to continue without DB
     return {
-      _id: generateObjectId(from.id),
+      _id: generateObjectId(from.id) as any,
       ...data,
       balance: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as IUser;
+    } as unknown as IUser;
   }
 }
 

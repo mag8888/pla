@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IProduct extends Document {
-  _id: string;
+export interface IProduct extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
   id?: string; // Virtual field
   title: string;
   summary: string;
@@ -13,7 +13,7 @@ export interface IProduct extends Document {
   isActive: boolean;
   availableInRussia: boolean;
   availableInBali: boolean;
-  categoryId: string;
+  categoryId: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,19 +62,27 @@ const ProductSchema = new Schema<IProduct>(
     collection: 'products',
     toJSON: {
       virtuals: true,
-      transform: function(doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
+      transform: function(doc: any, ret: any) {
+        if (ret._id) {
+          ret.id = ret._id.toString();
+          delete ret._id;
+        }
+        if (ret.__v !== undefined) {
+          delete ret.__v;
+        }
         return ret;
       }
     },
     toObject: {
       virtuals: true,
-      transform: function(doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
+      transform: function(doc: any, ret: any) {
+        if (ret._id) {
+          ret.id = ret._id.toString();
+          delete ret._id;
+        }
+        if (ret.__v !== undefined) {
+          delete ret.__v;
+        }
         return ret;
       }
     }
@@ -82,7 +90,7 @@ const ProductSchema = new Schema<IProduct>(
 );
 
 ProductSchema.virtual('id').get(function() {
-  return this._id.toHexString();
+  return this._id.toString();
 });
 
 export const Product = mongoose.model<IProduct>('Product', ProductSchema);

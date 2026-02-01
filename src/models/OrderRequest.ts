@@ -1,8 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IOrderRequest extends Document {
-  _id: string;
-  userId?: string;
+export interface IOrderRequest extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId;
   contact?: string;
   message: string;
   itemsJson: any;

@@ -13,7 +13,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
-import { prisma } from '../lib/prisma.js';
+import { Product } from '../models/index.js';
 import { createOrderRequest } from '../services/order-service.js';
 import { getActiveCategories, getProductsByCategory, getProductById } from '../services/shop-service.js';
 import { ApiResponse, ProductApiResponse, CategoryApiResponse } from '../types/api.js';
@@ -61,36 +61,24 @@ router.get('/catalog', async (req: Request, res: Response) => {
     // Для каждой категории получаем товары
     const catalog = await Promise.all(
       categories.map(async (category: any) => {
-        const products = await prisma.product.findMany({
-          where: {
-            categoryId: category.id,
-            isActive: true,
-            ...(isBali ? { availableInBali: true } : { availableInRussia: true })
-          },
-          orderBy: { title: 'asc' },
-          select: {
-            id: true,
-            title: true,
-            summary: true,
-            description: true,
-            imageUrl: true,
-            price: true,
-            stock: true,
-            availableInRussia: true,
-            availableInBali: true,
-            createdAt: true,
-            updatedAt: true
-          }
-        });
+        const categoryId = category._id?.toString() || category.id;
+        const products = await Product.find({
+          categoryId: categoryId,
+          isActive: true,
+          ...(isBali ? { availableInBali: true } : { availableInRussia: true })
+        })
+          .sort({ title: 1 })
+          .select('_id title summary description imageUrl price stock availableInRussia availableInBali createdAt updatedAt')
+          .lean();
 
         return {
-          id: category.id,
+          id: categoryId,
           name: category.name,
           slug: category.slug,
           description: category.description,
           isActive: category.isActive,
-          products: products.map(p => ({
-            id: p.id,
+          products: products.map((p: any) => ({
+            id: p._id.toString(),
             title: p.title,
             summary: p.summary,
             description: p.description,
@@ -135,7 +123,7 @@ router.get('/categories', async (req: Request, res: Response) => {
     const response: ApiResponse<CategoryApiResponse[]> = {
       success: true,
       data: categories.map((cat: any) => ({
-        id: cat.id,
+        id: cat._id?.toString() || cat.id,
         name: cat.name,
         slug: cat.slug,
         description: cat.description,
@@ -176,82 +164,66 @@ router.get('/products', async (req: Request, res: Response) => {
 
     const isBali = region === 'BALI';
 
-    const where: any = {
+    const query: any = {
       isActive: true,
       ...(isBali ? { availableInBali: true } : { availableInRussia: true })
     };
 
     if (categoryId) {
-      where.categoryId = categoryId;
+      query.categoryId = categoryId;
     }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { summary: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { summary: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
       ];
     }
 
     const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        orderBy: { title: 'asc' },
-        skip: offset,
-        take: limit,
-        select: {
-          id: true,
-          title: true,
-          summary: true,
-          description: true,
-          imageUrl: true,
-          price: true,
-          stock: true,
-          availableInRussia: true,
-          availableInBali: true,
-          categoryId: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true
-            }
-          },
-          createdAt: true,
-          updatedAt: true
-        }
-      }),
-      prisma.product.count({ where })
+      Product.find(query)
+        .sort({ title: 1 })
+        .skip(offset)
+        .limit(limit)
+        .populate('categoryId', 'name slug')
+        .select('_id title summary description imageUrl price stock availableInRussia availableInBali categoryId createdAt updatedAt')
+        .lean(),
+      Product.countDocuments(query)
     ]);
 
+    const { Category } = await import('../models/index.js');
     const response: ApiResponse<Array<ProductApiResponse & { priceRub: number; category?: { id: string; name: string; slug: string } }>> = {
       success: true,
-      data: products.map(p => ({
-        id: p.id,
-        title: p.title,
-        description: p.description || null,
-        price: p.price,
-        priceRub: p.price * 100, // Конвертация PZ в RUB
-        isActive: true,
-        categoryId: p.categoryId,
-        imageUrl: p.imageUrl,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        category: p.category ? {
-          id: p.category.id,
-          name: p.category.name,
-          slug: p.category.slug,
-          description: null,
+      data: await Promise.all(products.map(async (p: any) => {
+        const category = p.categoryId ? await Category.findById(p.categoryId).lean() : null;
+        return {
+          id: p._id.toString(),
+          title: p.title,
+          description: p.description || null,
+          price: p.price,
+          priceRub: p.price * 100, // Конвертация PZ в RUB
           isActive: true,
+          categoryId: p.categoryId?.toString() || '',
+          imageUrl: p.imageUrl,
           createdAt: p.createdAt,
-          updatedAt: p.updatedAt
-        } : undefined,
-        // Дополнительные поля
-        summary: p.summary,
-        stock: p.stock,
-        availableInRussia: p.availableInRussia,
-        availableInBali: p.availableInBali
-      } as any))
+          updatedAt: p.updatedAt,
+          category: category ? {
+            id: (category as any)._id.toString(),
+            name: (category as any).name,
+            slug: (category as any).slug,
+            description: null,
+            isActive: true,
+            createdAt: (category as any).createdAt,
+            updatedAt: (category as any).updatedAt
+          } : undefined,
+          // Дополнительные поля
+          summary: p.summary,
+          stock: p.stock,
+          availableInRussia: p.availableInRussia,
+          availableInBali: p.availableInBali
+        } as any;
+      }))
     };
 
     // Добавляем информацию о пагинации в заголовки
@@ -292,31 +264,30 @@ router.get('/products/:id', async (req: Request, res: Response) => {
       });
     }
 
-    const category = product.categoryId ? await prisma.category.findUnique({
-      where: { id: product.categoryId }
-    }) : null;
+    const { Category } = await import('../models/index.js');
+    const category = product.categoryId ? await Category.findById(product.categoryId).lean() : null;
 
     const response: ApiResponse<ProductApiResponse & { priceRub: number; summary: string; stock: number; availableInRussia: boolean; availableInBali: boolean }> = {
       success: true,
       data: {
-        id: product.id,
+        id: (product as any)._id?.toString() || product.id,
         title: product.title,
         description: product.description || null,
         price: product.price,
         priceRub: product.price * 100, // Конвертация PZ в RUB
         isActive: product.isActive,
-        categoryId: product.categoryId,
+        categoryId: product.categoryId?.toString() || '',
         imageUrl: product.imageUrl,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         category: category ? {
-          id: category.id,
-          name: category.name,
-          slug: category.slug,
-          description: category.description,
-          isActive: category.isActive,
-          createdAt: category.createdAt,
-          updatedAt: category.updatedAt
+          id: (category as any)._id.toString(),
+          name: (category as any).name,
+          slug: (category as any).slug,
+          description: (category as any).description,
+          isActive: (category as any).isActive,
+          createdAt: (category as any).createdAt,
+          updatedAt: (category as any).updatedAt
         } : undefined,
         // Дополнительные поля
         summary: product.summary,
@@ -396,7 +367,7 @@ router.post('/orders', async (req: Request, res: Response) => {
         const price = item.price !== undefined ? Number(item.price) : product.price;
 
         return {
-          productId: product.id,
+          productId: (product as any)._id?.toString() || product.id,
           title: product.title,
           price: price,
           quantity: Number(item.quantity),

@@ -21,23 +21,31 @@ const CategorySchema = new Schema({
     toJSON: {
         virtuals: true,
         transform: function (doc, ret) {
-            ret.id = ret._id;
-            delete ret._id;
-            delete ret.__v;
+            if (ret._id) {
+                ret.id = ret._id.toString();
+                delete ret._id;
+            }
+            if (ret.__v !== undefined) {
+                delete ret.__v;
+            }
             return ret;
         }
     },
     toObject: {
         virtuals: true,
         transform: function (doc, ret) {
-            ret.id = ret._id;
-            delete ret._id;
-            delete ret.__v;
+            if (ret._id) {
+                ret.id = ret._id.toString();
+                delete ret._id;
+            }
+            if (ret.__v !== undefined) {
+                delete ret.__v;
+            }
             return ret;
         }
     }
 });
 CategorySchema.virtual('id').get(function () {
-    return this._id.toHexString();
+    return this._id.toString();
 });
 export const Category = mongoose.model('Category', CategorySchema);

@@ -8,9 +8,9 @@ export enum TransactionType {
 // Re-export for convenience
 export { TransactionType as PartnerTransactionType };
 
-export interface IPartnerTransaction extends Document {
-  _id: string;
-  profileId: string;
+export interface IPartnerTransaction extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
+  profileId: mongoose.Types.ObjectId;
   amount: number;
   type: TransactionType;
   description: string;

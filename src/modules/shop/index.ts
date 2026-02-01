@@ -6,7 +6,6 @@ import { getActiveCategories, getCategoryById, getProductById, getProductsByCate
 import { addProductToCart, cartItemsToText, getCartItems } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
 import { env } from '../../config/env.js';
-import { prisma } from '../../lib/prisma.js';
 import { checkPartnerActivation } from '../../services/partner-service.js';
 
 const CATEGORY_ACTION_PREFIX = 'shop:cat:';
@@ -71,10 +70,11 @@ export async function showCategories(ctx: Context, region?: string) {
     
     // Debug: also check all categories
     try {
-      const allCategories = await prisma.category.findMany();
+      const { Category } = await import('../../models/index.js');
+      const allCategories = await Category.find().lean();
       console.log('🛍️ Total categories in DB:', allCategories.length);
-      allCategories.forEach(cat => {
-        console.log(`  - ${cat.name} (ID: ${cat.id}, Active: ${cat.isActive})`);
+      allCategories.forEach((cat: any) => {
+        console.log(`  - ${cat.name} (ID: ${cat._id?.toString() || cat.id}, Active: ${cat.isActive})`);
       });
     } catch (error) {
       console.warn('Failed to fetch all categories for debug (non-critical):', error);
@@ -94,7 +94,7 @@ export async function showCategories(ctx: Context, region?: string) {
       let hasPartnerDiscount = false;
       try {
         hasPartnerDiscount = await Promise.race([
-          checkPartnerActivation(user.id),
+          checkPartnerActivation(user._id.toString()),
           new Promise<boolean>((_, reject) => 
             setTimeout(() => reject(new Error('Database timeout')), 3000)
           )
@@ -136,7 +136,7 @@ export async function showCategories(ctx: Context, region?: string) {
     if (user) {
       try {
         const cartItems = await Promise.race([
-          getCartItems(user.id),
+          getCartItems(user._id.toString()),
           new Promise<any[]>((_, reject) => 
             setTimeout(() => reject(new Error('Database timeout')), 3000)
           )
@@ -152,7 +152,7 @@ export async function showCategories(ctx: Context, region?: string) {
       ...categories.map((category: any) => [
         {
           text: `📂 ${category.name}`,
-          callback_data: `${CATEGORY_ACTION_PREFIX}${category.id}`,
+          callback_data: `${CATEGORY_ACTION_PREFIX}${category._id?.toString() || category.id || ''}`,
         },
       ]),
       [
@@ -180,7 +180,7 @@ export async function showCategories(ctx: Context, region?: string) {
     let hasPartnerDiscount = false;
     try {
       hasPartnerDiscount = await Promise.race([
-        checkPartnerActivation(user.id),
+        checkPartnerActivation(user._id.toString()),
         new Promise<boolean>((_, reject) => 
           setTimeout(() => reject(new Error('Database timeout')), 3000)
         )
@@ -233,7 +233,7 @@ export async function showCategories(ctx: Context, region?: string) {
     let hasPartnerDiscount = false;
     try {
       hasPartnerDiscount = await Promise.race([
-        checkPartnerActivation(user.id),
+        checkPartnerActivation(user._id.toString()),
         new Promise<boolean>((_, reject) => 
           setTimeout(() => reject(new Error('Database timeout')), 3000)
         )
@@ -310,10 +310,10 @@ async function sendProductCards(ctx: Context, categoryId: string, region?: strin
       // Первая строка: Подробнее + Инструкция
       const firstRow = [];
       if (product.description) {
-        firstRow.push(Markup.button.callback('📖 Подробнее', `${PRODUCT_MORE_PREFIX}${product.id}`));
+        firstRow.push(Markup.button.callback('📖 Подробнее', `${PRODUCT_MORE_PREFIX}${product._id?.toString() || product.id || ''}`));
       }
       if (product.instruction) {
-        firstRow.push(Markup.button.callback('📋 Инструкция', `${PRODUCT_INSTRUCTION_PREFIX}${product.id}`));
+        firstRow.push(Markup.button.callback('📋 Инструкция', `${PRODUCT_INSTRUCTION_PREFIX}${product._id?.toString() || product.id || ''}`));
       }
       if (firstRow.length > 0) {
         buttons.push(firstRow);
@@ -321,8 +321,8 @@ async function sendProductCards(ctx: Context, categoryId: string, region?: strin
       
       // Вторая строка: В корзину + Купить
       const secondRow = [];
-      secondRow.push(Markup.button.callback('🛒 В корзину', `${PRODUCT_CART_PREFIX}${product.id}`));
-      secondRow.push(Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product.id}`));
+      secondRow.push(Markup.button.callback('🛒 В корзину', `${PRODUCT_CART_PREFIX}${product._id?.toString() || product.id || ''}`));
+      secondRow.push(Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product._id?.toString() || product.id || ''}`));
       buttons.push(secondRow);
 
       const message = formatProductMessage(product);
@@ -366,7 +366,7 @@ async function handleAddToCart(ctx: Context, productId: string) {
     }
 
     try {
-      await addProductToCart(user.id, product.id);
+      await addProductToCart(user._id.toString(), product._id?.toString() || product.id || '');
     } catch (cartError: any) {
       // Ошибка уже обработана в addProductToCart с информативным сообщением
       // Пробрасываем дальше для обработки в обработчике
@@ -375,7 +375,7 @@ async function handleAddToCart(ctx: Context, productId: string) {
 
     // Логируем действие с обработкой ошибок
     try {
-      await logUserAction(ctx, 'shop:add-to-cart', { productId: product.id });
+      await logUserAction(ctx, 'shop:add-to-cart', { productId: product._id?.toString() || product.id || '' });
     } catch (logError) {
       // Игнорируем ошибки логирования
       console.warn('Failed to log add to cart action (non-critical):', logError);
@@ -386,7 +386,7 @@ async function handleAddToCart(ctx: Context, productId: string) {
     // Get updated cart info for button with error handling
     let cartItems: any[] = [];
     try {
-      cartItems = await getCartItems(user.id);
+      cartItems = await getCartItems(user._id.toString());
     } catch (cartError) {
       // Если не удалось получить корзину, продолжаем без кнопки
       console.warn('Failed to get cart items (non-critical):', cartError);
@@ -429,8 +429,8 @@ async function handleProductMore(ctx: Context, productId: string) {
   // Создаем кнопки для действий с товаром
   const actionButtons = [
     [
-      Markup.button.callback('🛒 В корзину', `${PRODUCT_CART_PREFIX}${product.id}`),
-      Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product.id}`)
+      Markup.button.callback('🛒 В корзину', `${PRODUCT_CART_PREFIX}${product._id?.toString() || product.id || ''}`),
+      Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product._id?.toString() || product.id || ''}`)
     ]
   ];
   
@@ -450,8 +450,8 @@ async function handleProductInstruction(ctx: Context, productId: string) {
   // Создаем кнопки для действий с товаром
   const actionButtons = [
     [
-      Markup.button.callback('🛒 В корзину', `${PRODUCT_CART_PREFIX}${product.id}`),
-      Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product.id}`)
+      Markup.button.callback('🛒 В корзину', `${PRODUCT_CART_PREFIX}${product._id?.toString() || product.id || ''}`),
+      Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product._id?.toString() || product.id || ''}`)
     ]
   ];
   
@@ -478,7 +478,7 @@ async function handleBuy(ctx: Context, productId: string) {
   let hasPartnerDiscount = false;
   try {
     hasPartnerDiscount = await Promise.race([
-      checkPartnerActivation(user.id),
+      checkPartnerActivation(user._id.toString()),
       new Promise<boolean>((_, reject) => 
         setTimeout(() => reject(new Error('Database timeout')), 3000)
       )
@@ -488,7 +488,7 @@ async function handleBuy(ctx: Context, productId: string) {
     // Продолжаем с false
   }
 
-  const cartItems = await getCartItems(user.id);
+  const cartItems = await getCartItems(user._id.toString());
   
   // Create full items list including main product
   const allItems = [...cartItems];
@@ -500,7 +500,7 @@ async function handleBuy(ctx: Context, productId: string) {
     quantity: 1
   } as any);
   
-  const summaryText = await cartItemsToText(allItems, user.id);
+  const summaryText = await cartItemsToText(allItems, user._id.toString());
 
   const lines = [
     '🛒 Запрос на покупку',
@@ -517,9 +517,9 @@ async function handleBuy(ctx: Context, productId: string) {
 
   // Create items payload with discounted prices
   const itemsPayload = await Promise.all(cartItems.map(async (item: any) => {
-    const priceInfo = await calculatePriceWithDiscount(user.id, item.product.price);
+    const priceInfo = await calculatePriceWithDiscount(user._id.toString(), item.product.price);
     return {
-      productId: item.productId,
+      productId: item.productId?.toString() || item.product?._id?.toString() || '',
       title: item.product.title,
       price: priceInfo.discountedPrice, // Save discounted price
       originalPrice: priceInfo.originalPrice, // Save original price for reference
@@ -530,9 +530,9 @@ async function handleBuy(ctx: Context, productId: string) {
   }));
 
   // Add main product with discount
-  const productPriceInfo = await calculatePriceWithDiscount(user.id, Number(product.price));
+  const productPriceInfo = await calculatePriceWithDiscount(user._id.toString(), Number(product.price));
   itemsPayload.push({
-    productId: product.id,
+    productId: product._id?.toString() || product.id || '',
     title: product.title,
     price: productPriceInfo.discountedPrice, // Save discounted price
     originalPrice: productPriceInfo.originalPrice, // Save original price for reference
@@ -546,10 +546,10 @@ async function handleBuy(ctx: Context, productId: string) {
     orderMessage += '\n🎁 Применена скидка партнера 10%';
   }
 
-  console.log('🛒 SHOP: About to create order request for user:', user.id, user.firstName, user.username);
+  console.log('🛒 SHOP: About to create order request for user:', user._id.toString(), user.firstName, user.username);
   
   await createOrderRequest({
-    userId: user.id,
+    userId: user._id.toString(),
     message: orderMessage,
     items: itemsPayload,
   });
@@ -683,9 +683,9 @@ export const shopModule: BotModule = {
         
         if (validRegions.includes(regionOrAction as any)) {
           try {
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { selectedRegion: regionOrAction as 'RUSSIA' | 'BALI' | 'DUBAI' | 'KAZAKHSTAN' | 'BELARUS' | 'OTHER' }
+            const { User } = await import('../../models/index.js');
+            await User.findByIdAndUpdate(user._id, { 
+              selectedRegion: regionOrAction as 'RUSSIA' | 'BALI' | 'DUBAI' | 'KAZAKHSTAN' | 'BELARUS' | 'OTHER' 
             });
           } catch (error: any) {
             // Если БД недоступна, продолжаем работу с выбранным регионом в памяти
@@ -694,11 +694,9 @@ export const shopModule: BotModule = {
             const errorName = error.name || '';
             
             const isDbError = 
-              error.code === 'P2010' || error.code === 'P1001' || error.code === 'P1002' || error.code === 'P1013' ||
-              errorName === 'ConnectorError' || errorName === 'PrismaClientUnknownRequestError' ||
-              errorMessage.includes('ConnectorError') || errorMessage.includes('Authentication failed') ||
-              errorMessage.includes('SCRAM failure') || errorMessage.includes('replica set') ||
-              errorKind.includes('AuthenticationFailed') || errorKind.includes('ConnectorError');
+              errorName === 'MongoServerError' || errorName === 'MongoNetworkError' ||
+              errorMessage.includes('connection') || errorMessage.includes('timeout') ||
+              errorMessage.includes('Authentication failed') || errorMessage.includes('SCRAM failure');
             
             if (isDbError) {
               console.warn('Failed to save region to database (non-critical, DB unavailable):', errorMessage.substring(0, 100));
@@ -726,12 +724,9 @@ export const shopModule: BotModule = {
             const errorName = categoriesError.name || '';
             
             const isDbError = 
-              categoriesError.code === 'P2010' || categoriesError.code === 'P1001' || 
-              categoriesError.code === 'P1002' || categoriesError.code === 'P1013' ||
-              errorName === 'ConnectorError' || errorName === 'PrismaClientUnknownRequestError' ||
-              errorMessage.includes('ConnectorError') || errorMessage.includes('Authentication failed') ||
-              errorMessage.includes('SCRAM failure') || errorMessage.includes('replica set') ||
-              errorKind.includes('AuthenticationFailed') || errorKind.includes('ConnectorError');
+              errorName === 'MongoServerError' || errorName === 'MongoNetworkError' ||
+              errorMessage.includes('connection') || errorMessage.includes('timeout') ||
+              errorMessage.includes('Authentication failed') || errorMessage.includes('SCRAM failure');
             
             // Показываем пользователю понятное сообщение
             try {
@@ -760,11 +755,9 @@ export const shopModule: BotModule = {
         const errorName = error.name || '';
         
         const isDbError = 
-          error.code === 'P2010' || error.code === 'P1001' || error.code === 'P1002' || error.code === 'P1013' ||
-          errorName === 'ConnectorError' || errorName === 'PrismaClientUnknownRequestError' ||
-          errorMessage.includes('ConnectorError') || errorMessage.includes('Authentication failed') ||
-          errorMessage.includes('SCRAM failure') || errorMessage.includes('replica set') ||
-          errorKind.includes('AuthenticationFailed') || errorKind.includes('ConnectorError');
+          errorName === 'MongoServerError' || errorName === 'MongoNetworkError' ||
+          errorMessage.includes('connection') || errorMessage.includes('timeout') ||
+          errorMessage.includes('Authentication failed') || errorMessage.includes('SCRAM failure');
         
         try {
           if (isDbError) {

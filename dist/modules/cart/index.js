@@ -2,7 +2,6 @@ import { logUserAction, ensureUser } from '../../services/user-history.js';
 import { getCartItems, cartItemsToText, clearCart, increaseProductQuantity, decreaseProductQuantity, removeProductFromCart, calculatePriceWithDiscount } from '../../services/cart-service.js';
 import { createOrderRequest } from '../../services/order-service.js';
 import { getBotContent } from '../../services/bot-content-service.js';
-import { prisma } from '../../lib/prisma.js';
 import { checkPartnerActivation } from '../../services/partner-service.js';
 export const cartModule = {
     async register(bot) {
@@ -53,7 +52,7 @@ export async function showCart(ctx) {
             await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
             return;
         }
-        const userId = user.id;
+        const userId = user._id.toString();
         console.log('🛍️ Cart: User ID:', userId);
         console.log('🛍️ Cart: Getting cart items for user:', userId);
         const cartItems = await getCartItems(userId);
@@ -103,17 +102,17 @@ export async function showCart(ctx) {
                         [
                             {
                                 text: '➖ Убрать 1',
-                                callback_data: `cart:decrease:${item.productId}`,
+                                callback_data: `cart:decrease:${item.productId?.toString() || item.product?._id?.toString() || ''}`,
                             },
                             {
                                 text: '➕ Добавить 1',
-                                callback_data: `cart:increase:${item.productId}`,
+                                callback_data: `cart:increase:${item.productId?.toString() || item.product?._id?.toString() || ''}`,
                             },
                         ],
                         [
                             {
                                 text: '🗑️ Удалить товар',
-                                callback_data: `cart:remove:${item.productId}`,
+                                callback_data: `cart:remove:${item.productId?.toString() || item.product?._id?.toString() || ''}`,
                             },
                         ],
                     ],
@@ -216,7 +215,7 @@ export function registerCartActions(bot) {
             await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
             return;
         }
-        const userId = user.id;
+        const userId = user._id.toString();
         await clearCart(userId);
         await ctx.reply('🗑️ Корзина очищена');
     });
@@ -229,7 +228,7 @@ export function registerCartActions(bot) {
             await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
             return;
         }
-        const userId = user.id;
+        const userId = user._id.toString();
         try {
             console.log('🛒 CART CHECKOUT: Starting checkout for user:', userId, user.firstName, user.username);
             const cartItems = await getCartItems(userId);
@@ -245,7 +244,7 @@ export function registerCartActions(bot) {
             const itemsPayload = await Promise.all(cartItems.map(async (item) => {
                 const priceInfo = await calculatePriceWithDiscount(userId, item.product.price);
                 return {
-                    productId: item.productId,
+                    productId: item.productId?.toString() || item.product?._id?.toString() || '',
                     title: item.product.title,
                     price: priceInfo.discountedPrice, // Save discounted price
                     originalPrice: priceInfo.originalPrice, // Save original price for reference
@@ -267,9 +266,8 @@ export function registerCartActions(bot) {
             console.log('✅ CART CHECKOUT: Order request created successfully');
             const cartText = await cartItemsToText(cartItems, userId);
             // Get user data for phone and address
-            const userData = await prisma.user.findUnique({
-                where: { id: userId }
-            });
+            const { User } = await import('../../models/index.js');
+            const userData = await User.findById(userId).lean();
             let contactInfo = `📞 Свяжитесь с покупателем: @${ctx.from?.username || 'нет username'}`;
             if (userData?.phone) {
                 contactInfo += `\n📱 Телефон: ${userData.phone}`;
@@ -385,7 +383,7 @@ export function registerCartActions(bot) {
             await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
             return;
         }
-        const userId = user.id;
+        const userId = user._id.toString();
         try {
             await increaseProductQuantity(userId, productId);
             await ctx.reply('✅ Количество увеличено!');
@@ -408,7 +406,7 @@ export function registerCartActions(bot) {
             await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
             return;
         }
-        const userId = user.id;
+        const userId = user._id.toString();
         try {
             const result = await decreaseProductQuantity(userId, productId);
             // Проверяем результат операции
@@ -456,7 +454,7 @@ export function registerCartActions(bot) {
             await ctx.reply('❌ Ошибка загрузки корзины. Попробуйте позже.');
             return;
         }
-        const userId = user.id;
+        const userId = user._id.toString();
         try {
             const result = await removeProductFromCart(userId, productId);
             // Проверяем результат операции
@@ -703,11 +701,9 @@ export function registerCartActions(bot) {
         const phoneNumber = contact.phone_number;
         try {
             // Save phone number to user profile
-            await prisma.user.update({
-                where: { id: user.id },
-                data: { phone: phoneNumber },
-            });
-            console.log(`📞 Contact received from user ${user.id}: ${phoneNumber}`);
+            const { User } = await import('../../models/index.js');
+            await User.findByIdAndUpdate(user._id, { phone: phoneNumber });
+            console.log(`📞 Contact received from user ${user._id.toString()}: ${phoneNumber}`);
             await ctx.reply('✅ Спасибо! Ваш номер телефона сохранен.');
             // Now ask for delivery address
             await ctx.reply('📍 Теперь укажите адрес доставки:', {
@@ -738,12 +734,9 @@ async function handleDeliveryAddress(ctx, addressType, address) {
             return;
         }
         // Save address to database
-        const { prisma } = await import('../../lib/prisma.js');
+        const { User } = await import('../../models/index.js');
         const fullAddress = `${addressType}: ${address}`;
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { deliveryAddress: fullAddress }
-        });
+        await User.findByIdAndUpdate(user._id, { deliveryAddress: fullAddress });
         const addressText = `✅ Ваш адрес принят!\n\n📍 Адрес доставки:\nТип: ${addressType}\nАдрес: ${address}`;
         await ctx.reply(addressText, {
             reply_markup: {

@@ -9,8 +9,8 @@ export enum Region {
   OTHER = 'OTHER',
 }
 
-export interface IUser extends Document {
-  _id: string;
+export interface IUser extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
   id?: string; // Virtual field
   telegramId: string;
   firstName?: string;
@@ -54,19 +54,27 @@ const UserSchema = new Schema<IUser>(
     collection: 'users',
     toJSON: {
       virtuals: true,
-      transform: function(doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
+      transform: function(doc: any, ret: any) {
+        if (ret._id) {
+          ret.id = ret._id.toString();
+          delete ret._id;
+        }
+        if (ret.__v !== undefined) {
+          delete ret.__v;
+        }
         return ret;
       }
     },
     toObject: {
       virtuals: true,
-      transform: function(doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
+      transform: function(doc: any, ret: any) {
+        if (ret._id) {
+          ret.id = ret._id.toString();
+          delete ret._id;
+        }
+        if (ret.__v !== undefined) {
+          delete ret.__v;
+        }
         return ret;
       }
     }
@@ -75,7 +83,7 @@ const UserSchema = new Schema<IUser>(
 
 // Virtual for id
 UserSchema.virtual('id').get(function() {
-  return this._id.toHexString();
+  return this._id.toString();
 });
 
 export const User = mongoose.model<IUser>('User', UserSchema);

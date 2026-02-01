@@ -1,6 +1,6 @@
 import mongoose, { Document } from 'mongoose';
-export interface IReview extends Document {
-    _id: string;
+export interface IReview extends Document<mongoose.Types.ObjectId> {
+    _id: mongoose.Types.ObjectId;
     name: string;
     photoUrl?: string;
     content: string;
@@ -11,7 +11,7 @@ export interface IReview extends Document {
     updatedAt: Date;
 }
 export declare const Review: mongoose.Model<IReview, {}, {}, {}, mongoose.Document<unknown, {}, IReview, {}, {}> & IReview & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }, any>;

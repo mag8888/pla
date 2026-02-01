@@ -7,8 +7,8 @@ export declare enum Region {
     BELARUS = "BELARUS",
     OTHER = "OTHER"
 }
-export interface IUser extends Document {
-    _id: string;
+export interface IUser extends Document<mongoose.Types.ObjectId> {
+    _id: mongoose.Types.ObjectId;
     id?: string;
     telegramId: string;
     firstName?: string;
@@ -23,7 +23,7 @@ export interface IUser extends Document {
     updatedAt: Date;
 }
 export declare const User: mongoose.Model<IUser, {}, {}, {}, mongoose.Document<unknown, {}, IUser, {}, {}> & IUser & Required<{
-    _id: string;
+    _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 }, any>;

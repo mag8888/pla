@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface ICategory extends Document {
-  _id: string;
+export interface ICategory extends Document<mongoose.Types.ObjectId> {
+  _id: mongoose.Types.ObjectId;
   id?: string; // Virtual field
   name: string;
   slug: string;
@@ -34,19 +34,27 @@ const CategorySchema = new Schema<ICategory>(
     collection: 'categories',
     toJSON: {
       virtuals: true,
-      transform: function(doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
+      transform: function(doc: any, ret: any) {
+        if (ret._id) {
+          ret.id = ret._id.toString();
+          delete ret._id;
+        }
+        if (ret.__v !== undefined) {
+          delete ret.__v;
+        }
         return ret;
       }
     },
     toObject: {
       virtuals: true,
-      transform: function(doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
+      transform: function(doc: any, ret: any) {
+        if (ret._id) {
+          ret.id = ret._id.toString();
+          delete ret._id;
+        }
+        if (ret.__v !== undefined) {
+          delete ret.__v;
+        }
         return ret;
       }
     }
@@ -54,7 +62,7 @@ const CategorySchema = new Schema<ICategory>(
 );
 
 CategorySchema.virtual('id').get(function() {
-  return this._id.toHexString();
+  return this._id.toString();
 });
 
 export const Category = mongoose.model<ICategory>('Category', CategorySchema);
