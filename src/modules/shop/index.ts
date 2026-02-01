@@ -607,18 +607,50 @@ export const shopModule: BotModule = {
       try {
         const match = ctx.match as RegExpExecArray;
         const regionOrAction = match[1];
-        await ctx.answerCbQuery();
+        
+        // Отвечаем на callback query сразу, чтобы не было таймаута
+        try {
+          await ctx.answerCbQuery();
+        } catch (cbError) {
+          // Игнорируем ошибки ответа на callback
+          console.warn('Failed to answer callback query (non-critical):', cbError);
+        }
         
         if (regionOrAction === 'change') {
-          await showRegionSelection(ctx);
+          try {
+            await showRegionSelection(ctx);
+          } catch (error) {
+            console.error('Error showing region selection:', error);
+            try {
+              await ctx.reply('❌ Ошибка при загрузке выбора региона. Попробуйте позже.');
+            } catch (replyError) {
+              // Игнорируем ошибки отправки
+            }
+          }
           return;
         }
         
         // Save region to user and show categories
-        const user = await ensureUser(ctx);
+        let user;
+        try {
+          user = await ensureUser(ctx);
+        } catch (userError: any) {
+          console.error('Error ensuring user:', userError);
+          try {
+            await ctx.reply('❌ Ошибка загрузки данных пользователя. Попробуйте позже.');
+          } catch (replyError) {
+            // Игнорируем ошибки отправки
+          }
+          return;
+        }
+        
         const validRegions: Array<'RUSSIA' | 'BALI' | 'DUBAI' | 'KAZAKHSTAN' | 'BELARUS' | 'OTHER'> = ['RUSSIA', 'BALI', 'DUBAI', 'KAZAKHSTAN', 'BELARUS', 'OTHER'];
         if (!user) {
-          await ctx.reply('❌ Ошибка загрузки данных пользователя. Попробуйте позже.');
+          try {
+            await ctx.reply('❌ Ошибка загрузки данных пользователя. Попробуйте позже.');
+          } catch (replyError) {
+            // Игнорируем ошибки отправки
+          }
           return;
         }
         
@@ -630,31 +662,92 @@ export const shopModule: BotModule = {
             });
           } catch (error: any) {
             // Если БД недоступна, продолжаем работу с выбранным регионом в памяти
-            console.warn('Failed to save region to database (non-critical):', error.message?.substring(0, 100));
+            const errorMessage = error.message || error.meta?.message || '';
+            const errorKind = (error as any).kind || '';
+            const errorName = error.name || '';
+            
+            const isDbError = 
+              error.code === 'P2010' || error.code === 'P1001' || error.code === 'P1002' || error.code === 'P1013' ||
+              errorName === 'ConnectorError' || errorName === 'PrismaClientUnknownRequestError' ||
+              errorMessage.includes('ConnectorError') || errorMessage.includes('Authentication failed') ||
+              errorMessage.includes('SCRAM failure') || errorMessage.includes('replica set') ||
+              errorKind.includes('AuthenticationFailed') || errorKind.includes('ConnectorError');
+            
+            if (isDbError) {
+              console.warn('Failed to save region to database (non-critical, DB unavailable):', errorMessage.substring(0, 100));
+            } else {
+              console.warn('Failed to save region to database (non-critical):', errorMessage.substring(0, 100));
+            }
           }
-          await logUserAction(ctx, 'shop:region_selected', { region: regionOrAction });
+          
+          // Логируем действие с обработкой ошибок
+          try {
+            await logUserAction(ctx, 'shop:region_selected', { region: regionOrAction });
+          } catch (logError) {
+            // Игнорируем ошибки логирования
+            console.warn('Failed to log region selection (non-critical):', logError);
+          }
           
           // Показываем категории с обработкой ошибок
           try {
             await showCategories(ctx, regionOrAction);
           } catch (categoriesError: any) {
             console.error('❌ Error showing categories after region selection:', categoriesError);
+            
+            const errorMessage = categoriesError.message || categoriesError.meta?.message || '';
+            const errorKind = (categoriesError as any).kind || '';
+            const errorName = categoriesError.name || '';
+            
+            const isDbError = 
+              categoriesError.code === 'P2010' || categoriesError.code === 'P1001' || 
+              categoriesError.code === 'P1002' || categoriesError.code === 'P1013' ||
+              errorName === 'ConnectorError' || errorName === 'PrismaClientUnknownRequestError' ||
+              errorMessage.includes('ConnectorError') || errorMessage.includes('Authentication failed') ||
+              errorMessage.includes('SCRAM failure') || errorMessage.includes('replica set') ||
+              errorKind.includes('AuthenticationFailed') || errorKind.includes('ConnectorError');
+            
             // Показываем пользователю понятное сообщение
             try {
-              await ctx.reply('❌ Произошла ошибка при загрузке каталога. Пожалуйста, попробуйте позже или выберите другой регион.');
+              if (isDbError) {
+                await ctx.reply('❌ Ошибка при загрузке каталога. База данных временно недоступна. Попробуйте позже или выберите другой регион.');
+              } else {
+                await ctx.reply('❌ Произошла ошибка при загрузке каталога. Пожалуйста, попробуйте позже или выберите другой регион.');
+              }
             } catch (replyError) {
               // Игнорируем ошибки отправки
+              console.error('Failed to send error message:', replyError);
             }
           }
         } else {
-          await ctx.reply('❌ Неверный регион. Попробуйте выбрать снова.');
+          try {
+            await ctx.reply('❌ Неверный регион. Попробуйте выбрать снова.');
+          } catch (replyError) {
+            // Игнорируем ошибки отправки
+          }
         }
       } catch (error: any) {
         console.error('Error in region selection handler:', error);
+        
+        const errorMessage = error.message || error.meta?.message || '';
+        const errorKind = (error as any).kind || '';
+        const errorName = error.name || '';
+        
+        const isDbError = 
+          error.code === 'P2010' || error.code === 'P1001' || error.code === 'P1002' || error.code === 'P1013' ||
+          errorName === 'ConnectorError' || errorName === 'PrismaClientUnknownRequestError' ||
+          errorMessage.includes('ConnectorError') || errorMessage.includes('Authentication failed') ||
+          errorMessage.includes('SCRAM failure') || errorMessage.includes('replica set') ||
+          errorKind.includes('AuthenticationFailed') || errorKind.includes('ConnectorError');
+        
         try {
-          await ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
+          if (isDbError) {
+            await ctx.reply('❌ Произошла ошибка. База данных временно недоступна. Попробуйте позже.');
+          } else {
+            await ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
+          }
         } catch (replyError) {
           // Игнорируем ошибки отправки сообщений
+          console.error('Failed to send error message:', replyError);
         }
       }
     });
