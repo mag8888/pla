@@ -11416,19 +11416,20 @@ router.post('/content/update', requireAdmin, async (req, res) => {
         res.redirect('/admin/content?error=update_failed');
     }
 });
-// Toggle content status
+// Toggle content status (use Mongoose service to avoid Prisma P2031 replica set requirement)
 router.post('/content/toggle', requireAdmin, async (req, res) => {
     try {
         const { key } = req.body;
-        const content = await prisma.botContent.findUnique({
-            where: { key }
-        });
+        const { getAllBotContents } = await import('../services/bot-content-service.js');
+        const contents = await getAllBotContents();
+        const content = contents.find((c) => c.key === key);
         if (!content) {
             return res.status(404).json({ error: 'Контент не найден' });
         }
-        await prisma.botContent.update({
-            where: { key },
-            data: { isActive: !content.isActive }
+        const { upsertBotContent } = await import('../services/bot-content-service.js');
+        await upsertBotContent({
+            ...content,
+            isActive: !content.isActive,
         });
         res.redirect('/admin/content');
     }

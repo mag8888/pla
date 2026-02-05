@@ -258,74 +258,70 @@ function isWrongContentTypeError(error: any): boolean {
   );
 }
 
+/** Telegram HTML allows only: b, i, u, s, a, code, pre, span class="tg-spoiler". Strip other span tags to avoid "Tag span must have class tg-spoiler". */
+function sanitizeTelegramHtml(text: string): string {
+  if (!text || typeof text !== 'string') return text;
+  return text
+    .replace(/<span[^>]*>/gi, '')
+    .replace(/<\/span>/gi, '');
+}
+
 async function sendWelcomeVideo(ctx: Context) {
-  // Пробуем сначала отправить через прямой URL (без Input.fromURL)
-  // Если не получится, используем fallback через загрузку файла
+  const safeCaption = sanitizeTelegramHtml(greeting);
+  const sendVideoWithCaption = async (caption: string, useHtml: boolean) => {
+    const opts = {
+      supports_streaming: true,
+      width: 1280,
+      height: 720,
+      ...(useHtml ? { parse_mode: 'HTML' as const } : {}),
+    };
+    await ctx.replyWithVideo(WELCOME_VIDEO_URL, { caption, ...opts });
+  };
   try {
-    // Пробуем отправить через прямой URL
-    await ctx.replyWithVideo(
-      WELCOME_VIDEO_URL,
-      {
-        caption: greeting,
-        supports_streaming: true,
-        parse_mode: 'HTML',
-        width: 1280,
-        height: 720,
-      }
-    );
-  } catch (error) {
-    // Если бот заблокирован пользователем, просто выходим без ошибки
+    await sendVideoWithCaption(safeCaption, true);
+  } catch (error: any) {
     if (isBotBlockedError(error)) {
       console.log('Bot was blocked by user, skipping welcome video');
       return;
     }
-    
-    // Если ошибка связана с типом контента, сразу переходим к fallback
+    if (error?.message?.includes?.('parse entities') || error?.description?.includes?.('parse entities')) {
+      try {
+        await sendVideoWithCaption(greeting, false);
+      } catch (e) {
+        if (!isBotBlockedError(e)) console.error('Welcome video fallback failed:', e);
+      }
+      return;
+    }
     if (isWrongContentTypeError(error)) {
       console.log('Video URL not recognized, using fallback method');
     } else {
       console.error('Error sending welcome video:', error);
     }
-    
-    // Fallback: загружаем видео и отправляем как буфер
     try {
       const response = await fetch(WELCOME_VIDEO_URL);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch video: ${response.statusText}`);
-      }
-      
+      if (!response.ok) throw new Error(`Failed to fetch video: ${response.statusText}`);
       const videoBuffer = await response.arrayBuffer();
       const videoStream = Buffer.from(videoBuffer);
-      
       await ctx.replyWithVideo(
         { source: videoStream, filename: 'welcome-video.mp4' },
-        {
-          caption: greeting,
-          supports_streaming: true,
-          parse_mode: 'HTML',
-          width: 1280,
-          height: 720,
-        }
+        { caption: safeCaption, supports_streaming: true, parse_mode: 'HTML', width: 1280, height: 720 }
       );
-    } catch (fallbackError) {
-      // Если и fallback не удался из-за блокировки, просто выходим
-      if (isBotBlockedError(fallbackError)) {
-        console.log('Bot was blocked by user, skipping fallback video');
+    } catch (fallbackError: any) {
+      if (isBotBlockedError(fallbackError)) return;
+      if (fallbackError?.message?.includes?.('parse entities')) {
+        try {
+          await ctx.replyWithVideo(
+            { source: Buffer.from(await (await fetch(WELCOME_VIDEO_URL)).arrayBuffer()), filename: 'welcome-video.mp4' },
+            { caption: greeting, supports_streaming: true, width: 1280, height: 720 }
+          );
+        } catch (_) {}
         return;
       }
-      
       console.error('Fallback video send also failed:', fallbackError);
-      // Последний вариант - текст с ссылкой (только если не заблокирован)
       try {
-        await ctx.reply(greeting + '\n\n🎥 Видео: ' + WELCOME_VIDEO_URL, {
-          parse_mode: 'HTML',
-        });
+        await ctx.reply(greeting + '\n\n🎥 Видео: ' + WELCOME_VIDEO_URL);
       } catch (finalError) {
-        if (isBotBlockedError(finalError)) {
-          console.log('Bot was blocked by user, skipping final message');
-          return;
-        }
-        throw finalError;
+        if (!isBotBlockedError(finalError)) throw finalError;
       }
     }
   }
@@ -508,12 +504,17 @@ async function collectMenuStats(ctx: Context): Promise<MenuStats> {
 async function sendNavigationMenu(ctx: Context) {
   const stats = await collectMenuStats(ctx);
   const message = formatMenuMessage(stats);
+  const safeMessage = sanitizeTelegramHtml(message);
   const keyboard = buildNavigationKeyboard(stats);
-
-  await ctx.reply(message, {
-    parse_mode: 'HTML',
-    ...keyboard,
-  });
+  try {
+    await ctx.reply(safeMessage, { parse_mode: 'HTML', ...keyboard });
+  } catch (error: any) {
+    if (error?.message?.includes?.('parse entities') || error?.description?.includes?.('parse entities')) {
+      await ctx.reply(message.replace(/<[^>]+>/g, ''), keyboard);
+    } else {
+      throw error;
+    }
+  }
 }
 
 export function mainKeyboard() {
@@ -707,69 +708,57 @@ export const navigationModule: BotModule = {
 🎉 Вас пригласил ${firstName}
 
 ${greeting}`;
-          
+          const safeReferralCaption = sanitizeTelegramHtml(referralGreeting);
+          const sendReferralVideo = async (caption: string, useHtml: boolean) => {
+            await ctx.replyWithVideo(WELCOME_VIDEO_URL, {
+              caption,
+              supports_streaming: true,
+              width: 1280,
+              height: 720,
+              ...(useHtml ? { parse_mode: 'HTML' } : {}),
+            });
+          };
           try {
-            // Пробуем отправить через прямой URL
-            await ctx.replyWithVideo(
-              WELCOME_VIDEO_URL,
-              {
-                caption: referralGreeting,
-                supports_streaming: true,
-                parse_mode: 'HTML',
-                width: 1280,
-                height: 720,
-              }
-            );
-          } catch (error) {
-            // Если бот заблокирован пользователем, просто выходим без ошибки
+            await sendReferralVideo(safeReferralCaption, true);
+          } catch (error: any) {
             if (isBotBlockedError(error)) {
               console.log('Bot was blocked by user, skipping referral welcome video');
               return;
             }
-            
-            // Если ошибка связана с типом контента, сразу переходим к fallback
+            if (error?.message?.includes?.('parse entities') || error?.description?.includes?.('parse entities')) {
+              try {
+                await sendReferralVideo(referralGreeting, false);
+              } catch (_) {}
+              return;
+            }
             if (isWrongContentTypeError(error)) {
               console.log('Referral video URL not recognized, using fallback method');
             } else {
               console.error('Error sending referral welcome video:', error);
             }
-            
-            // Fallback: загружаем видео и отправляем как буфер
             try {
               const response = await fetch(WELCOME_VIDEO_URL);
-              if (!response.ok) {
-                throw new Error(`Failed to fetch video: ${response.statusText}`);
-              }
-              
-              const videoBuffer = await response.arrayBuffer();
-              const videoStream = Buffer.from(videoBuffer);
+              if (!response.ok) throw new Error(`Failed to fetch video: ${response.statusText}`);
+              const videoStream = Buffer.from(await response.arrayBuffer());
               await ctx.replyWithVideo(
                 { source: videoStream, filename: 'welcome-video.mp4' },
-                {
-                  caption: referralGreeting,
-                  supports_streaming: true,
-                  parse_mode: 'HTML',
-                  width: 1280,
-                  height: 720,
-                }
+                { caption: safeReferralCaption, supports_streaming: true, parse_mode: 'HTML', width: 1280, height: 720 }
               );
-            } catch (fallbackError) {
-              // Если и fallback не удался из-за блокировки, просто выходим
-              if (isBotBlockedError(fallbackError)) {
-                console.log('Bot was blocked by user, skipping referral fallback video');
+            } catch (fallbackError: any) {
+              if (isBotBlockedError(fallbackError)) return;
+              if (fallbackError?.message?.includes?.('parse entities')) {
+                try {
+                  await ctx.replyWithVideo(
+                    { source: Buffer.from(await (await fetch(WELCOME_VIDEO_URL)).arrayBuffer()), filename: 'welcome-video.mp4' },
+                    { caption: referralGreeting, supports_streaming: true, width: 1280, height: 720 }
+                  );
+                } catch (_) {}
                 return;
               }
-              
-              console.error('Fallback video send failed:', fallbackError);
-              // Последний вариант (только если не заблокирован)
               try {
                 await ctx.reply(referralGreeting);
               } catch (finalError) {
-                if (isBotBlockedError(finalError)) {
-                  console.log('Bot was blocked by user, skipping referral final message');
-                  return;
-                }
-                throw finalError;
+                if (!isBotBlockedError(finalError)) throw finalError;
               }
             }
           }

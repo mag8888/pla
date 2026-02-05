@@ -13,7 +13,7 @@ import { checkPartnerActivation } from '../services/partner-service.js';
 import { createOrderRequest } from '../services/order-service.js';
 import { getActiveReviews } from '../services/review-service.js';
 import { getOrCreatePartnerProfile, getPartnerDashboard } from '../services/partner-service.js';
-import { PartnerProgramType } from '@prisma/client';
+import { PartnerProgramType } from '../models/PartnerProfile.js';
 import { env } from '../config/env.js';
 
 const router = express.Router();
@@ -113,6 +113,83 @@ const getTelegramUser = (req: express.Request) => {
   return (req as any).telegramUser;
 };
 
+type WebappUser = {
+  id: string;
+  telegramId: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
+  phone?: string | null;
+  deliveryAddress?: string | null;
+  balance: number;
+  selectedRegion: string;
+};
+
+/** Find or create user. Tries Prisma first; on P2031 (replica set) falls back to Mongoose. */
+async function getOrCreateWebappUser(telegramUser: { id: number; first_name?: string; last_name?: string; username?: string }): Promise<WebappUser | null> {
+  const telegramId = telegramUser.id.toString();
+  try {
+    const { prisma } = await import('../lib/prisma.js');
+    let user = await prisma.user.findUnique({ where: { telegramId } });
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          telegramId,
+          firstName: telegramUser.first_name,
+          lastName: telegramUser.last_name,
+          username: telegramUser.username,
+        }
+      });
+    }
+    return {
+      id: user.id,
+      telegramId: user.telegramId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      phone: user.phone,
+      deliveryAddress: user.deliveryAddress,
+      balance: (user as any).balance ?? 0,
+      selectedRegion: (user as any).selectedRegion ?? 'RUSSIA',
+    };
+  } catch (prismaError: any) {
+    const isReplicaError = prismaError?.code === 'P2031' || prismaError?.message?.includes?.('replica set');
+    if (!isReplicaError) {
+      throw prismaError;
+    }
+    try {
+      const { User } = await import('../models/index.js');
+      const doc = await User.findOneAndUpdate(
+        { telegramId },
+        {
+          $set: {
+            firstName: telegramUser.first_name,
+            lastName: telegramUser.last_name,
+            username: telegramUser.username,
+          },
+        },
+        { upsert: true, new: true }
+      );
+      if (!doc) return null;
+      const u = doc.toObject ? doc.toObject() : doc;
+      return {
+        id: (u as any)._id?.toString() ?? (u as any).id,
+        telegramId: (u as any).telegramId,
+        firstName: (u as any).firstName,
+        lastName: (u as any).lastName,
+        username: (u as any).username,
+        phone: (u as any).phone,
+        deliveryAddress: (u as any).deliveryAddress,
+        balance: (u as any).balance ?? 0,
+        selectedRegion: (u as any).selectedRegion ?? 'RUSSIA',
+      };
+    } catch (mongooseError) {
+      console.error('Mongoose fallback for user failed:', mongooseError);
+      throw prismaError;
+    }
+  }
+}
+
 // API Routes
 
 // User profile
@@ -122,35 +199,11 @@ router.get('/api/user/profile', async (req, res) => {
     if (!telegramUser) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-
-    // Find or create user
-    const { prisma } = await import('../lib/prisma.js');
-    let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
-    });
-
+    const user = await getOrCreateWebappUser(telegramUser);
     if (!user) {
-      user = await prisma.user.create({
-        data: {
-          telegramId: telegramUser.id.toString(),
-          firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name,
-          username: telegramUser.username,
-        }
-      });
+      return res.status(500).json({ error: 'Failed to get user' });
     }
-
-    res.json({
-      id: user.id,
-      telegramId: user.telegramId,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      username: user.username,
-      phone: user.phone,
-      deliveryAddress: user.deliveryAddress,
-      balance: (user as any).balance || 0,
-      selectedRegion: (user as any).selectedRegion || 'RUSSIA'
-    });
+    res.json(user);
   } catch (error) {
     console.error('Error getting user profile:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -201,28 +254,11 @@ router.get('/api/cart/items', async (req, res) => {
       console.log('❌ No telegram user found for cart items');
       return res.status(401).json({ error: 'Unauthorized' });
     }
-
     console.log('✅ Telegram user found for cart items:', telegramUser.id);
-
-    const { prisma } = await import('../lib/prisma.js');
-    let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
-    });
-
+    const user = await getOrCreateWebappUser(telegramUser);
     if (!user) {
-      console.log('❌ User not found for telegramId:', telegramUser.id, '- creating user');
-      // Create user if not exists
-      user = await prisma.user.create({
-        data: {
-          telegramId: telegramUser.id.toString(),
-          firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name,
-          username: telegramUser.username,
-        }
-      });
-      console.log('✅ User created:', user.id);
+      return res.status(500).json({ error: 'Failed to get user' });
     }
-
     console.log('✅ User found for cart items:', user.id);
 
     const cartItems = await getCartItems(user.id);
@@ -268,58 +304,21 @@ router.post('/api/cart/add', async (req, res) => {
     }
 
     console.log('✅ Telegram user found for cart:', telegramUser.id);
-
     const { productId, quantity = 1 } = req.body;
     if (!productId) {
       console.log('❌ No productId provided:', req.body);
       return res.status(400).json({ error: 'Product ID is required' });
     }
-
     console.log('✅ ProductId validated:', productId, 'Quantity:', quantity);
-
-    const { prisma } = await import('../lib/prisma.js');
-    let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
-    });
-
+    const user = await getOrCreateWebappUser(telegramUser);
     if (!user) {
-      console.log('❌ User not found for telegramId:', telegramUser.id, '- creating user');
-      // Create user if not exists
-      user = await prisma.user.create({
-        data: {
-          telegramId: telegramUser.id.toString(),
-          firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name,
-          username: telegramUser.username,
-        }
-      });
-      console.log('✅ User created:', user.id);
+      return res.status(500).json({ error: 'Failed to get user' });
     }
 
     console.log('✅ User found for cart:', user.id);
 
-    // Check if item already exists in cart
-    const existingItem = await prisma.cartItem.findFirst({
-      where: { userId: user.id, productId }
-    });
-
-    if (existingItem) {
-      console.log('✅ Updating existing cart item:', existingItem.id);
-      // Update quantity
-      await prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + quantity }
-      });
-    } else {
-      console.log('✅ Creating new cart item');
-      // Add new item
-      await prisma.cartItem.create({
-        data: {
-          userId: user.id,
-          productId,
-          quantity
-        }
-      });
+    for (let i = 0; i < quantity; i++) {
+      await addProductToCart(user.id, productId);
     }
 
     console.log('✅ Cart item added successfully');
@@ -354,25 +353,10 @@ router.post('/api/orders/create', async (req, res) => {
 
     console.log('✅ Items validated:', items);
 
-    const { prisma } = await import('../lib/prisma.js');
-    let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
-    });
-
+    const user = await getOrCreateWebappUser(telegramUser);
     if (!user) {
-      console.log('❌ User not found for telegramId:', telegramUser.id, '- creating user');
-      // Create user if not exists
-      user = await prisma.user.create({
-        data: {
-          telegramId: telegramUser.id.toString(),
-          firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name,
-          username: telegramUser.username,
-        }
-      });
-      console.log('✅ User created:', user.id);
+      return res.status(500).json({ error: 'Failed to get user' });
     }
-
     console.log('✅ User found:', user.id);
 
     // Check if user has active partner program
@@ -421,38 +405,32 @@ router.post('/api/orders/create', async (req, res) => {
   }
 });
 
-// Partner operations
+// Partner operations (use getOrCreateWebappUser + getPartnerDashboard to avoid Prisma P2031)
 router.get('/api/partner/dashboard', async (req, res) => {
   try {
     const telegramUser = getTelegramUser(req);
     if (!telegramUser) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-
-    const { prisma } = await import('../lib/prisma.js');
-    let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() },
-      include: { partner: true }
-    });
-
+    const user = await getOrCreateWebappUser(telegramUser);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(500).json({ error: 'Failed to get user' });
     }
-
-    if (!user.partner) {
-      return res.json({ 
-        isActive: false, 
-        message: 'Партнерская программа не активирована' 
+    const dashboard = await getPartnerDashboard(user.id);
+    if (!dashboard?.profile) {
+      return res.json({
+        isActive: false,
+        message: 'Партнерская программа не активирована'
       });
     }
-
+    const p = dashboard.profile as any;
     res.json({
-      isActive: user.partner.isActive,
-      balance: user.partner.balance,
-      bonus: user.partner.bonus,
-      referralCode: user.partner.referralCode,
-      totalPartners: user.partner.totalPartners,
-      directPartners: user.partner.directPartners
+      isActive: p.isActive,
+      balance: p.balance ?? 0,
+      bonus: p.bonus ?? 0,
+      referralCode: p.referralCode,
+      totalPartners: dashboard.stats?.partners ?? 0,
+      directPartners: dashboard.stats?.directPartners ?? 0
     });
   } catch (error) {
     console.error('Error getting partner dashboard:', error);
@@ -484,53 +462,26 @@ router.post('/api/partner/activate', async (req, res) => {
 
     console.log('✅ Partner program type validated:', type);
 
-    const { prisma } = await import('../lib/prisma.js');
-    let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() },
-      include: { partner: true }
-    });
-
+    const user = await getOrCreateWebappUser(telegramUser);
     if (!user) {
-      console.log('❌ User not found for telegramId:', telegramUser.id, '- creating user');
-      // Create user if not exists
-      const newUser = await prisma.user.create({
-        data: {
-          telegramId: telegramUser.id.toString(),
-          firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name,
-          username: telegramUser.username,
-        }
-      });
-      console.log('✅ User created:', newUser.id);
-      
-      // Fetch user with partner relation after creation
-      user = await prisma.user.findUnique({
-        where: { id: newUser.id },
-        include: { partner: true }
-      });
+      return res.status(500).json({ error: 'Failed to get user' });
     }
-
-    if (!user) {
-      console.log('❌ Failed to create or find user');
-      return res.status(500).json({ error: 'Failed to create user' });
-    }
-
     console.log('✅ User found for partner activation:', user.id);
 
-    // Check if user already has a partner profile
-    if (user.partner) {
-      console.log('✅ User already has partner profile:', user.partner.id);
+    const dashboard = await getPartnerDashboard(user.id);
+    if (dashboard?.profile) {
+      console.log('✅ User already has partner profile');
       return res.json({
         success: true,
         message: 'Партнёрская программа уже активирована',
-        isActive: user.partner.isActive,
-        referralCode: user.partner.referralCode
+        isActive: dashboard.profile.isActive,
+        referralCode: dashboard.profile.referralCode
       });
     }
 
-    // Create partner profile
+    // Create partner profile (Mongoose)
     console.log('✅ Creating partner profile...');
-    const partnerProfile = await getOrCreatePartnerProfile(user.id, type);
+    const partnerProfile = await getOrCreatePartnerProfile(user.id, type === 'MULTI_LEVEL' ? PartnerProgramType.MULTI_LEVEL : PartnerProgramType.DIRECT);
     
     console.log('✅ Partner profile created successfully:', partnerProfile.id);
     res.json({
@@ -668,22 +619,24 @@ router.post('/api/user/phone', async (req, res) => {
     if (!phone) {
       return res.status(400).json({ error: 'Phone number is required' });
     }
-
-    const { prisma } = await import('../lib/prisma.js');
-    let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
-    });
-
+    const user = await getOrCreateWebappUser(telegramUser);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(500).json({ error: 'Failed to get user' });
     }
-
-    // Update user phone
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { phone }
-    });
-
+    try {
+      const { prisma } = await import('../lib/prisma.js');
+      await prisma.user.update({ where: { id: user.id }, data: { phone } });
+    } catch (prismaErr: any) {
+      if (prismaErr?.code === 'P2031' || prismaErr?.message?.includes?.('replica set')) {
+        const { User } = await import('../models/index.js');
+        await User.findOneAndUpdate(
+          { telegramId: telegramUser.id.toString() },
+          { $set: { phone } }
+        );
+      } else {
+        throw prismaErr;
+      }
+    }
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving phone:', error);
@@ -703,22 +656,24 @@ router.post('/api/user/address', async (req, res) => {
     if (!address) {
       return res.status(400).json({ error: 'Address is required' });
     }
-
-    const { prisma } = await import('../lib/prisma.js');
-    let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
-    });
-
+    const user = await getOrCreateWebappUser(telegramUser);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(500).json({ error: 'Failed to get user' });
     }
-
-    // Update user delivery address
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { deliveryAddress: address }
-    });
-
+    try {
+      const { prisma } = await import('../lib/prisma.js');
+      await prisma.user.update({ where: { id: user.id }, data: { deliveryAddress: address } });
+    } catch (prismaErr: any) {
+      if (prismaErr?.code === 'P2031' || prismaErr?.message?.includes?.('replica set')) {
+        const { User } = await import('../models/index.js');
+        await User.findOneAndUpdate(
+          { telegramId: telegramUser.id.toString() },
+          { $set: { deliveryAddress: address } }
+        );
+      } else {
+        throw prismaErr;
+      }
+    }
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving address:', error);

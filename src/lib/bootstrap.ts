@@ -31,8 +31,17 @@ export async function ensureInitialData() {
       });
     }
 
-    // Инициализируем контент бота
-    await initializeBotContent();
+    // Инициализируем контент бота (Mongoose; при ошибке replica set и т.п. не падаем)
+    try {
+      await initializeBotContent();
+    } catch (botContentError: any) {
+      const msg = botContentError?.message || '';
+      if (msg.includes('replica set') || botContentError?.code === 'P2031') {
+        console.warn('⚠️  Bot content init skipped (MongoDB replica set required for Prisma; using Mongoose only).');
+      } else {
+        console.warn('⚠️  Bot content init failed (non-critical):', msg.substring(0, 120));
+      }
+    }
   } catch (error: any) {
     if (isDatabaseError(error)) {
       const errorMsg = error.message || error.toString() || '';
