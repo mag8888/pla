@@ -2,7 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import { Context } from '../../bot/context.js';
 import { BotModule } from '../../bot/types.js';
 import { logUserAction, ensureUser, checkUserContact, handlePhoneNumber } from '../../services/user-history.js';
-import { upsertPartnerReferral, recordPartnerTransaction } from '../../services/partner-service.js';
+import { upsertPartnerReferral, recordPartnerTransaction, getOrCreatePartnerProfile, buildReferralLink } from '../../services/partner-service.js';
 import { prisma } from '../../lib/prisma.js';
 import { env } from '../../config/env.js';
 
@@ -12,6 +12,13 @@ PLAZMA — структурированная вода для здоровья �
 ⚡ Поддержка иммунитета, тонус и естественная гармония организма.
 
 Хотите узнать больше? 👇`;
+
+/** Текст под фото приветствия (экран «эра будущего») */
+const WELCOME_PHOTO_CAPTION = `🌀 Добро пожаловать в эру будущего!
+
+Plazma Water - это движение энергичных и здоровых людей. Мы используем инновационные космические эко технологии для восстановления и очищения организма человека на всех уровнях и структур жизни.
+
+Мы приглашаем тех, кто сам идёт своим путём, принимает ответственность за своё состояние и вдохновляет других.`;
 
 const introDetails = `💧 Что такое PLAZMA?
 Структурированная вода — источник жизни ⚡️
@@ -61,6 +68,33 @@ function getWebappUrl(): string {
     return baseUrl;
   }
   return `${baseUrl.replace(/\/$/, '')}${DEFAULT_WEBAPP_SUFFIX}`;
+}
+
+function getWelcomePhotoUrl(): string {
+  const base = (env.publicBaseUrl || env.webappUrl || 'http://localhost:3000').replace(/\/$/, '');
+  return `${base}/webapp/static/images/welcome-plazma.png`;
+}
+
+/** Приветствие с фото PLAZMA, подпись и кнопки: Подарок, Открыть каталог, Ваша реф ссылка */
+async function sendWelcomeWithPhoto(ctx: Context, options?: { referralInviterName?: string }) {
+  const caption = options?.referralInviterName
+    ? `🎉 Вас пригласил ${options.referralInviterName}\n\n${WELCOME_PHOTO_CAPTION}`
+    : WELCOME_PHOTO_CAPTION;
+  const webappUrl = getWebappUrl();
+  await ctx.replyWithPhoto(
+    { url: getWelcomePhotoUrl() },
+    {
+      caption,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎁 Подарок', callback_data: 'nav:gift' }],
+          [Markup.button.webApp('🛒 Открыть каталог', webappUrl)],
+          [{ text: '🔗 Ваша реф ссылка', callback_data: 'nav:my_ref_link' }],
+        ],
+      },
+    }
+  );
 }
 
 async function showSupport(ctx: Context) {
@@ -137,7 +171,7 @@ async function showGiftMessage(ctx: Context) {
         [
           {
             text: '📖 ГИД по плазменному здоровью',
-            url: 'https://t.me/Vital_shop_bot',
+            url: 'https://t.me/plazma_bot',
           },
         ],
       ],
@@ -744,16 +778,8 @@ export const navigationModule: BotModule = {
               console.log('🔗 Referral: User already existed, bonus not awarded');
             }
             
-          console.log('🔗 Referral: Sending welcome message with bonus info');
-          await ctx.reply(`👋 Добро пожаловать!
-
-🎉 Вас пригласил ${partnerProfile.user.firstName || 'партнёр'}
-
-✨ PLAZMA — структурированная вода для здоровья и энергии.
-💧 Вода — источник жизни. Мы доставляем воду с улучшенной структурой.
-⚡ Поддержка иммунитета, тонус и естественная гармония организма.
-
-Хотите узнать больше? 👇`);
+          console.log('🔗 Referral: Sending welcome photo with buttons');
+          await sendWelcomeWithPhoto(ctx, { referralInviterName: partnerProfile.user.firstName || 'партнёр' });
           console.log('🔗 Referral: Welcome message sent');
           
           await logUserAction(ctx, 'partner:referral_joined', {
@@ -761,10 +787,6 @@ export const navigationModule: BotModule = {
             partnerId: partnerProfile.id,
             programType
           });
-          console.log('🔗 Referral: User action logged');
-          
-          // For referral users, show app launch button
-          await sendAppHome(ctx, { includeGreeting: false });
           return; // Don't call renderHome to avoid duplicate greeting
         } else {
           console.log('🔗 Referral: Partner profile not found for code:', referralCode);
@@ -776,7 +798,7 @@ export const navigationModule: BotModule = {
       }
     }
 
-    await renderHome(ctx);
+    await sendWelcomeWithPhoto(ctx);
     });
 
 
@@ -843,6 +865,19 @@ export const navigationModule: BotModule = {
       await ctx.answerCbQuery();
       await logUserAction(ctx, 'cta:gift');
       await showGiftMessage(ctx);
+    });
+
+    bot.action('nav:my_ref_link', async (ctx) => {
+      await ctx.answerCbQuery();
+      await logUserAction(ctx, 'cta:my_ref_link');
+      const user = await ensureUser(ctx);
+      if (!user) {
+        await ctx.reply('❌ Сначала нужно начать диалог с ботом (/start).');
+        return;
+      }
+      const profile = await getOrCreatePartnerProfile(user.id, 'DIRECT');
+      const link = buildReferralLink(profile.referralCode, profile.programType || 'DIRECT', user.username || undefined).main;
+      await ctx.reply(`🔗 <b>Ваша реферальная ссылка:</b>\n\n${link}\n\nПоделитесь ссылкой с друзьями — вы получите бонусы с их покупок.`, { parse_mode: 'HTML' });
     });
 
 
