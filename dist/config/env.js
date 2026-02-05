@@ -16,8 +16,14 @@ export const env = {
     adminEmail: requireEnv('ADMIN_EMAIL'),
     adminPassword: requireEnv('ADMIN_PASSWORD'),
     publicBaseUrl: process.env.PUBLIC_BASE_URL || 'http://localhost:3000',
-    webappUrl: process.env.WEBAPP_URL || process.env.PUBLIC_BASE_URL || 'https://plazma-production.up.railway.app',
-    webappBaseUrl: process.env.WEBAPP_BASE_URL || process.env.WEBAPP_URL || process.env.PUBLIC_BASE_URL || 'https://plazma.up.railway.app/webapp',
+    webappUrl: (() => {
+        const u = process.env.WEBAPP_URL || process.env.PUBLIC_BASE_URL || 'https://plazma.up.railway.app';
+        return /example\.(com|org)/i.test(u) ? 'https://plazma.up.railway.app' : u;
+    })(),
+    webappBaseUrl: (() => {
+        const u = process.env.WEBAPP_BASE_URL || process.env.WEBAPP_URL || process.env.PUBLIC_BASE_URL || 'https://plazma.up.railway.app/webapp';
+        return /example\.(com|org)/i.test(u) ? 'https://plazma.up.railway.app/webapp' : (u.endsWith('/webapp') ? u : `${u.replace(/\/$/, '')}/webapp`);
+    })(),
     videoUrl: process.env.VIDEO_URL || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
 };
 // Helper function to get all admin chat IDs

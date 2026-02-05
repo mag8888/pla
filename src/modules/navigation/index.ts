@@ -341,9 +341,15 @@ async function sendGiftButton(ctx: Context) {
   }
 }
 
+const DEFAULT_WEBAPP_URL = 'https://plazma.up.railway.app/webapp';
+
 function getWebappUrl(): string {
-  const base = env.webappBaseUrl || env.webappUrl || env.publicBaseUrl || 'https://plazma.up.railway.app';
-  return base.endsWith('/webapp') ? base : `${base.replace(/\/$/, '')}/webapp`;
+  const base = env.webappBaseUrl || env.webappUrl || env.publicBaseUrl || DEFAULT_WEBAPP_URL;
+  let url = base.endsWith('/webapp') ? base : `${base.replace(/\/$/, '')}/webapp`;
+  if (url.includes('example.com') || url.includes('example.org')) {
+    url = DEFAULT_WEBAPP_URL;
+  }
+  return url;
 }
 
 /** Приветствие с реферальной ссылкой (если есть) и кнопкой «Перейти в мини-приложение» (как в Vital). */
@@ -580,12 +586,8 @@ export const navigationModule: BotModule = {
     // Handle app command - open webapp directly
     bot.command('app', async (ctx) => {
       await logUserAction(ctx, 'command:app');
-      
-      // Use webapp URL from environment or default
-      const baseUrl = env.webappUrl || env.publicBaseUrl || 'https://plazma-production.up.railway.app';
-      const webappUrl = baseUrl.endsWith('/webapp') ? baseUrl : `${baseUrl}/webapp`;
+      const webappUrl = getWebappUrl();
       console.log('🌐 WebApp URL:', webappUrl);
-      
       await ctx.reply(
         '🌐 <b>Открываю веб-приложение Plazma Water...</b>',
         {
