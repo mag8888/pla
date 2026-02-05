@@ -173,11 +173,12 @@ async function showGiftMessage(ctx: Context) {
 
 Слушая файлы вы можете получить весь спектр воздействия. 👇`;
 
+  const webappUrl = getWebappUrl();
   await ctx.reply(giftMessage, {
     reply_markup: {
       inline_keyboard: [
         [{ text: '🎶 Слушать звуковые матрицы', callback_data: 'nav:gift_audio' }],
-        [{ text: '📖 ГИД по плазменному здоровью', url: 'https://t.me/plazma_bot' }],
+        [Markup.button.webApp('📖 ГИД по плазменному здоровью', webappUrl)],
       ],
     },
   });
@@ -900,18 +901,23 @@ export const navigationModule: BotModule = {
     bot.action('nav:my_ref_link', async (ctx) => {
       await ctx.answerCbQuery();
       await logUserAction(ctx, 'cta:my_ref_link');
-      const user = await ensureUser(ctx);
-      if (!user) {
-        await ctx.reply('❌ Сначала нужно начать диалог с ботом (/start).');
-        return;
+      try {
+        const user = await ensureUser(ctx);
+        if (!user) {
+          await ctx.reply('❌ Сначала нужно начать диалог с ботом (/start).');
+          return;
+        }
+        const profile = await getOrCreatePartnerProfile(user.id, 'DIRECT');
+        const { main: link } = buildReferralLink(profile.referralCode, profile.programType || 'DIRECT', user.username || undefined);
+        const escapedLink = link.replace(/&/g, '&amp;');
+        await ctx.reply(
+          `🔗 <b>Ваша реферальная ссылка:</b>\n\n<a href="${escapedLink}">${escapedLink}</a>\n\nПоделитесь ссылкой с друзьями — вы получите бонусы с их покупок.`,
+          { parse_mode: 'HTML' }
+        );
+      } catch (e) {
+        console.error('nav:my_ref_link failed:', e);
+        await ctx.reply('❌ Не удалось получить реферальную ссылку. Проверьте настройки бота (BOT_USERNAME, база данных) или попробуйте позже.');
       }
-      const profile = await getOrCreatePartnerProfile(user.id, 'DIRECT');
-      const { main: link } = buildReferralLink(profile.referralCode, profile.programType || 'DIRECT', user.username || undefined);
-      const escapedLink = link.replace(/&/g, '&amp;');
-      await ctx.reply(
-        `🔗 <b>Ваша реферальная ссылка:</b>\n\n<a href="${escapedLink}">${escapedLink}</a>\n\nПоделитесь ссылкой с друзьями — вы получите бонусы с их покупок.`,
-        { parse_mode: 'HTML' }
-      );
     });
 
 

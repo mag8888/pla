@@ -1,12 +1,9 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: "mongodb+srv://PLAZMA:s8eH4N8JRM4xIPbd@cluster1.pgqk3k.mongodb.net/plazma_bot?retryWrites=true&w=majority&appName=Cluster1"
-    }
-  }
-});
+const prisma = new PrismaClient(
+  process.env.DATABASE_URL ? { datasources: { db: { url: process.env.DATABASE_URL } } } : undefined
+);
 
 async function checkProducts() {
   try {

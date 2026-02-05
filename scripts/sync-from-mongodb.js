@@ -32,6 +32,12 @@ function docToBackup(doc) {
     d.id = d._id.toString();
     delete d._id;
   }
+  // Все ссылки (id, *Id) — строками для Prisma
+  for (const k of Object.keys(d)) {
+    if ((k === 'id' || k.endsWith('Id')) && d[k] != null)
+      if (typeof d[k] === 'object' && typeof d[k].toString === 'function') d[k] = d[k].toString();
+      else if (typeof d[k] === 'object' && d[k].$oid) d[k] = d[k].$oid;
+  }
   ['createdAt', 'updatedAt', 'activatedAt', 'expiresAt'].forEach((k) => {
     if (d[k] && d[k].toISOString) d[k] = d[k].toISOString();
   });
@@ -196,14 +202,19 @@ async function main() {
   console.log('\n📥 Восстановление в целевую БД...');
   process.env.DATABASE_URL = targetUrl;
   process.env.MONGO_URL = targetUrl;
-  const { restoreDatabase } = await import('./restore-from-cloudinary.js');
-  await restoreDatabase(filepath);
-
   try {
-    fs.unlinkSync(filepath);
-  } catch (_) {}
-
-  console.log('\n✅ Полное восстановление завершено.');
+    const { restoreDatabase } = await import('./restore-from-cloudinary.js');
+    await restoreDatabase(filepath);
+    try {
+      fs.unlinkSync(filepath);
+    } catch (_) {}
+    console.log('\n✅ Полное восстановление завершено.');
+  } catch (restoreErr) {
+    console.error('\n⚠️ Восстановление в целевую БД не удалось (проверьте DATABASE_URL и доступ в сеть).');
+    console.log('Экспорт сохранён. Чтобы восстановить позже, выполните:');
+    console.log('  node scripts/restore-from-cloudinary.js "' + filepath + '"');
+    process.exit(1);
+  }
   process.exit(0);
 }
 

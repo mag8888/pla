@@ -35,18 +35,15 @@ async function bootstrap() {
       
       // Check for specific error types
       if (dbError?.message?.includes('Server selection timeout')) {
-        console.error('❌ MongoDB Atlas connection issue:');
-        console.error('   1. Check Network Access in MongoDB Atlas - allow all IPs (0.0.0.0/0)');
-        console.error('   2. Verify DATABASE_URL is correct in Railway variables');
-        console.error('   3. Ensure cluster is running (not paused)');
+        console.error('❌ MongoDB connection issue:');
+        console.error('   1. Check DATABASE_URL in Railway variables (Railway MongoDB or external)');
+        console.error('   2. Ensure host is reachable and port is correct');
       } else if (dbError?.message?.includes('Authentication failed')) {
         console.error('❌ MongoDB authentication failed:');
         console.error('   1. Check username and password in DATABASE_URL');
-        console.error('   2. Verify user has correct permissions in MongoDB Atlas');
+        console.error('   2. For Railway MongoDB add ?authSource=admin to the URL');
       } else if (dbError?.message?.includes('fatal alert')) {
-        console.error('❌ SSL/TLS connection error:');
-        console.error('   1. Network Access must allow Railway IP addresses');
-        console.error('   2. Connection string parameters may be incorrect');
+        console.error('❌ SSL/TLS connection error: check DATABASE_URL and network');
       }
       
       console.warn('⚠️  Server will start, but database operations may fail');

@@ -58,16 +58,14 @@ function normalizeMongoUrl(url: string): string {
   const slashAfterHost = hostPart.indexOf('/');
   
   if (slashAfterHost === -1) {
-    // No slash after host - need to add /vital
-    normalized = urlPart + '/vital' + queryPart;
+    // No slash after host - add default DB name (Railway: plazma_bot)
+    normalized = urlPart + '/plazma_bot' + queryPart;
   } else {
     // Has slash - check if database name is empty
     const afterSlash = hostPart.substring(slashAfterHost + 1);
     if (!afterSlash || afterSlash.trim() === '') {
-      // Empty database name - add vital
-      normalized = urlPart + 'vital' + queryPart;
+      normalized = urlPart + 'plazma_bot' + queryPart;
     }
-    // Otherwise database name exists, keep as is
   }
   
   return normalized;
@@ -83,64 +81,37 @@ if (fixedDbUrl && fixedDbUrl !== dbUrl) {
   }
 }
 
-// Optimize connection string for better performance and MongoDB Atlas compatibility
+// Optimize connection string for Railway MongoDB (и совместимость с Prisma)
 function optimizeConnectionString(url: string): string {
   let optimized = url;
-  
-  // MongoDB Atlas requires SSL/TLS by default
-  // Add SSL parameters if not present (for mongodb+srv, SSL is automatic)
-  // But we can add explicit TLS parameters for better compatibility
-  
-  // Add connection pooling options if not present
+
+  const separator = optimized.includes('?') ? '&' : '?';
+
   if (!optimized.includes('maxPoolSize')) {
-    const separator = optimized.includes('?') ? '&' : '?';
     optimized = `${optimized}${separator}maxPoolSize=10&minPoolSize=2`;
   }
-  
-  // Add connection timeout options (increase for Railway network)
   if (!optimized.includes('connectTimeoutMS')) {
     optimized = `${optimized}&connectTimeoutMS=30000`;
   }
-  
   if (!optimized.includes('socketTimeoutMS')) {
     optimized = `${optimized}&socketTimeoutMS=30000`;
   }
-  
-  // Enable keepalive for persistent connections
   if (!optimized.includes('serverSelectionTimeoutMS')) {
     optimized = `${optimized}&serverSelectionTimeoutMS=30000`;
   }
-  
-  // Add heartbeat frequency (keep connections alive)
   if (!optimized.includes('heartbeatFrequencyMS')) {
     optimized = `${optimized}&heartbeatFrequencyMS=10000`;
   }
-  
-  // Add authSource if not present (important for MongoDB Atlas)
-  // MongoDB Atlas often needs authSource=admin for authentication
+  // Railway MongoDB: authSource=admin обязателен для аутентификации
   if (!optimized.includes('authSource')) {
     optimized = `${optimized}&authSource=admin`;
   }
-  
-  // MongoDB Atlas requires TLS/SSL - ensure it's enabled
-  // For mongodb+srv, TLS is automatic, but we can add explicit parameters
-  if (optimized.startsWith('mongodb+srv://')) {
-    // mongodb+srv automatically uses TLS, but add explicit tls parameter
-    if (!optimized.includes('tls=')) {
-      optimized = `${optimized}&tls=true`;
-    }
-  }
-  
-  // Add retryWrites if not present (default for replica sets)
   if (!optimized.includes('retryWrites')) {
     optimized = `${optimized}&retryWrites=true`;
   }
-  
-  // Add w=majority if not present (default write concern for replica sets)
   if (!optimized.includes('w=')) {
     optimized = `${optimized}&w=majority`;
   }
-  
   return optimized;
 }
 

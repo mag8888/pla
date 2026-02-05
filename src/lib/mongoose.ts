@@ -66,11 +66,8 @@ if (dbUrl) {
 if (fixedDbUrl) {
   console.log('Database URL configured:', fixedDbUrl.substring(0, 30) + '...');
   
-  // Проверяем, используется ли Railway MongoDB
-  if (fixedDbUrl.includes('${{') || fixedDbUrl.includes('mongodb://mongo')) {
-    console.log('✅ Railway MongoDB detected');
-  } else if (fixedDbUrl.includes('mongodb+srv://') && fixedDbUrl.includes('mongodb.net')) {
-    console.log('✅ MongoDB Atlas detected');
+  if (fixedDbUrl.includes('${{') || fixedDbUrl.includes('proxy.rlwy.net') || fixedDbUrl.includes('mongodb://mongo')) {
+    console.log('✅ Railway MongoDB');
   }
 }
 
