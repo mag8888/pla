@@ -2640,7 +2640,7 @@ async function activatePartnerProgram(type) {
         console.log('🤝 Showing partner program info:', type);
 
         // Генерируем простой реферальный код для демонстрации
-        const referralCode = 'VITAL' + Math.random().toString(36).substr(2, 6).toUpperCase();
+        const referralCode = 'PLAZMA' + Math.random().toString(36).substr(2, 6).toUpperCase();
 
         // Создаем реферальную ссылку
         const referralLink = `https://t.me/ivitalbot?start=${referralCode}`;
@@ -2664,7 +2664,7 @@ async function activatePartnerProgram(type) {
 
             shareText = `Дружище 🌟
 Я желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧
-Попробуй VITAL — технология будущего, которая реально меняет состояние ⚡️
+Попробуй PLAZMA — структурированная вода для здоровья и энергии ⚡️
 🔗 Твоя ссылка (сеть 15% + 5% + 5%):
 ${referralLink}`;
         }
@@ -3426,19 +3426,19 @@ function loadContactsContent() {
                 </div>
                 <div class="contact-item">
                     <strong>Email:</strong>
-                    <a href="mailto:info@vital.ru">info@vital.ru</a>
+                    <a href="mailto:info@plazma.ru">info@plazma.ru</a>
                 </div>
                 <div class="contact-item">
                     <strong>Telegram:</strong>
-                    <a href="https://t.me/ivitalbot" target="_blank">@ivitalbot</a>
+                    <a href="https://t.me/plazma_bot" target="_blank">@plazma_bot</a>
                 </div>
                 <div class="contact-item">
                     <strong>ВКонтакте:</strong>
-                    <a href="https://vk.com/ivital" target="_blank">vk.com/ivital</a>
+                    <a href="https://vk.com/plazma" target="_blank">vk.com/plazma</a>
                 </div>
                 <div class="contact-item">
                     <strong>Instagram:</strong>
-                    <a href="https://www.instagram.com/ivitalnano/" target="_blank">@ivitalnano</a>
+                    <a href="https://www.instagram.com/plazma.water/" target="_blank">@plazma.water</a>
                 </div>
             </div>
         </div>

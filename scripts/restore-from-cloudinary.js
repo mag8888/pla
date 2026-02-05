@@ -678,12 +678,23 @@ async function restoreFromFile(filepath) {
 /**
  * Основная функция восстановления
  */
-async function restoreDatabase(backupUrl = null) {
+async function restoreDatabase(backupUrlOrPath = null) {
   let filepath = null;
-  
+  const isLocalFile = backupUrlOrPath && !backupUrlOrPath.startsWith('http://') && !backupUrlOrPath.startsWith('https://');
+
   try {
+    if (isLocalFile) {
+      // Восстановление из локального файла
+      filepath = path.isAbsolute(backupUrlOrPath) ? backupUrlOrPath : path.join(process.cwd(), backupUrlOrPath);
+      if (!fs.existsSync(filepath)) {
+        throw new Error(`Файл не найден: ${filepath}`);
+      }
+      console.log(`📂 Восстановление из локального бэкапа: ${filepath}`);
+      return await restoreFromFile(filepath);
+    }
+
     // Если URL не указан, ищем последний бэкап в Cloudinary
-    if (!backupUrl) {
+    if (!backupUrlOrPath) {
       console.log('🔍 Поиск последнего бэкапа в Cloudinary...');
       const backups = await listBackups();
       
@@ -691,28 +702,24 @@ async function restoreDatabase(backupUrl = null) {
         throw new Error('Бэкапы не найдены в Cloudinary. Убедитесь, что переменные CLOUDINARY_* установлены правильно.');
       }
       
-      // Берем самый последний бэкап
       const latestBackup = backups[0];
-      backupUrl = latestBackup.secure_url;
+      backupUrlOrPath = latestBackup.secure_url;
       console.log(`✅ Найден бэкап: ${latestBackup.filename}`);
       console.log(`📅 Дата создания: ${new Date(latestBackup.created_at).toLocaleString()}`);
       console.log(`📊 Размер: ${(latestBackup.bytes / 1024 / 1024).toFixed(2)} MB`);
     }
     
-    // Скачиваем бэкап
     const tmpDir = process.env.RAILWAY_ENVIRONMENT ? '/tmp' : path.join(__dirname, '..');
     const filename = `restore-${Date.now()}.json`;
     filepath = path.join(tmpDir, filename);
     
-    console.log(`\n📥 Скачивание бэкапа из Cloudinary...`);
-    console.log(`   URL: ${backupUrl}`);
-    await downloadFile(backupUrl, filepath);
+    console.log(`\n📥 Скачивание бэкапа...`);
+    console.log(`   URL: ${backupUrlOrPath}`);
+    await downloadFile(backupUrlOrPath, filepath);
     console.log(`✅ Бэкап скачан: ${filepath}`);
     
-    // Восстанавливаем данные
     const result = await restoreFromFile(filepath);
     
-    // Удаляем временный файл
     if (fs.existsSync(filepath)) {
       fs.unlinkSync(filepath);
       console.log('🗑️ Временный файл удален');

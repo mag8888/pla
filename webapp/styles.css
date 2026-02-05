@@ -1117,6 +1117,41 @@ h4 {
     background: linear-gradient(90deg, transparent, var(--border-color), transparent);
 }
 
+/* PLAZMA branding — как на сайте: тёмно-синий фон, логотип с градиентом */
+.hero-banner-plazma {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%) !important;
+    border-bottom: none;
+}
+.hero-banner-plazma::before {
+    background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.12) 0%, transparent 55%);
+}
+.hero-title-plazma {
+    font-family: var(--font-heading), Georgia, serif;
+    font-size: 38px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 35%, #7dd3fc 70%, #ffffff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+}
+.hero-subtitle-plazma {
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    color: rgba(255, 255, 255, 0.9);
+    text-transform: uppercase;
+}
+.hero-banner-plazma .hero-decoration {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+}
+.brand-badge-plazma .brand-label {
+    color: #0f172a;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+}
+
 /* Products Main Container */
 .products-main-container {
     flex: 1;
