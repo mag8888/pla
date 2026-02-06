@@ -902,9 +902,21 @@ export const navigationModule: BotModule = {
       await ctx.answerCbQuery();
       await logUserAction(ctx, 'cta:my_ref_link');
       try {
+        const { env } = await import('../../config/env.js');
+        if (!env.databaseUrl) {
+          await ctx.reply('❌ Реферальная ссылка недоступна: не настроена база данных (DATABASE_URL или MONGO_URL на сервере).');
+          return;
+        }
         const user = await ensureUser(ctx);
         if (!user) {
-          await ctx.reply('❌ Сначала нужно начать диалог с ботом (/start).');
+          await ctx.reply('❌ Сначала нажмите /start и начните диалог с ботом.');
+          return;
+        }
+        if ((user as any).__fromMock) {
+          await ctx.reply(
+            '❌ Реферальная ссылка временно недоступна: нет связи с базой данных.\n\n' +
+            'Проверьте на сервере переменные MONGO_URL или DATABASE_URL и перезапустите приложение.'
+          );
           return;
         }
         const profile = await getOrCreatePartnerProfile(user.id, 'DIRECT');
@@ -914,9 +926,10 @@ export const navigationModule: BotModule = {
           `🔗 <b>Ваша реферальная ссылка:</b>\n\n<a href="${escapedLink}">${escapedLink}</a>\n\nПоделитесь ссылкой с друзьями — вы получите бонусы с их покупок.`,
           { parse_mode: 'HTML' }
         );
-      } catch (e) {
-        console.error('nav:my_ref_link failed:', e);
-        await ctx.reply('❌ Не удалось получить реферальную ссылку. Проверьте настройки бота (BOT_USERNAME, база данных) или попробуйте позже.');
+      } catch (e: any) {
+        console.error('nav:my_ref_link failed:', e?.message || e);
+        const hint = e?.code === 'P2003' ? ' Возможно, база данных недоступна или не настроена (MONGO_URL / DATABASE_URL).' : '';
+        await ctx.reply('❌ Не удалось получить реферальную ссылку.' + hint + ' Попробуйте позже или обратитесь в поддержку.');
       }
     });
 

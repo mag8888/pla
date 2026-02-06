@@ -39,26 +39,28 @@ export async function ensureUser(ctx: Context) {
   } catch (error: any) {
     // Silent fail for authentication errors - don't spam logs
     if (error?.code === 'P1013' || error?.message?.includes('Authentication failed') || error?.message?.includes('SCRAM failure')) {
-      // Database connection/auth issue - return mock user to continue
-      return {
+      const mock = {
         id: generateObjectId(from.id),
         ...data,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      (mock as any).__fromMock = true; // реф-ссылка и др. требуют реального пользователя в БД
+      return mock;
     }
     // Log other errors once
     if (!(global as any).__dbErrorLogged) {
       console.warn('⚠️  Database error (subsequent errors will be silent):', error?.message || String(error));
       (global as any).__dbErrorLogged = true;
     }
-    // Return mock user object to continue without DB
-    return {
+    const mock = {
       id: generateObjectId(from.id),
       ...data,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    (mock as any).__fromMock = true;
+    return mock;
   }
 }
 
