@@ -30,7 +30,7 @@ export const env = {
   plazmaApiKey: process.env.PLAZMA_API_KEY || process.env.EXTERNAL_API_KEY || '',
   plazmaApiUrl: process.env.PLAZMA_API_URL || process.env.PUBLIC_BASE_URL || process.env.WEBAPP_BASE_URL || 'https://plazma.up.railway.app',
   /** Папка в Cloudinary с аудио для «Звуковые матрицы» (если в БД нет записей) */
-  cloudinaryAudioFolder: process.env.CLOUDINARY_AUDIO_FOLDER || '',
+  cloudinaryAudioFolder: process.env.CLOUDINARY_AUDIO_FOLDER || 'plazma',
 };
 
 // Helper function to get all admin chat IDs
@@ -42,7 +42,7 @@ export function getAdminChatIds(): string[] {
 // Helper function to send message to all admins
 export async function sendToAllAdmins(bot: any, message: string): Promise<void> {
   const adminIds = getAdminChatIds();
-  
+
   for (const chatId of adminIds) {
     try {
       await bot.telegram.sendMessage(chatId, message);

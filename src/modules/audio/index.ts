@@ -9,46 +9,65 @@ import { isCloudinaryConfigured, listCloudinaryResources } from '../../services/
 
 export async function showAudioFiles(ctx: Context, category?: string) {
   await logUserAction(ctx, 'audio:show_files', { category });
-  
+
   try {
     const audioFiles = await getActiveAudioFiles(category);
-    
-    console.log('🎵 Loading audio files:', { 
-      category, 
+
+    console.log('🎵 Loading audio files:', {
+      category,
       count: audioFiles.length,
       files: audioFiles.map(f => ({ title: f.title, category: f.category, isActive: f.isActive }))
     });
-    
+
     if (audioFiles.length === 0) {
-      if (category === 'gift' && env.cloudinaryAudioFolder && isCloudinaryConfigured()) {
+      if (category === 'gift' && isCloudinaryConfigured()) {
+        const folder = env.cloudinaryAudioFolder || 'plazma';
+        console.log(`🎵 Searching Cloudinary for audio in folder: '${folder}'...`);
+
         try {
-          const raw = await listCloudinaryResources(env.cloudinaryAudioFolder, 'raw', 50);
-          const video = await listCloudinaryResources(env.cloudinaryAudioFolder, 'video', 50);
+          const raw = await listCloudinaryResources(folder, 'raw', 50);
+          const video = await listCloudinaryResources(folder, 'video', 50);
+
+          console.log(`🎵 Cloudinary results - Raw: ${raw.length}, Video/Audio: ${video.length}`);
+
           const fromCloudinary = [...raw, ...video].filter(
             (r) => r.secure_url && /\.(mp3|m4a|ogg|wav|aac|webm|mp4)$/i.test(r.secure_url)
           );
+
           if (fromCloudinary.length > 0) {
-            console.log('🎵 Using audio from Cloudinary folder:', env.cloudinaryAudioFolder, fromCloudinary.length);
+            console.log(`✅ Found ${fromCloudinary.length} audio files in Cloudinary folder '${folder}'`);
+
+            await ctx.reply(`🎵 Найдено ${fromCloudinary.length} файлов в облачном хранилище (папка ${folder}):`);
+
             for (let i = 0; i < fromCloudinary.length; i++) {
               const r = fromCloudinary[i];
-              const name = r.public_id.split('/').pop() || `Аудио ${i + 1}`;
-              await ctx.reply(`🎵 ${name}`, {
+              // Try to extract a clean title from public_id
+              const fileName = r.public_id.split('/').pop() || `Аудио ${i + 1}`;
+              // Remove extension and underscores
+              const cleanTitle = fileName.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+
+              await ctx.reply(`🎵 ${cleanTitle}`, {
                 reply_markup: {
-                  inline_keyboard: [[{ text: '🎶 Слушать', url: r.secure_url }]],
+                  inline_keyboard: [[{ text: '🎶 Слушать сейчас', url: r.secure_url }]],
                 },
               });
             }
-            await ctx.reply('💡 Откройте ссылки выше для прослушивания в браузере.');
+            await ctx.reply('💡 Нажмите "Слушать сейчас" для воспроизведения.');
             return;
+          } else {
+            console.log(`❌ No audio files found in Cloudinary folder '${folder}'`);
           }
         } catch (e) {
-          console.warn('Cloudinary audio fallback failed:', (e as Error)?.message);
+          console.error('❌ Cloudinary audio fallback failed:', (e as Error)?.message);
         }
       }
+
       console.log('❌ No audio files found for category:', category);
       await ctx.reply(
-        '🎵 Звуковые матрицы\n\nПока нет доступных аудиофайлов.\n\n' +
-        'Чтобы они появились: администратор может отправить аудиофайл боту в чат для загрузки в раздел «Подарок», либо в настройках сервера задать папку Cloudinary (CLOUDINARY_AUDIO_FOLDER) и загрузить туда mp3/m4a файлы.'
+        '🎵 Звуковые матрицы\n\n' +
+        'Пока нет доступных аудиофайлов.\n\n' +
+        'Система проверила базу данных и облачное хранилище (Cloudinary).\n' +
+        'Администратор может загрузить файлы через бота или добавить их в папку "plazma" в Cloudinary.'
       );
       return;
     }
@@ -56,7 +75,7 @@ export async function showAudioFiles(ctx: Context, category?: string) {
     // Send audio files
     for (const audioFile of audioFiles) {
       console.log('🎵 Sending audio file:', audioFile.title, 'File ID:', audioFile.fileId);
-      
+
       try {
         // Проверяем, является ли file_id заглушкой
         if (audioFile.fileId.startsWith('BAADBAAD') || audioFile.fileId === 'PLACEHOLDER_FILE_ID') {
@@ -118,7 +137,7 @@ export async function showAudioFiles(ctx: Context, category?: string) {
     // Send summary message
     const totalDuration = audioFiles.reduce((sum, file) => sum + (file.duration || 0), 0);
     const formattedDuration = formatDuration(totalDuration);
-    
+
     await ctx.reply(
       `🎵 Всего файлов: ${audioFiles.length}\n⏱️ Общая длительность: ${formattedDuration}\n\n` +
       '💡 Слушайте эти звуковые матрицы для оздоровления и восстановления энергии.',
@@ -150,13 +169,13 @@ async function handleAudioUpload(ctx: Context) {
   const adminChatIds = getAdminChatIds();
   const userId = ctx.from?.id?.toString() || '';
   const isAdmin = adminChatIds.includes(userId);
-  
+
   console.log('🔍 Audio upload admin check:', {
     userId,
     adminChatIds,
     isAdmin
   });
-  
+
   if (!isAdmin) {
     await ctx.reply(`❌ Только администраторы могут загружать аудиофайлы.\n\nВаш ID: ${userId}\nНастроенные админы: ${adminChatIds.join(', ') || 'не настроены'}`);
     return;
@@ -200,11 +219,11 @@ async function handleAudioUpload(ctx: Context) {
 
     await ctx.reply(
       `✅ Аудиофайл успешно загружен!\n\n` +
-        `📝 Название: ${createdFile.title}\n` +
-        `⏱️ Длительность: ${createdFile.duration ? formatDuration(createdFile.duration) : 'Неизвестно'}\n` +
-        `📁 Размер: ${createdFile.fileSize ? Math.round(createdFile.fileSize / 1024) + ' KB' : 'Неизвестно'}\n` +
-        `🏷️ Категория: ${createdFile.category || 'Не указана'}\n\n` +
-        `Файл добавлен в раздел "Звуковые матрицы Гаряева".`
+      `📝 Название: ${createdFile.title}\n` +
+      `⏱️ Длительность: ${createdFile.duration ? formatDuration(createdFile.duration) : 'Неизвестно'}\n` +
+      `📁 Размер: ${createdFile.fileSize ? Math.round(createdFile.fileSize / 1024) + ' KB' : 'Неизвестно'}\n` +
+      `🏷️ Категория: ${createdFile.category || 'Не указана'}\n\n` +
+      `Файл добавлен в раздел "Звуковые матрицы Гаряева".`
     );
   } catch (error: any) {
     console.error('Error uploading audio file:', {
@@ -221,19 +240,19 @@ async function handleAudioUpload(ctx: Context) {
 async function showAdminAudioList(ctx: Context) {
   try {
     const audioFiles = await getAllAudioFiles();
-    
+
     if (audioFiles.length === 0) {
       await ctx.reply('📋 Список аудиофайлов пуст.\n\nДля загрузки отправьте аудиофайл боту.');
       return;
     }
 
     let message = '📋 Список всех аудиофайлов:\n\n';
-    
+
     audioFiles.forEach((file, index) => {
       const status = file.isActive ? '✅' : '❌';
       const duration = file.duration ? formatDuration(file.duration) : 'Неизвестно';
       const size = file.fileSize ? Math.round(file.fileSize / 1024) + ' KB' : 'Неизвестно';
-      
+
       message += `${index + 1}. ${status} **${file.title}**\n`;
       message += `   📁 Категория: ${file.category || 'Не указана'}\n`;
       message += `   ⏱️ Длительность: ${duration}\n`;
@@ -246,7 +265,7 @@ async function showAdminAudioList(ctx: Context) {
     message += `\n❌ Неактивных: ${audioFiles.filter(f => !f.isActive).length}`;
 
     await ctx.reply(message, { parse_mode: 'Markdown' });
-    
+
   } catch (error) {
     console.error('Error showing admin audio list:', error);
     await ctx.reply('❌ Ошибка при загрузке списка аудиофайлов.');
@@ -256,7 +275,7 @@ async function showAdminAudioList(ctx: Context) {
 async function showAudioStats(ctx: Context) {
   try {
     const audioFiles = await getAllAudioFiles();
-    
+
     if (audioFiles.length === 0) {
       await ctx.reply('📊 Статистика аудиофайлов:\n\nФайлов не найдено.');
       return;
@@ -265,7 +284,7 @@ async function showAudioStats(ctx: Context) {
     const activeFiles = audioFiles.filter(f => f.isActive);
     const totalDuration = audioFiles.reduce((sum, file) => sum + (file.duration || 0), 0);
     const totalSize = audioFiles.reduce((sum, file) => sum + (file.fileSize || 0), 0);
-    
+
     const categories = audioFiles.reduce((acc, file) => {
       const category = file.category || 'Без категории';
       acc[category] = (acc[category] || 0) + 1;
@@ -278,14 +297,14 @@ async function showAudioStats(ctx: Context) {
     message += `❌ Неактивных: ${audioFiles.length - activeFiles.length}\n`;
     message += `⏱️ Общая длительность: ${formatDuration(totalDuration)}\n`;
     message += `📊 Общий размер: ${Math.round(totalSize / 1024 / 1024 * 100) / 100} MB\n\n`;
-    
+
     message += '📂 По категориям:\n';
     Object.entries(categories).forEach(([category, count]) => {
       message += `• ${category}: ${count} файл(ов)\n`;
     });
 
     await ctx.reply(message);
-    
+
   } catch (error) {
     console.error('Error showing audio stats:', error);
     await ctx.reply('❌ Ошибка при загрузке статистики аудиофайлов.');
@@ -305,20 +324,20 @@ export const audioModule: BotModule = {
       const adminChatIds = getAdminChatIds();
       const userId = ctx.from?.id?.toString() || '';
       const isAdmin = adminChatIds.includes(userId);
-      
+
       console.log('🔍 Admin check:', {
         userId,
         adminChatIds,
         isAdmin
       });
-      
+
       if (!isAdmin) {
         await ctx.reply(`❌ Доступ запрещен. Только администраторы могут использовать эту команду.\n\nВаш ID: ${userId}\nНастроенные админы: ${adminChatIds.join(', ') || 'не настроены'}`);
         return;
       }
 
       const command = ctx.message?.text?.split(' ')[1];
-      
+
       if (command === 'audio') {
         await ctx.reply('🎵 Управление аудиофайлами\n\n' +
           'Доступные команды:\n' +
@@ -343,13 +362,13 @@ export const audioModule: BotModule = {
       const adminChatIds = getAdminChatIds();
       const userId = ctx.from?.id?.toString() || '';
       const isAdmin = adminChatIds.includes(userId);
-      
+
       console.log('🔍 Admin check:', {
         userId,
         adminChatIds,
         isAdmin
       });
-      
+
       if (!isAdmin) {
         await ctx.reply(`❌ Доступ запрещен. Только администраторы могут использовать эту команду.\n\nВаш ID: ${userId}\nНастроенные админы: ${adminChatIds.join(', ') || 'не настроены'}`);
         return;
@@ -391,13 +410,13 @@ export const audioModule: BotModule = {
       const adminChatIds = getAdminChatIds();
       const userId = ctx.from?.id?.toString() || '';
       const isAdmin = adminChatIds.includes(userId);
-      
+
       console.log('🔍 Voice upload admin check:', {
         userId,
         adminChatIds,
         isAdmin
       });
-      
+
       if (!isAdmin) {
         await ctx.reply(`❌ Только администраторы могут загружать аудиофайлы.\n\nВаш ID: ${userId}\nНастроенные админы: ${adminChatIds.join(', ') || 'не настроены'}`);
         return;
@@ -432,9 +451,9 @@ export const audioModule: BotModule = {
 
         await ctx.reply(
           `✅ Голосовое сообщение сохранено!\n\n` +
-            `📝 ${createdFile.title}\n` +
-            `⏱️ ${formatDuration(createdFile.duration || 0)}\n` +
-            `🏷️ Категория: ${createdFile.category}`
+          `📝 ${createdFile.title}\n` +
+          `⏱️ ${formatDuration(createdFile.duration || 0)}\n` +
+          `🏷️ Категория: ${createdFile.category}`
         );
       } catch (error: any) {
         console.error('Error uploading voice:', { message: error?.message, code: error?.code });
@@ -446,14 +465,14 @@ export const audioModule: BotModule = {
     bot.action(/^audio:play:(.+)$/, async (ctx) => {
       await ctx.answerCbQuery();
       const audioId = ctx.match[1];
-      
+
       try {
         const audioFile = await getAudioFileById(audioId);
         if (!audioFile) {
           await ctx.reply('❌ Аудиофайл не найден.');
           return;
         }
-        
+
         // Проверяем, является ли file_id заглушкой
         if (audioFile.fileId.startsWith('BAADBAAD') || audioFile.fileId === 'PLACEHOLDER_FILE_ID') {
           await ctx.reply(
@@ -496,14 +515,14 @@ export const audioModule: BotModule = {
     bot.action(/^audio:retry:(.+)$/, async (ctx) => {
       await ctx.answerCbQuery();
       const audioId = ctx.match[1];
-      
+
       try {
         const audioFile = await getAudioFileById(audioId);
         if (!audioFile) {
           await ctx.reply('❌ Аудиофайл не найден.');
           return;
         }
-        
+
         // Пытаемся отправить файл снова
         await ctx.replyWithAudio(
           audioFile.fileId,
