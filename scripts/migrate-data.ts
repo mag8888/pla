@@ -12,6 +12,8 @@ const TARGET_URL = process.env.DATABASE_URL || 'mongodb://mongo:pJzMMKYOvHUptbOT
 const COLLECTIONS_TO_MIGRATE = [
     { source: 'products', target: 'Product' },
     { source: 'categories', target: 'Category' },
+    // Use 'audioFiles' (plural, camelCase) from source based on inspection
+    { source: 'audioFiles', target: 'AudioFile' }
 ];
 
 async function migrate() {
@@ -46,9 +48,14 @@ async function migrate() {
 
             const count = await sourceCollection.countDocuments();
             if (count === 0) {
+
                 console.log(`   Fooled you! It's empty. Skipping.`);
                 continue;
             }
+
+            // Wipe target collection to ensure we don't have leftovers (like "PLAZMA Water - ...")
+            console.log(`   🧹 Clearing target collection ${targetName}...`);
+            await targetCollection.deleteMany({});
 
             console.log(`   Found ${count} documents. Reading...`);
             const docs = await sourceCollection.find().toArray();
