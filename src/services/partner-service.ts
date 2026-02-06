@@ -74,14 +74,14 @@ export async function checkPartnerActivation(userId: string): Promise<boolean> {
   return true;
 }
 
-export function buildReferralLink(code: string, programType: 'DIRECT' | 'MULTI_LEVEL', username?: string) {
+export function buildReferralLink(code: string, programType: 'DIRECT' | 'MULTI_LEVEL', _username?: string) {
   const botUsername = (env.botUsername || 'PLAZMA_test8_bot').replace(/^@/, '');
   const prefix = programType === 'DIRECT' ? 'ref_direct' : 'ref_multi';
-  const oldLink = `https://t.me/${botUsername}?start=${prefix}_${code}`;
-  const newLink = username ? `https://t.me/${botUsername}?start=${username}` : oldLink;
+  /** Ссылка с кодом реферала — при переходе бот получит start=ref_direct_PWXXX и засчитает приглашение */
+  const main = `https://t.me/${botUsername}?start=${prefix}_${code}`;
   const webappBase = env.webappBaseUrl || 'https://plazma.up.railway.app/webapp';
-  const webappLink = username ? `${webappBase.replace(/\/$/, '')}/${username}` : `${webappBase}?ref=${code}`;
-  return { old: oldLink, new: newLink, webapp: webappLink, main: newLink };
+  const webapp = `${webappBase.replace(/\/$/, '')}?ref=${code}`;
+  return { main, webapp, old: main, new: main };
 }
 
 export async function getPartnerDashboard(userId: string) {

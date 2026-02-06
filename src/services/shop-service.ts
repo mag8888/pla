@@ -1,12 +1,17 @@
 import { prisma } from '../lib/prisma.js';
 
 export async function getActiveCategories() {
-  const categories = await prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { name: 'asc' },
-  });
-  // Treat missing flag as visible (backward compatible)
-  return categories.filter((c: any) => c?.isVisibleInWebapp !== false);
+  try {
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
+    return categories.filter((c: any) => c?.isVisibleInWebapp !== false);
+  } catch (error: any) {
+    console.error('❌ getActiveCategories error:', error?.message || error);
+    if (error?.code === 'P2031' || error?.message?.includes('replica set')) return [];
+    throw error;
+  }
 }
 
 export async function getCategoryById(id: string) {
