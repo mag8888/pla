@@ -904,7 +904,7 @@ router.get('/', requireAdmin, async (req, res) => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Админ-панель Vital Bot v2.0</title>
+        <title>Панель управления Plazma v2.0</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
@@ -1277,7 +1277,7 @@ router.get('/', requireAdmin, async (req, res) => {
         </style>
       </head>
       <body>
-        ${renderAdminShellStart({ title: 'Analytics', activePath: '/admin', buildMarker })}
+        ${renderAdminShellStart({ title: 'Дашборд', activePath: '/admin', buildMarker })}
 
         <div class="dash-wrap">
           <div>
@@ -1383,7 +1383,7 @@ router.get('/', requireAdmin, async (req, res) => {
 
         <div class="container legacy-admin">
           <div class="header">
-            <h1>🚀 Админ-панель Vital Bot v2.0</h1>
+            <h1>🚀 Панель управления Plazma v2.0</h1>
             <p>Единое управление ботом, пользователями и партнёрами</p>
           </div>
           
