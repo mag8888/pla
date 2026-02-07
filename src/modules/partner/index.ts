@@ -5,6 +5,7 @@ import { ensureUser, logUserAction } from '../../services/user-history.js';
 import { buildReferralLink, getOrCreatePartnerProfile, getPartnerDashboard, getPartnerList } from '../../services/partner-service.js';
 import { getBotContent } from '../../services/bot-content-service.js';
 import { prisma } from '../../lib/prisma.js';
+import { PartnerProgramType } from '@prisma/client';
 
 // Тип для партнерского реферала с включенными данными
 type PartnerReferralWithUser = {
@@ -210,7 +211,7 @@ async function showDashboard(ctx: Context) {
     partners: stats.partners,
     direct: stats.directPartners,
     bonus: Number(profile.bonus).toFixed(2),
-    referral: buildReferralLink(profile.referralCode, profile.programType as 'DIRECT' | 'MULTI_LEVEL', user.username || undefined).main,
+    referral: buildReferralLink(profile.referralCode, profile.programType as PartnerProgramType, user.username || undefined).main,
     transactions,
     isActive: (profile as any).isActive,
     expiresAt: (profile as any).expiresAt,
@@ -225,7 +226,7 @@ async function showDashboard(ctx: Context) {
 
 async function handlePlanSelection(
   ctx: Context,
-  programType: 'DIRECT' | 'MULTI_LEVEL',
+  programType: PartnerProgramType,
   message: string
 ): Promise<boolean> {
   console.log('💰 Partner: handlePlanSelection called with type:', programType);

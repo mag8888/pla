@@ -1,6 +1,7 @@
 import express from 'express';
 import { lavaService } from '../services/lava-service.js';
 import { prisma } from '../lib/prisma.js';
+import { PaymentStatus } from '@prisma/client';
 
 const router = express.Router();
 
@@ -38,7 +39,7 @@ router.post('/webhook/lava', express.raw({ type: 'application/json' }), async (r
         // Обновляем статус платежа
         await prisma.payment.update({
           where: { id: payment.id },
-          data: { status: 'PAID' }
+          data: { status: PaymentStatus.PAID }
         });
 
         const isBalanceTopUp = payment.orderId.startsWith('BALANCE-');
@@ -94,7 +95,7 @@ router.post('/webhook/lava', express.raw({ type: 'application/json' }), async (r
 
         const { getBotInstance } = await import('../lib/bot-instance.js');
         const bot = await getBotInstance();
-        
+
         if (bot && userTelegramId) {
           try {
             await bot.telegram.sendMessage(
@@ -114,7 +115,7 @@ router.post('/webhook/lava', express.raw({ type: 'application/json' }), async (r
       }
     } else if (data.type === 'invoice_failed') {
       console.log(`❌ Payment failed: ${data.data.invoiceId}`);
-      
+
       // Обновляем статус на FAILED
       await prisma.payment.updateMany({
         where: { invoiceId: data.data.invoiceId },
@@ -122,7 +123,7 @@ router.post('/webhook/lava', express.raw({ type: 'application/json' }), async (r
       });
     } else if (data.type === 'invoice_cancelled') {
       console.log(`🚫 Payment cancelled: ${data.data.invoiceId}`);
-      
+
       // Обновляем статус на CANCELLED
       await prisma.payment.updateMany({
         where: { invoiceId: data.data.invoiceId },

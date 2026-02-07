@@ -581,11 +581,11 @@ router.post('/orders/:orderId/status', requireAdmin, async (req, res) => {
       data: {
         userId: order.userId || '',
         action: 'order_status_changed',
-        payload: JSON.stringify({
+        payload: {
           orderId: order.id,
           newStatus: status,
           oldStatus: order.status
-        })
+        }
       }
     });
 
@@ -670,12 +670,12 @@ router.post('/orders/:orderId/pay', requireAdmin, async (req, res) => {
       data: {
         userId: order.userId || '',
         action: 'order_paid',
-        payload: JSON.stringify({
+        payload: {
           orderId: order.id,
           amount: totalAmount,
           newBalance: newBalance,
           oldBalance: userBalance
-        })
+        }
       }
     });
 

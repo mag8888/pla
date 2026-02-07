@@ -3,6 +3,7 @@ import { Markup } from 'telegraf';
 import { lavaService } from '../../services/lava-service.js';
 import { prisma } from '../../lib/prisma.js';
 import { ensureUser } from '../../services/user-history.js';
+import { PaymentStatus, OrderStatus } from '@prisma/client';
 
 export async function showPaymentMethods(ctx: Context) {
   const user = await ensureUser(ctx);
@@ -47,8 +48,8 @@ export async function createPayment(ctx: Context, amount: number, orderId: strin
 
     // Создаем инвойс в Lava
     // Согласно документации Lava API, нужны обязательные параметры
-    const userEmail = (user as any).phone 
-      ? `${user.telegramId}@vital.temp` 
+    const userEmail = (user as any).phone
+      ? `${user.telegramId}@vital.temp`
       : `user_${user.telegramId}@vital.temp`;
 
     const invoice = await lavaService.createInvoice({
@@ -122,8 +123,8 @@ export async function createBalanceTopUp(ctx: Context, amount: number) {
     // Согласно документации Lava API, нужны обязательные параметры:
     // email, currency, orderId, sum (для одноразовых платежей)
     // Генерируем временный email, если у пользователя нет email
-    const userEmail = (user as any).phone 
-      ? `${user.telegramId}@vital.temp` 
+    const userEmail = (user as any).phone
+      ? `${user.telegramId}@vital.temp`
       : `user_${user.telegramId}@vital.temp`;
 
     const invoice = await lavaService.createInvoice({
@@ -160,9 +161,9 @@ export async function createBalanceTopUp(ctx: Context, amount: number) {
 
     await ctx.reply(
       `💳 <b>Пополнение баланса</b>\n\n` +
-        `💰 Сумма: <b>${amount.toFixed(2)} ₽</b>\n` +
-        `🔖 Номер пополнения: <b>${orderId}</b>\n\n` +
-        `Нажмите кнопку ниже, чтобы перейти к оплате:`,
+      `💰 Сумма: <b>${amount.toFixed(2)} ₽</b>\n` +
+      `🔖 Номер пополнения: <b>${orderId}</b>\n\n` +
+      `Нажмите кнопку ниже, чтобы перейти к оплате:`,
       { ...keyboard, parse_mode: 'HTML' }
     );
   } catch (error: any) {
@@ -177,7 +178,7 @@ export async function createBalanceTopUp(ctx: Context, amount: number) {
         headers: error.config?.headers
       }
     });
-    
+
     // Более информативное сообщение об ошибке
     let errorMessage = '❌ Не удалось создать платеж на пополнение. Попробуйте позже.';
     if (error.response?.status === 404) {
@@ -185,7 +186,7 @@ export async function createBalanceTopUp(ctx: Context, amount: number) {
     } else if (error.response?.status === 401) {
       errorMessage += '\n\n⚠️ Ошибка авторизации. Проверьте API ключи.';
     }
-    
+
     await ctx.reply(errorMessage);
   }
 }
@@ -203,7 +204,7 @@ export async function checkPaymentStatus(ctx: Context, paymentId: string) {
       return;
     }
 
-    if (payment.status === 'PAID') {
+    if (payment.status === PaymentStatus.PAID) {
       await ctx.answerCbQuery('✅ Платеж уже оплачен!');
       return;
     }
@@ -211,12 +212,12 @@ export async function checkPaymentStatus(ctx: Context, paymentId: string) {
     // Проверяем статус в Lava
     const status = await lavaService.getInvoiceStatus(payment.invoiceId);
     const isBalanceTopUp = payment.orderId.startsWith('BALANCE-');
-    
+
     if (status.data.status === 'success') {
       // Обновляем статус в БД
       await prisma.payment.update({
         where: { id: paymentId },
-        data: { status: 'PAID' }
+        data: { status: PaymentStatus.PAID }
       });
 
       if (isBalanceTopUp) {
@@ -235,15 +236,15 @@ export async function checkPaymentStatus(ctx: Context, paymentId: string) {
         await ctx.answerCbQuery('✅ Платеж подтвержден!');
         await ctx.reply(
           `🎉 <b>Баланс пополнен!</b>\n\n` +
-            `💰 Сумма: <b>${payment.amount.toFixed(2)} ₽</b>\n` +
-            `💳 Текущий баланс: <b>${updatedUser.balance.toFixed(2)} ₽</b>`,
+          `💰 Сумма: <b>${payment.amount.toFixed(2)} ₽</b>\n` +
+          `💳 Текущий баланс: <b>${updatedUser.balance.toFixed(2)} ₽</b>`,
           { parse_mode: 'HTML' }
         );
       } else {
         // Обновляем статус заказа
         await prisma.orderRequest.updateMany({
           where: { id: payment.orderId },
-          data: { status: 'COMPLETED' }
+          data: { status: OrderStatus.COMPLETED }
         });
 
         await ctx.answerCbQuery('✅ Платеж подтвержден!');
@@ -274,7 +275,7 @@ export async function cancelPayment(ctx: Context, paymentId: string) {
       return;
     }
 
-    if (payment.status === 'PAID') {
+    if (payment.status === PaymentStatus.PAID) {
       await ctx.answerCbQuery('❌ Нельзя отменить оплаченный платеж');
       return;
     }

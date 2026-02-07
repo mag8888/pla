@@ -17,7 +17,9 @@ async function ensureReferralCode(): Promise<string> {
   }
 }
 
-export async function getOrCreatePartnerProfile(userId: string, programType: 'DIRECT' | 'MULTI_LEVEL' = 'DIRECT') {
+import { PartnerProgramType, TransactionType } from '@prisma/client';
+
+export async function getOrCreatePartnerProfile(userId: string, programType: PartnerProgramType = PartnerProgramType.DIRECT) {
   const existing = await prisma.partnerProfile.findUnique({ where: { userId } });
   if (existing) {
     return existing;
@@ -221,7 +223,7 @@ export async function getPartnerList(userId: string) {
   };
 }
 
-export async function recordPartnerTransaction(profileId: string, amount: number, description: string, type: 'CREDIT' | 'DEBIT' = 'CREDIT') {
+export async function recordPartnerTransaction(profileId: string, amount: number, description: string, type: TransactionType = TransactionType.CREDIT) {
   // Get partner profile to access userId
   const profile = await prisma.partnerProfile.findUnique({
     where: { id: profileId },
@@ -243,7 +245,7 @@ export async function recordPartnerTransaction(profileId: string, amount: number
   });
 
   // Update user balance if this is a CREDIT transaction
-  if (type === 'CREDIT') {
+  if (type === TransactionType.CREDIT) {
     await prisma.user.update({
       where: { id: profile.userId },
       data: {
@@ -281,7 +283,7 @@ export async function recalculatePartnerBonuses(profileId: string) {
   console.log(`📊 Found ${allTransactions.length} transactions for profile ${profileId}`);
 
   const totalBonus = allTransactions.reduce((sum, tx) => {
-    const amount = tx.type === 'CREDIT' ? tx.amount : -tx.amount;
+    const amount = tx.type === TransactionType.CREDIT ? tx.amount : -tx.amount;
     console.log(`  - Transaction: ${tx.type} ${tx.amount} PZ (${tx.description})`);
     return sum + amount;
   }, 0);
@@ -473,14 +475,14 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
         data: {
           userId: partnerProfile.userId,
           action: 'REFERRAL_BONUS',
-          payload: JSON.stringify({
+          payload: {
             amount: bonusAmount,
             orderAmount,
             level: referral.level,
             referredUserId: orderUserId,
             orderId: orderId || null,
             type: 'DUAL_SYSTEM'
-          })
+          }
         }
       });
 

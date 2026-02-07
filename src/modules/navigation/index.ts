@@ -1067,7 +1067,7 @@ export const navigationModule: BotModule = {
                 data: {
                   userId: user.id,
                   action: 'support:webapp',
-                  payload: JSON.stringify({ direction: 'admin', text: messageText })
+                  payload: { direction: 'admin', text: messageText }
                 }
               });
             }

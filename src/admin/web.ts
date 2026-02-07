@@ -4204,7 +4204,7 @@ router.post('/send-messages', requireAdmin, async (req, res) => {
           data: {
             userId: user.id,
             action: 'admin_message_sent',
-            payload: JSON.stringify({
+            payload: {
               type,
               subject,
               messageLength: text.length,
@@ -4212,7 +4212,7 @@ router.post('/send-messages', requireAdmin, async (req, res) => {
               messageText: messageText,
               status: 'sent',
               telegramId: user.telegramId
-            })
+            }
           }
         });
 
@@ -13420,13 +13420,13 @@ router.post('/users/:userId/update-balance', requireAdmin, async (req, res) => {
       data: {
         userId,
         action: 'balance_updated',
-        payload: JSON.stringify({
+        payload: {
           operation,
           amount,
           oldBalance: currentBalance,
           newBalance,
           comment: comment || 'Ручное изменение баланса администратором'
-        })
+        }
       }
     });
 
@@ -15731,11 +15731,11 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           data: {
             userId: userId,
             action: 'MESSAGE_SENT',
-            payload: JSON.stringify({
+            payload: {
               subject,
               text,
               sentBy: 'admin'
-            })
+            }
           }
         });
 
@@ -15752,11 +15752,11 @@ router.post('/messages/send', requireAdmin, async (req, res) => {
           data: {
             userId: userIds[0], // Используем первого пользователя для шаблона
             action: 'MESSAGE_TEMPLATE_SAVED',
-            payload: JSON.stringify({
+            payload: {
               subject,
               text,
               savedBy: 'admin'
-            })
+            }
           }
         });
       } catch (error) {
@@ -15820,12 +15820,12 @@ router.post('/users/:userId/balance', requireAdmin, async (req, res) => {
       data: {
         userId: userId,
         action: operation === 'add' ? 'BALANCE_ADDED' : 'BALANCE_SUBTRACTED',
-        payload: JSON.stringify({
+        payload: {
           amount: amount,
           operation: operation,
           previousBalance: currentBalance,
           newBalance: newBalance
-        })
+        }
       }
     });
 
@@ -15929,11 +15929,11 @@ router.post('/orders/:orderId/pay', requireAdmin, async (req, res) => {
         data: {
           userId: order.user!.id,
           action: 'ORDER_PAYMENT',
-          payload: JSON.stringify({
+          payload: {
             orderId: orderId,
             amount: -totalAmount,
             description: `Оплата заказа #${orderId.slice(-8)}`
-          })
+          }
         }
       });
     });
@@ -16046,7 +16046,7 @@ router.put('/orders/:orderId/items', requireAdmin, async (req, res) => {
     await prisma.orderRequest.update({
       where: { id: orderId },
       data: {
-        itemsJson: JSON.stringify(items)
+        itemsJson: items,
       }
     });
 

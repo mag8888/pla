@@ -4,12 +4,46 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// Enums are not natively supported in SQLite, Prisma simulates them.
-// We keep them defined here for Prisma Client types.
+// Enums
+enum Region {
+  RUSSIA
+  BALI
+  WORLD
+}
+
+enum PartnerProgramType {
+  DIRECT
+  MULTI_LEVEL
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum CertificateStatus {
+  ACTIVE
+  USED
+  EXPIRED
+}
+
+enum OrderStatus {
+  NEW
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
 
 model User {
   id              String            @id @default(uuid())
@@ -20,7 +54,7 @@ model User {
   languageCode    String?
   phone           String?
   // Region enum is treated as String in SQLite underlying, handled by Prisma
-  selectedRegion  String?           @default("RUSSIA") 
+  selectedRegion  Region?           @default(RUSSIA) 
   deliveryAddress String?
   balance         Float             @default(0)
   cartItems       CartItem[]
@@ -57,7 +91,7 @@ model UserHistory {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String   
   action    String
-  payload   String?  // SQLite doesn't support Json, store as String
+  payload   Json?
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -225,8 +259,8 @@ model OrderRequest {
   userId    String?  
   contact   String?
   message   String
-  itemsJson String   // SQLite no Json
-  status    String   @default("NEW")
+  itemsJson Json
+  status    OrderStatus   @default(NEW)
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -241,7 +275,7 @@ model PartnerProfile {
   activatedAt    DateTime?
   expiresAt      DateTime?
   activationType String?
-  programType    String               @default("DIRECT") // Enum as String
+  programType    PartnerProgramType   @default(DIRECT)
   referralCode   String               @unique
   balance        Float                @default(0)
   bonus          Float                @default(0)
@@ -263,7 +297,7 @@ model PartnerReferral {
   referred     User?              @relation("UserReferrals", fields: [referredId], references: [id])
   contact      String?
   level        Int
-  referralType String             @default("DIRECT") // Enum as String
+  referralType PartnerProgramType     @default(DIRECT)
   createdAt    DateTime           @default(now())
 
   @@index([profileId])
@@ -275,7 +309,7 @@ model PartnerTransaction {
   profile     PartnerProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   profileId   String          
   amount      Float
-  type        String // Enum as String
+  type        TransactionType
   description String
   createdAt   DateTime        @default(now())
 
@@ -356,7 +390,7 @@ model MessageTemplate {
   subject   String
   text      String
   photoUrl  String?
-  buttons   String? // SQLite no Json
+  buttons   Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -369,7 +403,7 @@ model Payment {
   invoiceId  String        @unique
   amount     Float
   currency   String        @default("RUB")
-  status     String        @default("PENDING") // Enum as string
+  status     PaymentStatus        @default(PENDING)
   paymentUrl String?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt

@@ -782,7 +782,7 @@ router.post('/api/support/messages', async (req, res) => {
       data: {
         userId: user.id,
         action: 'support:webapp',
-        payload: JSON.stringify({ direction: 'user', text })
+        payload: { direction: 'user', text }
       }
     });
 
@@ -2179,7 +2179,7 @@ router.get('/api/plazma/products', async (req, res) => {
       });
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     console.log('📦 Plazma API response:', {
       endpoint: useCatalog ? '/catalog' : '/products',
       success: data.success,
@@ -2310,13 +2310,13 @@ router.post('/api/plazma/orders', async (req, res) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' })) as any;
       return res.status(response.status).json({
         error: errorData.error || 'Failed to create order'
       });
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     // Also create order request in our database for tracking
     let order = null;

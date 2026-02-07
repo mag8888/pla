@@ -31,7 +31,7 @@ export async function createOrderRequest(params: {
       userId: params.userId,
       contact: params.contact,
       message: params.message,
-      itemsJson: JSON.stringify(itemsJson),
+      itemsJson,
     },
   });
 
