@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -46,7 +46,8 @@ enum OrderStatus {
 }
 
 model User {
-  id              String            @id @default(uuid())
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+
   telegramId      String            @unique
   firstName       String?
   lastName        String?
@@ -73,9 +74,9 @@ model User {
 }
 
 model BalanceTopUpRequest {
-  id         String   @id @default(uuid())
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     String   
+  userId     String   @db.ObjectId
   amountRub  Float?
   receiptUrl String
   status     String   @default("PENDING")
@@ -88,9 +89,9 @@ model BalanceTopUpRequest {
 }
 
 model UserHistory {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String   
+  userId    String   @db.ObjectId
   action    String
   payload   Json?
   createdAt DateTime @default(now())
@@ -100,7 +101,7 @@ model UserHistory {
 }
 
 model Category {
-  id                String    @id @default(uuid())
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
   name              String
   slug              String    @unique
   description       String?
@@ -113,7 +114,7 @@ model Category {
 }
 
 model Product {
-  id                String     @id @default(uuid())
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
   title             String
   summary           String
   description       String?
@@ -128,7 +129,7 @@ model Product {
   availableInRussia Boolean   @default(true)
   availableInBali   Boolean   @default(true)
   category          Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  categoryId        String     
+  categoryId        String     @db.ObjectId
   cartItems         CartItem[]
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
@@ -140,7 +141,7 @@ model Product {
 }
 
 model CertificateType {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
   imageUrl    String?
@@ -156,12 +157,12 @@ model CertificateType {
 }
 
 model GiftCertificate {
-  id           String           @id @default(uuid())
+  id           String           @id @default(auto()) @map("_id") @db.ObjectId
   code         String           @unique
   type         CertificateType? @relation(fields: [typeId], references: [id])
-  typeId       String?          
+  typeId       String?          @db.ObjectId
   user         User?            @relation(fields: [userId], references: [id])
-  userId       String?          
+  userId       String?          @db.ObjectId
   initialPz    Float
   remainingPz  Float
   status       String           @default("ACTIVE")
@@ -173,11 +174,11 @@ model GiftCertificate {
 }
 
 model Specialist {
-  id            String   @id @default(uuid())
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
   name          String
   specialty     String
-  categoryId    String?  
-  specialtyId   String?  
+  categoryId    String?  @db.ObjectId
+  specialtyId   String?  @db.ObjectId
   category      SpecialistCategory? @relation(fields: [categoryId], references: [id])
   specialtyRef  SpecialistSpecialty? @relation(fields: [specialtyId], references: [id])
   photoUrl      String?
@@ -196,7 +197,7 @@ model Specialist {
 }
 
 model SpecialistCategory {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String   @unique
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
@@ -209,10 +210,10 @@ model SpecialistCategory {
 }
 
 model SpecialistSpecialty {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   category    SpecialistCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  categoryId  String   
+  categoryId  String   @db.ObjectId
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
@@ -224,9 +225,9 @@ model SpecialistSpecialty {
 }
 
 model SpecialistService {
-  id           String   @id @default(uuid())
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
   specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
-  specialistId String   
+  specialistId String   @db.ObjectId
   title        String
   description  String?
   format       String?
@@ -242,11 +243,11 @@ model SpecialistService {
 }
 
 model CartItem {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String   
+  userId    String   @db.ObjectId
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId String   
+  productId String   @db.ObjectId
   quantity  Int      @default(1)
   createdAt DateTime @default(now())
 
@@ -255,9 +256,9 @@ model CartItem {
 }
 
 model OrderRequest {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   user      User?    @relation(fields: [userId], references: [id])
-  userId    String?  
+  userId    String?  @db.ObjectId
   contact   String?
   message   String
   itemsJson Json
@@ -269,9 +270,9 @@ model OrderRequest {
 }
 
 model PartnerProfile {
-  id             String               @id @default(uuid())
+  id             String               @id @default(auto()) @map("_id") @db.ObjectId
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId         String               @unique 
+  userId         String               @unique @db.ObjectId
   isActive       Boolean              @default(false)
   activatedAt    DateTime?
   expiresAt      DateTime?
@@ -291,10 +292,10 @@ model PartnerProfile {
 }
 
 model PartnerReferral {
-  id           String             @id @default(uuid())
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
   profile      PartnerProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  profileId    String             
-  referredId   String?            
+  profileId    String             @db.ObjectId
+  referredId   String?            @db.ObjectId @map("referredId")
   referred     User?              @relation("UserReferrals", fields: [referredId], references: [id])
   contact      String?
   level        Int
@@ -306,9 +307,9 @@ model PartnerReferral {
 }
 
 model PartnerTransaction {
-  id          String          @id @default(uuid())
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
   profile     PartnerProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  profileId   String          
+  profileId   String          @db.ObjectId
   amount      Float
   type        TransactionType
   description String
@@ -318,9 +319,9 @@ model PartnerTransaction {
 }
 
 model PartnerActivationHistory {
-  id              String          @id @default(uuid())
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
   profile         PartnerProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  profileId       String          
+  profileId       String          @db.ObjectId
   action          String
   activationType  String?
   reason          String?
@@ -333,7 +334,7 @@ model PartnerActivationHistory {
 }
 
 model Review {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String
   photoUrl  String?
   content   String
@@ -345,7 +346,7 @@ model Review {
 }
 
 model AudioFile {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
   fileId      String
@@ -359,7 +360,7 @@ model AudioFile {
 }
 
 model MediaFile {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
   url         String
@@ -373,7 +374,7 @@ model MediaFile {
 }
 
 model BotContent {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   key         String   @unique
   title       String
   content     String
@@ -386,7 +387,7 @@ model BotContent {
 }
 
 model MessageTemplate {
-  id        String   @id @default(uuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String
   subject   String
   text      String
@@ -397,8 +398,8 @@ model MessageTemplate {
 }
 
 model Payment {
-  id         String        @id @default(uuid())
-  userId     String        
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String        @db.ObjectId
   user       User          @relation(fields: [userId], references: [id])
   orderId    String        @unique
   invoiceId  String        @unique
@@ -414,7 +415,7 @@ model Payment {
 }
 
 model Settings {
-  id          String   @id @default(uuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   key         String   @unique
   value       String
   description String?

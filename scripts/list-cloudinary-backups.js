@@ -24,7 +24,7 @@ async function listAllBackups() {
   try {
     console.log('🔍 Поиск бэкапов в Cloudinary...');
     console.log(`📁 Папка: plazma-bot/backups\n`);
-    
+
     if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
       console.error('❌ Ошибка: CLOUDINARY_API_KEY и CLOUDINARY_API_SECRET должны быть установлены в .env');
       console.log('\n💡 Добавьте в .env файл:');
@@ -33,16 +33,16 @@ async function listAllBackups() {
       console.log('   CLOUDINARY_API_SECRET=your_api_secret');
       process.exit(1);
     }
-    
-    // Получаем все бэкапы (увеличиваем лимит до 500)
+
+    // Ищем любые JSON файлы во всех папках
     const result = await cloudinary.search
-      .expression('folder:plazma-bot/backups AND resource_type:raw')
-      .sort_by([{ created_at: 'desc' }])
+      .expression('resource_type:raw AND format:json')
+      .sort_by('created_at', 'desc')
       .max_results(500)
       .execute();
-    
+
     const backups = result.resources || [];
-    
+
     if (backups.length === 0) {
       console.log('⚠️  Бэкапы не найдены в Cloudinary');
       console.log('\n💡 Возможные причины:');
@@ -51,16 +51,16 @@ async function listAllBackups() {
       console.log('   - Бэкапы находятся в другой папке');
       return;
     }
-    
+
     console.log(`✅ Найдено бэкапов: ${backups.length}\n`);
     console.log('═'.repeat(100));
-    
+
     backups.forEach((backup, index) => {
       const date = new Date(backup.created_at);
       const sizeMB = (backup.bytes / 1024 / 1024).toFixed(2);
       const sizeKB = (backup.bytes / 1024).toFixed(2);
       const size = backup.bytes > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
-      
+
       console.log(`\n📦 Бэкап #${index + 1}`);
       console.log(`   📄 Имя файла: ${backup.filename || backup.public_id}`);
       console.log(`   📅 Дата создания: ${date.toLocaleString('ru-RU')}`);
@@ -68,10 +68,10 @@ async function listAllBackups() {
       console.log(`   🔗 URL: ${backup.secure_url}`);
       console.log(`   🆔 Public ID: ${backup.public_id}`);
     });
-    
+
     console.log('\n' + '═'.repeat(100));
     console.log(`\n📊 Итого: ${backups.length} бэкап(ов)`);
-    
+
     if (backups.length > 0) {
       const latest = backups[0];
       const latestDate = new Date(latest.created_at);
@@ -79,18 +79,20 @@ async function listAllBackups() {
       console.log(`   Дата: ${latestDate.toLocaleString('ru-RU')}`);
       console.log(`   URL: ${latest.secure_url}`);
     }
-    
+
     return backups;
-    
+
   } catch (error) {
-    console.error('❌ Ошибка получения списка бэкапов:', error.message);
-    
-    if (error.message.includes('Invalid API Key')) {
+    console.error('❌ Ошибка получения списка бэкапов:', error);
+
+    const errorMessage = error.error ? error.error.message : String(error);
+
+    if (errorMessage.includes('Invalid API Key')) {
       console.log('\n💡 Проверьте правильность CLOUDINARY_API_KEY в .env');
-    } else if (error.message.includes('Invalid API Secret')) {
+    } else if (errorMessage.includes('Invalid API Secret') || errorMessage.includes('api_secret mismatch')) {
       console.log('\n💡 Проверьте правильность CLOUDINARY_API_SECRET в .env');
     }
-    
+
     process.exit(1);
   }
 }
