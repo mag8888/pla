@@ -7,7 +7,7 @@
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
     "dev:refactored": "nodemon --watch src --exec ts-node src/server-refactored.ts",
     "dev:simple": "nodemon --watch src --exec ts-node src/server-simple-refactored.ts",
-    "start": "node dist/server.js",
+    "start": "npx prisma db push && node dist/server.js",
     "start:refactored": "node dist/server-refactored.js",
     "start:simple": "node dist/server-simple-refactored.js",
     "build": "rm -rf dist && tsc --project tsconfig-original.json",
@@ -41,6 +41,7 @@
     "mongoose": "^8.0.0",
     "multer": "^2.0.2",
     "node-cron": "^3.0.3",
+    "prisma": "^5.16.1",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
@@ -49,7 +50,6 @@
     "@types/node": "^20.14.10",
     "@types/node-cron": "^3.0.11",
     "nodemon": "^3.1.4",
-    "prisma": "^5.16.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }
