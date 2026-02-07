@@ -14,7 +14,7 @@
     "build:refactored": "tsc --project tsconfig.json && echo 'Refactored version built successfully'",
     "build:simple": "tsc --project tsconfig-simple.json && echo 'Simple refactored version built successfully'",
     "migrate:dev": "prisma db push",
-    "migrate:deploy": "prisma db push",
+    "migrate:deploy": "prisma db push --accept-data-loss",
     "prisma:generate": "prisma generate",
     "backup": "node scripts/backup-database-railway.js",
     "restore": "node scripts/restore-from-cloudinary.js",
