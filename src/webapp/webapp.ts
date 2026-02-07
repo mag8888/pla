@@ -336,6 +336,37 @@ router.get('/api/products/count', async (req, res) => {
 });
 
 // All products endpoint
+// ALIAS: /products -> /api/products (for compatibility)
+router.get('/products', async (req, res) => {
+  // Forward to /api/products logic
+  try {
+    const categoryId = req.query.categoryId as string;
+    const region = req.query.region as string;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+
+    console.log('🛍️ GET /products (alias) params:', { categoryId, region, limit, offset });
+
+    let products;
+    if (categoryId) {
+      products = await getProductsByCategory(categoryId);
+    } else {
+      products = await getAllActiveProducts();
+    }
+
+    // Apply pagination if needed
+    if (limit) {
+      const start = offset || 0;
+      products = products.slice(start, start + limit);
+    }
+
+    res.json(products);
+  } catch (error) {
+    console.error('❌ Error fetching products (alias):', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
 router.get('/api/products', async (req, res) => {
   try {
     console.log('📦 Fetching all active products...');
