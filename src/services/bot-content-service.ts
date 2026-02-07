@@ -36,21 +36,28 @@ export async function getBotContent(key: string, language: string = 'ru'): Promi
 /**
  * Получить все контенты бота
  */
-export async function getAllBotContents(): Promise<BotContentData[]> {
+  async getProducts(categoryId: string | null = null): Promise < any[] > {
   try {
-    const contents = await prisma.botContent.findMany({
-      orderBy: [
-        { category: 'asc' },
-        { key: 'asc' },
-      ],
-    });
-
-    return contents;
-  } catch (error) {
-    console.error('Error getting all bot contents:', error);
-    return [];
-  }
+    console.log('Fetching products from Prisma...');
+    const where: any = { isActive: true }; // Only return active products
+    if(categoryId && categoryId !== 'all') {
+  where.categoryId = categoryId;
 }
+
+console.log('Querying Prisma with where:', JSON.stringify(where));
+const products = await prisma.product.findMany({
+  where,
+  include: { category: true },
+  orderBy: { createdAt: 'desc' }
+});
+
+console.log(`Found ${products.length} active products`);
+return products.map(p => this.mapProduct(p));
+    } catch (error) {
+  console.error('Error fetching products from Prisma:', error);
+  return [];
+}
+  }
 
 /**
  * Создать или обновить контент бота
