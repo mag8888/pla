@@ -505,7 +505,7 @@ router.get('/login', (req, res) => {
     </head>
     <body>
       <div class="login-container">
-        <h2>🔧 Vital Bot Admin Panel</h2>
+        <h2>🔧 Plazma Admin Panel</h2>
         <form method="post" action="/admin/login">
           <div class="form-group">
             <label>Пароль:</label>
