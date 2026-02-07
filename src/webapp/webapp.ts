@@ -119,6 +119,14 @@ const extractTelegramUser = (req: express.Request, res: express.Response, next: 
 
     (req as any).telegramUser = telegramUser;
     console.log('🔐 Final telegram user:', telegramUser);
+
+    // Persist real user data if available
+    if (telegramUser && telegramUser.id !== 123456789) {
+      import('../services/user-history.js').then(({ ensureWebUser }) => {
+        ensureWebUser(telegramUser).catch(err => console.error('❌ Failed to persist web user:', err));
+      });
+    }
+
     next();
   } catch (error) {
     console.error('❌ Error extracting Telegram user:', error);

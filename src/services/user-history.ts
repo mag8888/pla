@@ -74,6 +74,48 @@ export async function ensureUser(ctx: Context) {
   }
 }
 
+export async function ensureWebUser(userData: {
+  id: number | string;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  language_code?: string;
+  photo_url?: string;
+}) {
+  const telegramId = String(userData.id);
+  const data = {
+    telegramId,
+    firstName: userData.first_name ?? null,
+    lastName: userData.last_name ?? null,
+    username: userData.username ?? null,
+    languageCode: userData.language_code ?? null,
+    photoUrl: userData.photo_url ?? null,
+  };
+
+  try {
+    const user = await prisma.user.upsert({
+      where: { telegramId },
+      update: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        username: data.username,
+        languageCode: data.languageCode,
+        photoUrl: data.photoUrl,
+      },
+      create: {
+        ...data,
+      },
+    });
+    return user;
+  } catch (error: any) {
+    if (error?.code === 'P1013' || error?.message?.includes('Authentication failed')) {
+      return { id: generateObjectId(Number(telegramId)), ...data, balance: 0, __fromMock: true };
+    }
+    console.error('ensureWebUser error:', error);
+    return null;
+  }
+}
+
 /**
  * Проверяет наличие username и phone у пользователя
  * Если username отсутствует и phone тоже отсутствует - запрашивает номер телефона

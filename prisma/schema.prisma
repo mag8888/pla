@@ -53,6 +53,7 @@ model User {
   username        String?
   languageCode    String?
   phone           String?
+  photoUrl        String?
   // Region enum is treated as String in SQLite underlying, handled by Prisma
   selectedRegion  Region?           @default(RUSSIA) 
   deliveryAddress String?
