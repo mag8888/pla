@@ -93,3 +93,4 @@ logs
 
 # Railway specific
 .railway/
+dist/
