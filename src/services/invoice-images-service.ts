@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { parseInvoiceFromDelimitedText, InvoiceItem } from './invoice-import-service.js';
-import { uploadImage, isCloudinaryConfigured } from './cloudinary-service.js';
+import { uploadImage, uploadImageFromPath, isCloudinaryConfigured } from './cloudinary-service.js';
 import { scrapeShopPage, extractImageFromProductPage } from './scrape-images-service.js';
 
 const prisma = new PrismaClient();
@@ -39,7 +39,7 @@ function normalizeTitle(title: string): string {
 function extractKeywords(title: string): string[] {
   const normalized = normalizeTitle(title);
   const words = normalized.split(/\s+/).filter(w => w.length > 3);
-  
+
   // Убираем общие слова
   const stopWords = ['with', 'organic', 'natural', 'cosmos', 'g', 'ml', 'the', 'and', 'for', 'from'];
   return words.filter(w => !stopWords.includes(w));
@@ -59,19 +59,19 @@ async function getAllSiteProducts(): Promise<Array<{ title: string; imageUrl: st
   if (siteProductsCache) {
     return siteProductsCache;
   }
-  
+
   console.log('📥 Загрузка всех товаров с сайта Siam Botanicals...');
   const allProducts: Array<{ title: string; imageUrl: string | null; productUrl: string }> = [];
-  
+
   for (let page = 1; page <= 10; page++) {
     try {
       const { products, hasNextPage } = await scrapeShopPage(page);
       allProducts.push(...products);
-      
+
       if (!hasNextPage || products.length === 0) {
         break;
       }
-      
+
       // Небольшая пауза между страницами
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
@@ -79,7 +79,7 @@ async function getAllSiteProducts(): Promise<Array<{ title: string; imageUrl: st
       break;
     }
   }
-  
+
   console.log(`✅ Загружено ${allProducts.length} товаров с сайта\n`);
   siteProductsCache = allProducts;
   return allProducts;
@@ -93,28 +93,28 @@ async function searchProductOnSite(invoiceItem: InvoiceItem): Promise<string | n
     const allSiteProducts = await getAllSiteProducts();
     const normalizedInvoiceTitle = normalizeTitle(invoiceItem.description);
     const keywords = extractKeywords(invoiceItem.description);
-    
+
     // Ищем товар по названию
     for (const siteProduct of allSiteProducts) {
       const normalizedSiteTitle = normalizeTitle(siteProduct.title);
-      
+
       // Точное совпадение
       if (normalizedSiteTitle === normalizedInvoiceTitle) {
         console.log(`   ✅ Найден точный match: "${siteProduct.title}"`);
         const imageUrl = await extractImageFromProductPage(siteProduct.productUrl);
         return imageUrl || siteProduct.imageUrl;
       }
-      
+
       // Частичное совпадение (ключевые слова)
       const siteKeywords = extractKeywords(siteProduct.title);
       const matchingKeywords = keywords.filter(k => siteKeywords.includes(k));
-      
+
       if (matchingKeywords.length >= 2 && matchingKeywords.length >= keywords.length * 0.6) {
         console.log(`   ✅ Найден частичный match: "${siteProduct.title}" (совпадений: ${matchingKeywords.length})`);
         const imageUrl = await extractImageFromProductPage(siteProduct.productUrl);
         return imageUrl || siteProduct.imageUrl;
       }
-      
+
       // Проверяем, содержит ли название сайта ключевые слова из инвойса
       if (keywords.length > 0 && keywords.some(k => normalizedSiteTitle.includes(k))) {
         console.log(`   ✅ Найден по ключевым словам: "${siteProduct.title}"`);
@@ -125,7 +125,7 @@ async function searchProductOnSite(invoiceItem: InvoiceItem): Promise<string | n
   } catch (error) {
     console.error(`Ошибка поиска товара "${invoiceItem.description}":`, error);
   }
-  
+
   return null;
 }
 
@@ -134,7 +134,7 @@ async function searchProductOnSite(invoiceItem: InvoiceItem): Promise<string | n
  */
 async function matchInvoiceItemsWithProducts(invoiceItems: InvoiceItem[]): Promise<ProductMatch[]> {
   const matches: ProductMatch[] = [];
-  
+
   // Получаем все товары из базы данных
   const dbProducts = await prisma.product.findMany({
     select: {
@@ -144,26 +144,26 @@ async function matchInvoiceItemsWithProducts(invoiceItems: InvoiceItem[]): Promi
       imageUrl: true
     }
   });
-  
+
   for (const invoiceItem of invoiceItems) {
     // Сначала ищем по SKU
     let dbProduct = dbProducts.find(p => p.sku === invoiceItem.sku);
-    
+
     // Если не нашли по SKU, ищем по названию
     if (!dbProduct) {
       const normalizedInvoiceTitle = normalizeTitle(invoiceItem.description);
       dbProduct = dbProducts.find(p => {
         const normalizedDbTitle = normalizeTitle(p.title);
         return normalizedDbTitle === normalizedInvoiceTitle ||
-               normalizedDbTitle.includes(normalizedInvoiceTitle) ||
-               normalizedInvoiceTitle.includes(normalizedDbTitle);
+          normalizedDbTitle.includes(normalizedInvoiceTitle) ||
+          normalizedInvoiceTitle.includes(normalizedDbTitle);
       });
     }
-    
+
     if (dbProduct) {
       // Ищем изображение на сайте
       const siteImageUrl = await searchProductOnSite(invoiceItem);
-      
+
       matches.push({
         product: dbProduct,
         invoiceItem,
@@ -179,7 +179,7 @@ async function matchInvoiceItemsWithProducts(invoiceItems: InvoiceItem[]): Promi
       });
     }
   }
-  
+
   return matches;
 }
 
@@ -190,11 +190,13 @@ async function downloadAndUploadImage(imageUrl: string, productId: string, produ
   try {
     if (isCloudinaryConfigured()) {
       // Загружаем на Cloudinary
-      const cloudinaryUrl = await uploadImage(imageUrl, `products/${productId}`, {
+      // Uses uploadImageFromPath which supports URLs via cloudinary.uploader.upload
+      const result = await uploadImageFromPath(imageUrl, {
         folder: 'vital/products',
-        public_id: `product-${productId}`
+        publicId: `product-${productId}`
       });
-      return cloudinaryUrl;
+
+      return result.secureUrl || result.url || imageUrl;
     } else {
       // Возвращаем прямой URL
       return imageUrl;
@@ -217,21 +219,21 @@ export async function importImagesForInvoiceItems(invoiceText: string): Promise<
   errors: string[];
 }> {
   console.log('🚀 Запуск импорта изображений для товаров из инвойса...\n');
-  
+
   // Парсим инвойс
   const invoiceItems = parseInvoiceFromDelimitedText(invoiceText);
   console.log(`📦 Найдено ${invoiceItems.length} уникальных товаров в инвойсе\n`);
-  
+
   // Сопоставляем с товарами в базе данных
   console.log('🔍 Сопоставление товаров с базой данных...');
   const matches = await matchInvoiceItemsWithProducts(invoiceItems);
-  
+
   let matched = 0;
   let updated = 0;
   let failed = 0;
   let notFound = 0;
   const errors: string[] = [];
-  
+
   // Обрабатываем каждый товар
   for (const match of matches) {
     if (!match.product) {
@@ -239,54 +241,54 @@ export async function importImagesForInvoiceItems(invoiceText: string): Promise<
       notFound++;
       continue;
     }
-    
+
     if (!match.siteImageUrl) {
       console.log(`⚠️  Изображение не найдено на сайте: ${match.invoiceItem.sku} - ${match.invoiceItem.description}`);
       failed++;
       errors.push(`${match.invoiceItem.sku}: изображение не найдено на сайте`);
       continue;
     }
-    
+
     matched++;
-    
+
     try {
       console.log(`\n📦 Обработка: ${match.product.title}`);
       console.log(`   SKU: ${match.invoiceItem.sku}`);
       console.log(`   Найдено изображение: ${match.siteImageUrl.substring(0, 60)}...`);
-      
+
       // Загружаем и обновляем изображение
       const finalImageUrl = await downloadAndUploadImage(
         match.siteImageUrl,
         match.product.id,
         match.product.title
       );
-      
+
       if (!finalImageUrl) {
         console.log(`   ⚠️  Не удалось обработать изображение`);
         failed++;
         errors.push(`${match.invoiceItem.sku}: ошибка обработки изображения`);
         continue;
       }
-      
+
       // Обновляем в базе данных
       await prisma.product.update({
         where: { id: match.product.id },
         data: { imageUrl: finalImageUrl }
       });
-      
+
       console.log(`   ✅ Изображение обновлено!`);
       updated++;
-      
+
       // Небольшая пауза между запросами
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
     } catch (error: any) {
       console.error(`   ❌ Ошибка: ${error.message}`);
       failed++;
       errors.push(`${match.invoiceItem.sku}: ${error.message}`);
     }
   }
-  
+
   return {
     matched,
     updated,
