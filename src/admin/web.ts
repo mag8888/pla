@@ -402,7 +402,7 @@ function renderAdminShellStart(opts: { title: string; activePath: string; buildM
       <aside class="admin-sidebar">
         <div class="admin-brand">
           <span class="admin-brand-mark"></span>
-          <span>Vital Admin</span>
+        <h2>🔧 Plazma Admin Panel</h2>
         </div>
 
         <div class="admin-nav-group">Главное</div>
@@ -486,7 +486,7 @@ router.get('/login', (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Vital Bot Admin Panel</title>
+      <title>Plazma Admin Panel</title>
       <meta charset="utf-8">
       <style>
         body { font-family: Arial, sans-serif; max-width: 400px; margin: 100px auto; padding: 20px; background: #f5f5f5; }

@@ -57,7 +57,7 @@ router.get('/orders', requireAdmin, async (req, res) => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Управление заказами - Vital Admin</title>
+        <title>Управление заказами - Plazma Admin</title>
         <meta charset="utf-8">
         <style>
           body { 
