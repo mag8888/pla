@@ -442,7 +442,7 @@ function renderAdminShellStart(opts: { title: string; activePath: string; buildM
       <div class="admin-main">
         <header class="admin-topbar">
           <h1>${title}</h1>
-          <div class="admin-build">${buildMarker ? ('build: ' + buildMarker) : ''}</div>
+          <div class="admin-build">${buildMarker ? ('сборка: ' + buildMarker) : ''}</div>
         </header>
         <main class="admin-content">
   `;
