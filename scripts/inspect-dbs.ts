@@ -12,22 +12,34 @@ async function inspect() {
         await mongoose.connect(MONGO_URL);
         console.log('✅ Connected');
 
-        // Inspect moneo
-        const moneoDb = mongoose.connection.useDb('moneo');
-        const moneoCollections = await moneoDb.db.listCollections().toArray();
-        console.log('\n--- moneo Collections ---');
-        for (const col of moneoCollections) {
-            const count = await moneoDb.collection(col.name).countDocuments();
-            console.log(`- ${col.name}: ${count} docs`);
-        }
+        // List all databases
+        const admin = mongoose.connection.db.admin();
+        const dbs = await admin.listDatabases();
+        console.log('\n--- Available Databases ---');
 
-        // Inspect plazma_bot
-        const plazmaDb = mongoose.connection.useDb('plazma_bot');
-        const plazmaCollections = await plazmaDb.db.listCollections().toArray();
-        console.log('\n--- plazma_bot Collections ---');
-        for (const col of plazmaCollections) {
-            const count = await plazmaDb.collection(col.name).countDocuments();
-            console.log(`- ${col.name}: ${count} docs`);
+        for (const dbInfo of dbs.databases) {
+            console.log(`\n📂 Database: ${dbInfo.name} (size: ${dbInfo.sizeOnDisk})`);
+
+            // Skip system databases
+            if (['admin', 'local', 'config'].includes(dbInfo.name)) continue;
+
+            try {
+                const db = mongoose.connection.useDb(dbInfo.name);
+                const collections = await db.listCollections();
+
+                for (const col of collections) {
+                    const count = await db.collection(col.name).countDocuments();
+                    console.log(`  - ${col.name}: ${count} docs`);
+
+                    // Sample check for users
+                    if (count > 0 && (col.name.toLowerCase().includes('user') || col.name.toLowerCase().includes('client') || col.name.toLowerCase().includes('profile'))) {
+                        const sample = await db.collection(col.name).findOne({});
+                        console.log(`    -> Sample ${col.name}:`, JSON.stringify(sample, null, 2));
+                    }
+                }
+            } catch (e) {
+                console.log(`  ⚠️ Error inspecting ${dbInfo.name}: ${e.message}`);
+            }
         }
 
     } catch (error) {

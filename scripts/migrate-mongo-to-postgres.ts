@@ -1,251 +1,185 @@
 
-import mongoose from 'mongoose';
 import { PrismaClient } from '@prisma/client';
-import dotenv from 'dotenv';
+import { MongoClient } from 'mongodb';
 
-dotenv.config();
+// Production MongoDB URL provided by user
+const MONGO_URL = 'mongodb://mongo:pJzMMKYOvHUptbOTkFgwiwLOqYVnRqUp@nozomi.proxy.rlwy.net:28672';
 
 const prisma = new PrismaClient();
 
-const MONGO_URL = process.env.MONGO_URL || 'mongodb://mongo:qhvgdpCniWwJzVzUoliPpzHEopBAZzOv@crossover.proxy.rlwy.net:50105';
-
-const CategorySchema = new mongoose.Schema({
-    name: String,
-    description: String,
-    slug: String,
-}, { strict: false });
-
-const ProductSchema = new mongoose.Schema({
-    name: String,
-    title: String,
-    description: String,
-    summary: String,
-    instruction: String,
-    price: Number,
-    image_url: String,
-    imageUrl: String,
-    stock: Number,
-    category: mongoose.Schema.Types.Mixed,
-    categoryId: mongoose.Schema.Types.Mixed,
-    is_active: Boolean,
-    isActive: Boolean,
-    availableInRussia: Boolean,
-    availableInBali: Boolean,
-}, { strict: false });
-
 async function migrate() {
-    console.log('🚀 Starting migration...');
+    console.log('🚀 Starting migration from REAL Production DB...');
+    console.log('Connecting to MongoDB...', MONGO_URL);
 
-    try {
-        console.log('Connecting to MongoDB...');
-        await mongoose.connect(MONGO_URL);
-        console.log('✅ Connected to MongoDB');
+    const client = new MongoClient(MONGO_URL);
+    await client.connect();
+    console.log('✅ Connected to MongoDB');
 
-        // --- 1. Migrate Categories ---
-        const categoryMap = new Map<string, string>(); // Name/ID -> New ID
-        let allCategories: any[] = [];
+    // DATABASE MAPPING BASED ON INSPECTION
+    // Users -> plazma_bot.User (1577 docs)
+    // Products -> plazma.products (22 docs)
+    // Categories -> plazma.categories (4 docs)
 
-        // 1a. From 'moneo'
-        try {
-            const moneoDb = mongoose.connection.useDb('moneo');
-            const CategoryModel = moneoDb.model('Category', CategorySchema, 'Category');
-            const docs = await CategoryModel.find({});
-            console.log(`Found ${docs.length} categories in moneo.`);
-            allCategories.push(...docs);
-        } catch (e) {
-            console.warn('Failed to read moneo categories:', e);
+    const userDb = client.db('plazma_bot');
+    const catalogDb = client.db('plazma');
+
+    // --- 1. MIGRATE CATEGORIES (from plazma.categories) ---
+    console.log('\n--- Migrating Categories ---');
+    let categories = await catalogDb.collection('categories').find({}).toArray();
+    // Fallback: search 'Category' if 'categories' is empty
+    if (categories.length === 0) {
+        console.log('categories empty, checking Category...');
+        categories = await catalogDb.collection('Category').find({}).toArray();
+    }
+
+    const categoryMap = new Map<string, string>(); // Mongo ID -> Postgres UUID
+
+    // Ensure Fallback Category exists
+    const fallbackCategory = await prisma.category.upsert({
+        where: { slug: 'uncategorized' },
+        update: {},
+        create: {
+            name: 'Uncategorized',
+            slug: 'uncategorized',
+            description: 'Items without a specific category',
+            isActive: true,
+            isVisibleInWebapp: false
         }
+    });
 
-        // 1b. From 'plazma_bot'
-        try {
-            const plazmaDb = mongoose.connection.useDb('plazma_bot');
-            const PlazmaCategoryModel = plazmaDb.model('Category', CategorySchema, 'Category');
-            const docs = await PlazmaCategoryModel.find({});
-            console.log(`Found ${docs.length} categories in plazma_bot.`);
-            allCategories.push(...docs);
-        } catch (e) {
-            console.warn('Failed to read plazma_bot categories:', e);
-        }
+    for (const cat of categories) {
+        const slug = cat.slug || cat.name?.toLowerCase().replace(/\s+/g, '-') || 'unknown';
+        console.log(`Migrating Category: ${cat.name} (${slug})`);
 
-        // Upsert Categories
-        for (const cat of allCategories) {
-            const slug = cat.slug || (cat.name ? cat.name.toLowerCase().replace(/\s+/g, '-') : 'default');
-            const name = cat.name || 'Unnamed Category';
-
-            console.log(`Migrating category: ${name} (slug: ${slug})`);
-
-            const upserted = await prisma.category.upsert({
-                where: { slug: slug },
-                update: {
-                    name: name,
-                    description: cat.description,
-                },
-                create: {
-                    name: name,
-                    slug: slug,
-                    description: cat.description,
-                    isVisibleInWebapp: true,
-                },
-            });
-            console.log(`  -> Saved category ID: ${upserted.id}`);
-
-            if (cat.name) categoryMap.set(cat.name, upserted.id);
-            if (cat._id) categoryMap.set(cat._id.toString(), upserted.id);
-        }
-
-        // Ensure Fallback Category
-        const fallbackCategory = await prisma.category.upsert({
-            where: { slug: 'uncategorized' },
-            update: {},
+        const created = await prisma.category.upsert({
+            where: { slug },
+            update: {
+                name: cat.name,
+                description: cat.description,
+                isActive: cat.isActive !== false,
+                imageUrl: cat.imageUrl || null,
+            },
             create: {
-                name: 'Uncategorized',
-                slug: 'uncategorized',
-                isVisibleInWebapp: false,
+                name: cat.name || 'Unknown Category',
+                slug,
+                description: cat.description,
+                isActive: cat.isActive !== false,
+                imageUrl: cat.imageUrl || null,
+                isVisibleInWebapp: true
             }
         });
-        const fallbackId = fallbackCategory.id;
-        console.log(`Fallback Category ID: ${fallbackId}`);
 
+        categoryMap.set(String(cat._id), created.id);
+    }
 
-        // --- 2. Migrate Products (from 'plazma_bot' database) ---
-        const plazmaDb = mongoose.connection.useDb('plazma_bot');
-        const ProductModel = plazmaDb.model('Product', ProductSchema, 'Product');
+    // --- 2. MIGRATE PRODUCTS (from plazma.products) ---
+    console.log('\n--- Migrating Products ---');
+    // Inspection showed 'products' collection in 'plazma' DB
+    const products = await catalogDb.collection('products').find({}).toArray();
+    console.log(`Found ${products.length} products in 'plazma.products'`);
 
-        console.log('Reading Products from plazma_bot...');
-        const mongoProducts = await ProductModel.find({});
-        console.log(`Found ${mongoProducts.length} products.`);
+    for (const p of products) {
+        // Map Mongo Category ID to Postgres Category UUID
+        let categoryId = categoryMap.get(String(p.categoryId));
+        if (!categoryId) {
+            categoryId = fallbackCategory.id;
+        }
 
-        for (const prod of mongoProducts) {
-            const productName = prod.title || prod.name;
-            if (!productName) {
-                console.warn('Skipping product without title/name:', prod);
-                continue;
-            }
+        const sku = p.sku || `legacy-${String(p._id)}`;
 
-            console.log(`Migrating product: ${productName}`);
+        // Check if price needs correction (heuristic: if < 500, likely misplaced decimal for RUB)
+        let finalPrice = Number(p.price || 0);
+        if (finalPrice > 0 && finalPrice < 1000) {
+            finalPrice = finalPrice * 100;
+        }
 
-            // Resolve Category
-            let categoryId: string | null = null;
-            if (prod.categoryId) {
-                const catKey = prod.categoryId.toString();
-                categoryId = categoryMap.get(catKey) || null;
-            }
-            if (!categoryId && prod.category) {
-                const catKey = prod.category.toString();
-                categoryId = categoryMap.get(catKey) || null;
-                if (!categoryId && typeof prod.category === 'object' && prod.category.name) {
-                    categoryId = categoryMap.get(prod.category.name) || null;
-                }
-            }
+        // Use findFirst + update/create because 'sku' might not be unique in schema
+        const existing = await prisma.product.findFirst({
+            where: { sku: sku }
+        });
 
-            if (!categoryId) {
-                console.warn(`  ⚠️ Category not found for product: ${productName}, using Fallback.`);
-                categoryId = fallbackId;
-            }
+        const productData = {
+            title: p.title || p.name || 'Untitled Product',
+            description: p.description,
+            summary: p.summary,
+            instruction: p.instruction,
+            price: finalPrice,
+            stock: Number(p.stock || 0),
+            imageUrl: p.imageUrl || null,
+            isActive: p.isActive !== false,
+            categoryId: categoryId,
+            sku: sku,
+            availableInRussia: p.availableInRussia !== false,
+            availableInBali: p.availableInBali === true
+        };
 
-            // Upsert Product (using findFirst + create/update because title is not unique)
-            const existingProduct = await prisma.product.findFirst({
-                where: { title: productName }
+        if (existing) {
+            await prisma.product.update({
+                where: { id: existing.id },
+                data: productData
             });
-
-            const productData = {
-                summary: prod.summary || '',
-                description: prod.description,
-                instruction: prod.instruction,
-                price: prod.price || 0,
-                imageUrl: prod.image_url || prod.imageUrl,
-                stock: prod.stock || 999,
-                isActive: prod.is_active ?? prod.isActive ?? true,
-                availableInRussia: prod.availableInRussia ?? true,
-                availableInBali: prod.availableInBali ?? true,
-                categoryId: categoryId!,
-            };
-
-            if (existingProduct) {
-                await prisma.product.update({
-                    where: { id: existingProduct.id },
-                    data: productData
-                });
-                console.log(`  -> Updated existing product: ${existingProduct.id}`);
-            } else {
-                await prisma.product.create({
-                    data: {
-                        title: productName,
-                        ...productData,
-                        sku: `legacy-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                    }
-                });
-                console.log(`  -> Created new product.`);
-            }
+            // console.log(`Updated product: ${productData.title}`);
+        } else {
+            await prisma.product.create({
+                data: productData
+            });
+            console.log(`Created product: ${productData.title}`);
         }
+    }
 
-        // --- 3. Migrate Users (from 'plazma_bot') ---
-        const UserSchema = new mongoose.Schema({
-            telegramId: String,
-            telegram_id: Number,
-            id: Number,
-            firstName: String,
-            first_name: String,
-            lastName: String,
-            last_name: String,
-            username: String,
-            balance: Number,
-            role: String,
-        }, { strict: false });
 
-        const UserModel = plazmaDb.model('User', UserSchema, 'User');
-        // fallback to 'users' if 'User' is empty?
-        // const UserModel = plazmaDb.model('User', UserSchema, 'users'); 
+    // --- 3. MIGRATE USERS (from plazma_bot.User) ---
+    console.log('\n--- Migrating Users ---');
+    // Inspection showed 'User' collection in 'plazma_bot' (1577 docs)
+    const users = await userDb.collection('User').find({}).toArray();
+    console.log(`Found ${users.length} users in 'plazma_bot.User'`);
 
-        console.log('Reading Users from plazma_bot...');
-        let mongoUsers = await UserModel.find({});
-        if (mongoUsers.length === 0) {
-            console.log('  ⚠️ No users found in "User" collection. Trying "users"...');
-            const UserModelFallback = plazmaDb.model('UserFallback', UserSchema, 'users');
-            mongoUsers = await UserModelFallback.find({});
-        }
-        console.log(`Found ${mongoUsers.length} users.`);
+    let userCount = 0;
+    for (const u of users) {
+        if (!u.telegramId) continue;
 
-        for (const user of mongoUsers) {
-            // Normalize Telegram ID
-            const tgId = user.telegramId || user.telegram_id || user.id;
-            if (!tgId) {
-                console.warn('Skipping user without telegramId:', user._id);
-                continue;
-            }
-            const telegramIdStr = String(tgId);
+        const telegramId = String(u.telegramId);
+        let region = 'RUSSIA';
+        if (u.selectedRegion === 'BALI') region = 'BALI';
+        if (u.selectedRegion === 'WORLD') region = 'WORLD';
 
-            console.log(`Migrating user: ${telegramIdStr} (${user.username || 'No username'})`);
-
+        try {
             await prisma.user.upsert({
-                where: { telegramId: telegramIdStr },
+                where: { telegramId },
                 update: {
-                    firstName: user.firstName || user.first_name,
-                    lastName: user.lastName || user.last_name,
-                    username: user.username,
-                    balance: user.balance || 0,
+                    firstName: u.firstName,
+                    lastName: u.lastName,
+                    username: u.username,
+                    languageCode: u.languageCode,
+                    phone: u.phone,
+                    deliveryAddress: u.deliveryAddress,
+                    balance: Number(u.balance || 0),
+                    selectedRegion: region as any,
+                    photoUrl: u.photoUrl || null // If supported in schema
                 },
                 create: {
-                    telegramId: telegramIdStr,
-                    firstName: user.firstName || user.first_name,
-                    lastName: user.lastName || user.last_name,
-                    username: user.username,
-                    balance: user.balance || 0,
+                    telegramId,
+                    firstName: u.firstName,
+                    lastName: u.lastName,
+                    username: u.username,
+                    languageCode: u.languageCode || 'ru',
+                    phone: u.phone,
+                    deliveryAddress: u.deliveryAddress,
+                    balance: Number(u.balance || 0),
+                    selectedRegion: region as any,
+                    photoUrl: u.photoUrl || null
                 }
             });
-            console.log(`  -> User synced.`);
+            userCount++;
+            if (userCount % 100 === 0) process.stdout.write('.');
+        } catch (e) {
+            console.error(`Failed to migrate user ${telegramId}:`, e);
         }
-
-        console.log('✅ Migration completed successfully.');
-
-    } catch (error) {
-        console.error('❌ Migration failed:', error);
-        process.exit(1);
-    } finally {
-        await mongoose.disconnect();
-        await prisma.$disconnect();
-        process.exit(0);
     }
+    console.log(`\n✅ Migrated ${userCount} users.`);
+
+    await client.close();
+    await prisma.$disconnect();
 }
 
-migrate();
+migrate().catch(console.error);
