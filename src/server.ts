@@ -220,6 +220,10 @@ async function bootstrap() {
     const { registerCartActions } = await import('./modules/cart/index.js');
     registerCartActions(bot);
 
+    // Initialize Scheduler
+    const { schedulerService } = await import('./services/scheduler-service.js');
+    schedulerService.initialize();
+
     // Set global bot instance for admin panel
     setBotInstance(bot);
 

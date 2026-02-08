@@ -540,11 +540,17 @@ async function loadProfileContent() {
             username = user.username.trim();
         }
 
-        // Формируем ссылку с username в конце
-        if (username) {
+        // Формируем ссылку: ПРИОРИТЕТ 1 - referralCode партнера (как в боте)
+        if (partner && partner.referralCode) {
+            const prefix = partner.programType === 'MULTI_LEVEL' ? 'ref_multi' : 'ref_direct';
+            referralLink = `https://t.me/${botUsername}?start=${prefix}_${partner.referralCode}`;
+        }
+        // ПРИОРИТЕТ 2 - username (старый формат)
+        else if (username) {
             referralLink = `https://t.me/${botUsername}?start=${username}`;
-        } else {
-            // Fallback: используем ID если нет username
+        }
+        // Fallback: используем ID если нет username и partner profile
+        else {
             const userId = telegramUser?.id || user?.telegramId;
             if (userId && userId !== 'undefined') {
                 referralLink = `https://t.me/${botUsername}?start=${userId}`;
@@ -1208,12 +1214,6 @@ async function loadSectionContent(sectionName, container) {
             case 'cart':
                 content = await loadCartContent();
                 break;
-            case 'specialists':
-                content = await loadSpecialistsContent();
-                break;
-            case 'specialist-detail':
-                content = await loadSpecialistDetailContent();
-                break;
             case 'balance':
                 content = await loadBalanceContent();
                 break;
@@ -1236,183 +1236,7 @@ async function loadSectionContent(sectionName, container) {
     }
 }
 
-let __specialistsState = { specialtyId: '' };
-let __selectedSpecialistId = null;
 
-function openSpecialistDetail(id) {
-    __selectedSpecialistId = String(id || '');
-    openSection('specialist-detail');
-}
-
-async function loadSpecialistsContent() {
-    try {
-        const qs = __specialistsState.specialtyId ? `?specialtyId=${encodeURIComponent(__specialistsState.specialtyId)}` : '';
-        const resp = await fetch(`${API_BASE}/specialists${qs}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        const specialties = Array.isArray(data?.specialties) ? data.specialties : [];
-        const specialists = Array.isArray(data?.specialists) ? data.specialists : [];
-
-        let html = `
-          <div style="display:flex; gap:10px; align-items:center; margin-bottom: 12px; flex-wrap: wrap;">
-            <label style="font-weight:600;">Специальность:</label>
-            <select id="specialtyFilter" class="delivery-input" style="max-width: 320px;">
-              <option value="">Все</option>
-              ${specialties.map(s => `<option value="${escapeHtml(s.id)}" ${s.id === __specialistsState.specialtyId ? 'selected' : ''}>${escapeHtml(s.categoryName ? (s.categoryName + ' — ' + s.name) : s.name)}</option>`).join('')}
-            </select>
-          </div>
-        `;
-
-        if (!specialists.length) {
-            html += `<div class="empty-state"><h3>Пока нет специалистов</h3><p>Попробуйте выбрать другую специальность.</p></div>`;
-            html += `<script>
-              document.getElementById('specialtyFilter')?.addEventListener('change', (e) => {
-                window.__specialistsState = window.__specialistsState || {};
-                window.__specialistsState.specialtyId = e.target.value || '';
-                openSection('specialists');
-              });
-            </script>`;
-            return html;
-        }
-
-        html += `<div class="specialists-grid-wrap"><div class="specialists-grid">` + specialists.map(sp => {
-            const photo = sp.photoUrl
-                ? `<img src="${escapeHtml(sp.photoUrl)}" alt="" class="specialist-photo-img">`
-                : '';
-            const spName = sp.specialtyRef?.name || sp.specialty || '';
-            const catName = sp.category?.name || '';
-            return `
-              <div class="specialist-card" onclick="openSpecialistDetail('${sp.id}')">
-                <div class="specialist-photo">
-                  ${photo}
-                </div>
-                <div class="specialist-text">
-                  <div class="specialist-name">${escapeHtml(sp.name || '')}</div>
-                  <div class="specialist-meta">${escapeHtml(catName ? (catName + ' — ' + spName) : spName)}${sp.profile ? ' • ' + escapeHtml(sp.profile) : ''}</div>
-                </div>
-              </div>
-            `;
-        }).join('') + `</div></div>`;
-
-        html += `<script>
-          window.__specialistsState = window.__specialistsState || { specialtyId: '' };
-          document.getElementById('specialtyFilter')?.addEventListener('change', (e) => {
-            window.__specialistsState.specialtyId = e.target.value || '';
-            __specialistsState.specialtyId = window.__specialistsState.specialtyId;
-            openSection('specialists');
-          });
-        </script>`;
-
-        return html;
-    } catch (e) {
-        console.error('Specialists load error:', e);
-        return '<div class="error-message"><h3>Ошибка загрузки специалистов</h3><p>Попробуйте позже</p></div>';
-    }
-}
-
-async function loadSpecialistDetailContent() {
-    try {
-        const id = __selectedSpecialistId;
-        if (!id) return '<div class="error-message"><h3>Специалист не выбран</h3></div>';
-        const resp = await fetch(`${API_BASE}/specialists/${encodeURIComponent(id)}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        const sp = data?.specialist;
-        if (!sp) return '<div class="error-message"><h3>Специалист не найден</h3></div>';
-
-        // Update overlay header title to specialist name
-        try {
-            const titleEl = document.getElementById('section-title');
-            if (titleEl) titleEl.textContent = String(sp.name || 'Специалист');
-        } catch (_) { }
-
-        let services = [];
-        if (Array.isArray(sp.services)) services = sp.services;
-        const boxStyle = 'background:#ffffff; border:1px solid rgba(17,24,39,0.18); border-radius:16px; padding:14px 14px 12px;';
-        function fmtDuration(min) {
-            const m = Number(min || 0);
-            if (!m) return '';
-            const h = Math.floor(m / 60);
-            const mm = m % 60;
-            if (h && mm) return `${h} ч ${mm} мин`;
-            if (h) return `${h} ч`;
-            return `${mm} мин`;
-        }
-
-        const servicesHtml = services.length ? `
-          <div style="${boxStyle} margin-top: 12px;">
-            <div style="font-weight:800; color:var(--text-primary); margin-bottom: 10px;">Услуги</div>
-            <div style="display:grid;">
-              ${services.map((s, idx) => {
-            const desc = String(s.description || '').trim();
-            const format = String(s.format || '').trim();
-            const dur = fmtDuration(s.durationMin);
-            const detailsUrl = String(s.detailsUrl || '').trim();
-            return `
-                  <div style="padding: 12px 0; ${idx ? 'border-top:1px solid rgba(17,24,39,0.10);' : ''}">
-                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
-                      <div style="font-weight:800; color:var(--text-primary); font-size:18px; line-height:1.25;">${escapeHtml(String(s.title || ''))}</div>
-                      <div style="font-weight:800; color:var(--text-primary); white-space:nowrap; font-size:18px;">${Number(s.priceRub || 0).toFixed(0)} ₽</div>
-                    </div>
-                    ${desc ? `<div style="margin-top:8px; color:#374151; line-height:1.55;">${escapeHtml(desc)}</div>` : ''}
-                    ${(format || dur) ? `
-                      <div style="margin-top:12px; display:grid; gap:6px;">
-                        ${format ? `<div><span style="font-weight:800;">Формат:</span> <span style="color:#374151;">${escapeHtml(format)}</span></div>` : ''}
-                        ${dur ? `<div><span style="font-weight:800;">Длительность:</span> <span style="color:#374151;">${escapeHtml(dur)}</span></div>` : ''}
-                      </div>
-                    ` : ''}
-                    ${detailsUrl ? `<div style="margin-top:14px;"><a href="#" onclick="openSpecialistServiceLink('${escapeHtml(detailsUrl)}'); return false;" style="font-weight:800; color:var(--text-primary); text-decoration:none;">Подробнее →</a></div>` : ''}
-                  </div>
-                `;
-        }).join('')}
-            </div>
-          </div>
-        ` : '';
-
-        const photo = sp.photoUrl ? `<img src="${escapeHtml(sp.photoUrl)}" alt="" class="specialist-detail-photo">` : '';
-        const about = sp.about ? `
-          <div style="${boxStyle} margin-top: 12px;">
-            <div style="font-weight:800; color:var(--text-primary); margin-bottom: 10px;">О специалисте</div>
-            <div style="white-space:pre-wrap; color:var(--text-primary); line-height:1.55;">${escapeHtml(sp.about)}</div>
-          </div>
-        ` : '';
-        const btn = sp.messengerUrl ? `
-          <button class="btn" style="width:100%; margin-top: 12px;" onclick="openSpecialistMessenger('${escapeHtml(sp.messengerUrl)}')">Записаться</button>
-        ` : '';
-
-        return `
-          <div class="specialist-detail-layout">
-            <div class="specialist-detail-left">
-              ${photo}
-            </div>
-            <div class="specialist-detail-right">
-              <div class="specialist-detail-title">${escapeHtml(sp.name || '')}</div>
-              <div class="specialist-detail-subtitle">${escapeHtml((sp.category?.name ? (sp.category.name + ' — ') : '') + (sp.specialtyRef?.name || sp.specialty || ''))}${sp.profile ? ' • ' + escapeHtml(sp.profile) : ''}</div>
-              ${servicesHtml}
-              ${about}
-              ${btn}
-            </div>
-          </div>
-        `;
-    } catch (e) {
-        console.error('Specialist detail error:', e);
-        return '<div class="error-message"><h3>Ошибка загрузки специалиста</h3><p>Попробуйте позже</p></div>';
-    }
-}
-
-function openSpecialistMessenger(url) {
-    const link = String(url || '').trim();
-    if (!link) return;
-    if (tg && tg.openLink) tg.openLink(link);
-    else window.open(link, '_blank');
-}
-
-function openSpecialistServiceLink(url) {
-    const link = String(url || '').trim();
-    if (!link) return;
-    if (tg && tg.openLink) tg.openLink(link);
-    else window.open(link, '_blank');
-}
 
 // Load products on main page immediately
 function isSubcategoryName(name) {
@@ -1442,7 +1266,7 @@ function renderCategoryCovers(categories, products) {
     if (!top.length) return '';
 
     let html = `
-      <div class="category-covers">
+    < div class="category-covers" >
         <div class="category-covers-header">Категории</div>
         <div class="category-covers-scroll">
     `;
@@ -1456,7 +1280,7 @@ function renderCategoryCovers(categories, products) {
           </div>
         `;
     });
-    html += `</div></div>`;
+    html += `</div></div > `;
     return html;
 }
 
@@ -4202,71 +4026,4 @@ async function showProductDetails(productId) {
     }
 }
 
-// --- Specialists on Main Page Logic ---
 
-async function loadSpecialistsOnMainPage() {
-    const container = document.getElementById('specialists-container');
-    const section = document.getElementById('specialists-section');
-    if (!container || !section) return;
-
-    try {
-        const resp = await fetch(`${API_BASE}/specialists`);
-        if (!resp.ok) throw new Error('Failed to fetch specialists');
-        const data = await resp.json();
-        const specialists = Array.isArray(data?.specialists) ? data.specialists : [];
-
-        if (specialists.length === 0) {
-            section.style.display = 'none';
-            return;
-        }
-
-        let html = '<div class="products-horizontal">';
-        specialists.forEach(sp => {
-            html += renderSpecialistCardMainPage(sp);
-        });
-        html += '</div>';
-
-        container.innerHTML = html;
-        section.style.display = 'block';
-    } catch (e) {
-        console.error('Error loading main page specialists:', e);
-        section.style.display = 'none';
-    }
-}
-
-function renderSpecialistCardMainPage(sp) {
-    const photo = sp.photoUrl
-        ? `<div class="card-image" style="background-image: url('${escapeHtml(sp.photoUrl)}');"></div>`
-        : `<div class="card-image" style="background-color: #f3f4f6; display: flex; align-items: center; justify-content: center;"><span style="font-size: 24px;">👤</span></div>`;
-
-    const spName = sp.specialtyRef?.name || sp.specialty || '';
-
-    // Using existing shop-card style for consistency but simpler
-    return `
-      <div class="shop-card" onclick="openSpecialistDetail('${sp.id}')" style="width: 160px; min-width: 160px;">
-        <div class="card-inner">
-            ${photo}
-            <div class="card-title" style="padding: 12px; font-size: 14px; text-shadow: none; color: var(--text-primary); background: white;">
-                <div style="font-weight: 700; margin-bottom: 4px;">${escapeHtml(sp.name || '')}</div>
-                <div style="font-size: 12px; color: var(--text-secondary); font-weight: 400;">${escapeHtml(spName)}</div>
-            </div>
-        </div>
-      </div>
-    `;
-}
-
-// Hook into the main page loader
-// We append this call to the end of loadProductsOnMainPage or call it after
-// Hook into the main page loader
-// We append this call to the end of loadProductsOnMainPage or call it after
-const originalLoadProductsOnMainPage = window.loadProductsOnMainPage || loadProductsOnMainPage;
-window.loadProductsOnMainPage = async function () {
-    if (typeof originalLoadProductsOnMainPage === 'function') {
-        await originalLoadProductsOnMainPage();
-    }
-    loadSpecialistsOnMainPage();
-};
-
-// Also load immediately if we are roughly at startup (though app.js is big, we can just call it)
-// But safer to rely on the hook above since app.js initialization calls loadProductsOnMainPage
-loadSpecialistsOnMainPage();

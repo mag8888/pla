@@ -85,6 +85,72 @@ export function buildReferralLink(code: string, programType: 'DIRECT' | 'MULTI_L
   return { main, webapp, old: main, new: main };
 }
 
+export async function extendPartnerProfile(userId: string, days: number = 30) {
+  const profile = await prisma.partnerProfile.findUnique({ where: { userId } });
+  if (!profile) {
+    throw new Error('Partner profile not found');
+  }
+
+  const now = new Date();
+  // Если профиль активен и срок не истек - добавляем к текущей дате окончания
+  // Если профиль не активен или срок истек - добавляем к текущему моменту
+  let newExpiresAt = profile.expiresAt && profile.isActive && profile.expiresAt > now
+    ? new Date(profile.expiresAt.getTime() + days * 24 * 60 * 60 * 1000)
+    : new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+  return prisma.partnerProfile.update({
+    where: { userId },
+    data: {
+      isActive: true, // Ensure active
+      expiresAt: newExpiresAt,
+      // Если профиль был неактивен, обновляем дату активации
+      activatedAt: (!profile.isActive) ? now : undefined,
+    },
+  });
+}
+
+/**
+ * Check for partners expiring in specific day ranges (10, 3, 1)
+ * Returns array of { userId, telegramId, daysLeft, expiresAt }
+ */
+export async function checkExpiringPartners() {
+  const now = new Date();
+
+  // Find active partners with expiration date
+  const partners = await prisma.partnerProfile.findMany({
+    where: {
+      isActive: true,
+      expiresAt: {
+        gt: now, // Not yet expired
+      }
+    },
+    include: {
+      user: true
+    }
+  });
+
+  const notifications = [];
+
+  for (const p of partners) {
+    if (!p.expiresAt) continue;
+
+    const diffTime = p.expiresAt.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Check for exact days match (10, 3, 1) to send notification
+    if ([10, 3, 1].includes(diffDays)) {
+      notifications.push({
+        userId: p.userId,
+        telegramId: p.user?.telegramId,
+        daysLeft: diffDays,
+        expiresAt: p.expiresAt
+      });
+    }
+  }
+
+  return notifications;
+}
+
 export async function getPartnerDashboard(userId: string) {
   const profile = await prisma.partnerProfile.findUnique({
     where: { userId },

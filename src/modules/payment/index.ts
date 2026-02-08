@@ -1,12 +1,12 @@
 import { Context } from '../../bot/context.js';
 import { Markup } from 'telegraf';
-import { lavaService } from '../../services/lava-service.js';
 import { prisma } from '../../lib/prisma.js';
+import { lavaService } from '../../services/lava-service.js';
 import { ensureUser } from '../../services/user-history.js';
 import { PaymentStatus, OrderStatus } from '@prisma/client';
 
 export async function showPaymentMethods(ctx: Context) {
-  const user = await ensureUser(ctx);
+  const user = await ensureUser(ctx as any);
   if (!user) return;
 
   const keyboard = Markup.inlineKeyboard([
@@ -26,7 +26,7 @@ export async function showPaymentMethods(ctx: Context) {
 }
 
 export async function createPayment(ctx: Context, amount: number, orderId: string) {
-  const user = await ensureUser(ctx);
+  const user = await ensureUser(ctx as any);
   if (!user) return;
 
   try {
@@ -47,7 +47,6 @@ export async function createPayment(ctx: Context, amount: number, orderId: strin
     console.log(`📝 Payment record created: ${payment.id}`);
 
     // Создаем инвойс в Lava
-    // Согласно документации Lava API, нужны обязательные параметры
     const userEmail = (user as any).phone
       ? `${user.telegramId}@vital.temp`
       : `user_${user.telegramId}@vital.temp`;
@@ -101,93 +100,16 @@ export async function createPayment(ctx: Context, amount: number, orderId: strin
 }
 
 export async function createBalanceTopUp(ctx: Context, amount: number) {
-  const user = await ensureUser(ctx);
+  const user = await ensureUser(ctx as any);
   if (!user) return;
 
+  const orderId = `BALANCE-${Date.now()}`;
+
   try {
-    const orderId = `BALANCE-${Date.now()}`;
-
-    console.log(`💳 Creating balance top-up: amount=${amount}, userId=${user.id}, orderId=${orderId}`);
-
-    const payment = await prisma.payment.create({
-      data: {
-        userId: user.id,
-        orderId,
-        amount,
-        currency: 'RUB',
-        status: 'PENDING',
-        invoiceId: 'temp-' + Date.now(),
-      },
-    });
-
-    // Согласно документации Lava API, нужны обязательные параметры:
-    // email, currency, orderId, sum (для одноразовых платежей)
-    // Генерируем временный email, если у пользователя нет email
-    const userEmail = (user as any).phone
-      ? `${user.telegramId}@vital.temp`
-      : `user_${user.telegramId}@vital.temp`;
-
-    const invoice = await lavaService.createInvoice({
-      email: userEmail,
-      sum: amount,
-      orderId: payment.id,
-      currency: 'RUB',
-      buyerLanguage: 'RU',
-      hookUrl: `${process.env.PUBLIC_BASE_URL}/webhook/lava`,
-      successUrl: `${process.env.PUBLIC_BASE_URL}/payment/success`,
-      failUrl: `${process.env.PUBLIC_BASE_URL}/payment/fail`,
-      customFields: {
-        userId: user.id,
-        telegramId: user.telegramId.toString(),
-        purpose: 'balance_topup',
-        balanceOrderId: orderId,
-      },
-      comment: `Пополнение баланса пользователя ${user.telegramId}`,
-    });
-
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        invoiceId: invoice.data.id,
-        paymentUrl: invoice.data.url,
-      },
-    });
-
-    const keyboard = Markup.inlineKeyboard([
-      [Markup.button.url('💳 Оплатить', invoice.data.url)],
-      [Markup.button.callback('🔄 Проверить статус', `payment:check:${payment.id}`)],
-      [Markup.button.callback('❌ Отменить', `payment:cancel:${payment.id}`)],
-    ]);
-
-    await ctx.reply(
-      `💳 <b>Пополнение баланса</b>\n\n` +
-      `💰 Сумма: <b>${amount.toFixed(2)} ₽</b>\n` +
-      `🔖 Номер пополнения: <b>${orderId}</b>\n\n` +
-      `Нажмите кнопку ниже, чтобы перейти к оплате:`,
-      { ...keyboard, parse_mode: 'HTML' }
-    );
-  } catch (error: any) {
-    console.error('❌ Balance top-up creation error:', {
-      message: error.message,
-      stack: error.stack,
-      response: error.response?.data,
-      status: error.response?.status,
-      config: {
-        url: error.config?.url,
-        method: error.config?.method,
-        headers: error.config?.headers
-      }
-    });
-
-    // Более информативное сообщение об ошибке
-    let errorMessage = '❌ Не удалось создать платеж на пополнение. Попробуйте позже.';
-    if (error.response?.status === 404) {
-      errorMessage += '\n\n⚠️ Проблема с API Lava. Проверьте настройки endpoint.';
-    } else if (error.response?.status === 401) {
-      errorMessage += '\n\n⚠️ Ошибка авторизации. Проверьте API ключи.';
-    }
-
-    await ctx.reply(errorMessage);
+    await createPayment(ctx, amount, orderId);
+  } catch (error) {
+    console.error('❌ Balance top-up error:', error);
+    await ctx.reply('❌ Ошибка создания пополнения баланса.');
   }
 }
 
@@ -252,6 +174,38 @@ export async function checkPaymentStatus(ctx: Context, paymentId: string) {
           parse_mode: 'HTML'
         });
       }
+
+      // --- PARTNER PROGRAM HOOKS ---
+      try {
+        const { activatePartnerProfile, extendPartnerProfile, getOrCreatePartnerProfile } = await import('../../services/partner-service.js');
+
+        if (payment.amount >= 15000) {
+          // Activate for 40 days
+          console.log('💎 Payment >= 15000 RUB. Activating partner program for 40 days.');
+          // Ensure profile exists first
+          await getOrCreatePartnerProfile(payment.userId, 'DIRECT');
+          // Using extendPartnerProfile with 40 days which handles both activation and extension
+          await extendPartnerProfile(payment.userId, 40);
+
+          await ctx.reply('💎 <b>Партнёрская программа активирована!</b>\n\nВам доступен заработок на рекомендациях в течение 40 дней.', { parse_mode: 'HTML' });
+
+        } else if (payment.amount >= 6000) {
+          // Extend for 30 days if already active
+          console.log('💎 Payment >= 6000 RUB. Extending partner program for 30 days if active.');
+
+          const existingProfile = await prisma.partnerProfile.findUnique({ where: { userId: payment.userId } });
+
+          if (existingProfile && existingProfile.isActive) {
+            await extendPartnerProfile(payment.userId, 30);
+            await ctx.reply('💎 <b>Партнёрскaя программа продлена!</b>\n\nСрок действия продлен на 30 дней.', { parse_mode: 'HTML' });
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error in partner program hook:', err);
+        // Don't fail the whole payment flow
+      }
+      // -----------------------------
+
     } else {
       await ctx.answerCbQuery('⏳ Платеж еще не поступил');
     }
