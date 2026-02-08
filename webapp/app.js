@@ -1357,7 +1357,7 @@ function renderCategoryCovers(categories, products) {
     if (!top.length) return '';
 
     let html = `
-    < div class="category-covers" >
+    <div class="category-covers">
         <div class="category-covers-header">Категории</div>
         <div class="category-covers-scroll">
     `;
