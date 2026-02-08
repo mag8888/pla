@@ -524,24 +524,31 @@ async function loadProfileContent() {
             fetch(`${API_BASE}/partner/dashboard`, { headers: getApiHeaders() }).catch(() => ({ ok: false }))
         ]);
 
-        const user = await userResponse.json();
-        const partner = partnerResponse.ok ? await partnerResponse.json() : null;
+        if (!userResponse.ok) throw new Error('Failed to load user profile');
 
-        const telegramUser = getTelegramUserData();
+        const user = await userResponse.json();
+        const partnerData = partnerResponse.ok ? await partnerResponse.json() : null;
+
+        // Handle structure { profile: ..., stats: ... }
+        const partner = partnerData?.profile || null;
+        const stats = partnerData?.stats || null;
+
+        const telegramUser = getTelegramUserDataSafe(); // Use safe wrapper
+
         // Реферальная ссылка с юзернеймом в конце
-        const botUsername = 'Vital_shop_bot';
+        const botUsername = 'PLAZMA_test8_bot';
         let referralLink = `https://t.me/${botUsername}`;
 
         // Получаем username пользователя для реферальной ссылки
         let username = null;
-        if (telegramUser && telegramUser.username && telegramUser.username !== 'undefined' && telegramUser.username.trim() !== '') {
+        if (telegramUser?.username?.trim()) {
             username = telegramUser.username.trim();
-        } else if (user && user.username && user.username !== 'undefined' && user.username.trim() !== '') {
+        } else if (user?.username?.trim()) {
             username = user.username.trim();
         }
 
-        // Формируем ссылку: ПРИОРИТЕТ 1 - referralCode партнера (как в боте)
-        if (partner && partner.referralCode) {
+        // Формируем ссылку: ПРИОРИТЕТ 1 - referralCode партнера
+        if (partner?.referralCode) {
             const prefix = partner.programType === 'MULTI_LEVEL' ? 'ref_multi' : 'ref_direct';
             referralLink = `https://t.me/${botUsername}?start=${prefix}_${partner.referralCode}`;
         }
@@ -549,31 +556,13 @@ async function loadProfileContent() {
         else if (username) {
             referralLink = `https://t.me/${botUsername}?start=${username}`;
         }
-        // Fallback: используем ID если нет username и partner profile
+        // Fallback: используем ID
         else {
             const userId = telegramUser?.id || user?.telegramId;
-            if (userId && userId !== 'undefined') {
+            if (userId) {
                 referralLink = `https://t.me/${botUsername}?start=${userId}`;
             }
         }
-
-        // Final check: ensure referralLink is never undefined, null, or contains "undefined"
-        if (!referralLink ||
-            referralLink === 'undefined' ||
-            referralLink === 'null' ||
-            referralLink.includes('undefined') ||
-            referralLink.includes('null')) {
-            referralLink = `https://t.me/${botUsername}`;
-        }
-
-        // Log for debugging
-        console.log('🔗 Referral link generated:', {
-            hasPartner: !!partner,
-            referralCode: partner?.referralCode,
-            telegramUsername: telegramUser?.username,
-            telegramId: telegramUser?.id,
-            finalLink: referralLink
-        });
 
         let html = `
             <div class="profile-content-wrapper">
@@ -599,47 +588,39 @@ async function loadProfileContent() {
 
         if (partner) {
             // Partner Dashboard
-            const referralCode = partner.profile.referralCode;
-            /*
-             * IMPORTANT: Link format must match Bot's logic
-             * Bot expects: start=ref_direct_CODE (for direct 25% program)
-             * We use 'PLAZMA_test8_bot' as per user requirement/env
-             */
-            const botUsername = 'PLAZMA_test8_bot';
-            const partnerReferralLink = `https://t.me/${botUsername}?start=ref_direct_${referralCode}`;
+            const referralCode = partner.referralCode;
+            const balance = partner.balance || 0;
+            const bonuses = partner.bonus || 0;
+            const totalPartners = stats?.partners || partner.totalPartners || 0;
 
-            const balance = partner.profile.balance || 0;
-            const bonuses = partner.profile.bonus || 0;
-            const totalPartners = partner.profile.totalPartners || 0;
+            const isActive = partner.isActive;
+            const expiresAt = partner.expiresAt ? new Date(partner.expiresAt) : null;
+            const activatedAt = partner.activatedAt ? new Date(partner.activatedAt) : null;
 
-            const nextLevel = 15000;
-            const currentSales = partner.profile.personalVolume || 0;
-            const progressPercent = Math.min(100, (currentSales / nextLevel) * 100);
-
-            /*
-             * QR Code Logic:
-             * We'll add a button to show the QR code.
-             * If the user has a stored QR URL, we show it.
-             * If not, we might need to trigger generation (which happens in bot on /partner).
-             * For now, let's just show the button that opens the modal with the image if available,
-             * or a message to go to the bot if not.
-             *
-             * Actually, the user asked for a "Get QR" button.
-             * Since generating QR requires backend action (and we have a service for it),
-             * we can try to display the `referralDirectQrUrl` if present in the partner profile.
-             * We need to fetch the full partner profile including QR url first.
-             */
-
-            // We'll assume 'partner.profile' has 'referralDirectQrUrl' if we fetched it.
-            // If not, we might need to update the fetch logic or just tell them to use the bot.
-            // Let's add the button.
+            // Format dates
+            const dateFormatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+            const expireDateStr = expiresAt ? dateFormatter.format(expiresAt) : '-';
+            const activeSinceStr = activatedAt ? dateFormatter.format(activatedAt) : '-';
 
             html += `
             <div class="partner-dashboard">
                 <div class="partner-header">
                     <h2>Партнёрская программа</h2>
-                    <div class="partner-status badge-success">Активен</div>
+                    <div class="partner-status ${isActive ? 'badge-success' : 'badge-warning'}">
+                        ${isActive ? 'Активен' : 'Не активен'}
+                    </div>
                 </div>
+                
+                ${isActive ? `
+                <div class="partner-subscription-info" style="margin-bottom: 15px; padding: 12px; background: #f0f7ff; border-radius: 8px;">
+                    <div style="font-size: 14px; margin-bottom: 4px;">📅 Подписка активна до: <strong>${expireDateStr}</strong></div>
+                    <div style="font-size: 14px; color: #666;">Следующий платеж: ${expireDateStr}</div>
+                </div>
+                ` : `
+                <div class="partner-subscription-info" style="margin-bottom: 15px; padding: 12px; background: #fff3f3; border-radius: 8px;">
+                     <div style="font-size: 14px; color: #d63031;">Подписка не активна. Совершите покупку от 15 000 ₽ для активации.</div>
+                </div>
+                `}
 
                 <div class="partner-stats-grid">
                     <div class="stat-card">
@@ -648,7 +629,7 @@ async function loadProfileContent() {
                     </div>
                     <div class="stat-card">
                         <div class="stat-value">${bonuses.toFixed(0)} ₽</div>
-                        <div class="stat-label">Бонусы</div>
+                        <div class="stat-label">Заработано</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value">${totalPartners}</div>
@@ -658,7 +639,7 @@ async function loadProfileContent() {
 
                 <div class="referral-section">
                     <h3>Ваша реферальная ссылка</h3>
-                    <p>Станьте партнёром Fatal и получайте 25% по вашей ссылке!</p>
+                    <p>Станьте партнёром Vital и получайте 25% по вашей ссылке!</p>
                     
                     <div class="referral-link-box">
                         <input type="text" value="${referralLink}" readonly id="refLinkInput">
@@ -671,7 +652,7 @@ async function loadProfileContent() {
                         <button class="btn" onclick="shareReferralLink('${referralLink}')">
                             📤 Поделиться
                         </button>
-                         <button class="btn btn-secondary" onclick="showQrCode('${escapeAttr(partner.profile.referralDirectQrUrl || '')}')" style="width: auto; aspect-ratio: 1;">
+                         <button class="btn btn-secondary" onclick="showQrCode('${escapeAttr(partner.referralDirectQrUrl || '')}')" style="width: auto; aspect-ratio: 1;">
                             📱 QR
                         </button>
                     </div>
@@ -685,13 +666,6 @@ async function loadProfileContent() {
                             <div>
                                 <strong>25% с покупок</strong>
                                 <p>Вы получаете 25% от суммы заказов ваших прямых рефералов.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <span class="benefit-icon">🚀</span>
-                            <div>
-                                <strong>Мгновенные начисления</strong>
-                                <p>Бонусы начисляются сразу после оплаты заказа.</p>
                             </div>
                         </li>
                     </ul>
@@ -4183,9 +4157,18 @@ function showQrCode(url) {
     `;
     document.body.appendChild(modal);
 
-    // Animation
-    setTimeout(() => {
-        const content = modal.querySelector('.instruction-content');
-        if (content) content.style.transform = 'scale(1)';
-    }, 10);
+}, 10);
+}
+
+// Safe wrapper for getting telegram user data
+function getTelegramUserDataSafe() {
+    try {
+        if (typeof getTelegramUserData === 'function') {
+            return getTelegramUserData();
+        }
+        return null;
+    } catch (e) {
+        console.warn('Failed to get telegram user data:', e);
+        return null;
+    }
 }
