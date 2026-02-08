@@ -4157,7 +4157,11 @@ function showQrCode(url) {
     `;
     document.body.appendChild(modal);
 
-}, 10);
+    // Animation
+    setTimeout(() => {
+        const content = modal.querySelector('.instruction-content');
+        if (content) content.style.transform = 'scale(1)';
+    }, 10);
 }
 
 // Safe wrapper for getting telegram user data
