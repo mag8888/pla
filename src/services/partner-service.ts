@@ -490,41 +490,20 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
     let description = '';
 
     if (referral.level === 1) {
-      // Прямой реферал: всегда 10% для неактивных, расширенные % для активных
+      // Прямой реферал: всегда 10% для неактивных, 25% для активных
       if (!isActive) {
         // Базовый бонус 10% для неактивных партнеров
         bonusAmount = orderAmount * 0.10;
         description = `Базовый бонус за заказ прямого реферала (${orderAmount} PZ) - 10%`;
       } else {
-        // Расширенные бонусы для активных партнеров
-        if (referral.referralType === 'DIRECT') {
-          // Прямая система: 25%
-          bonusAmount = orderAmount * 0.25;
-          description = `Бонус за заказ прямого реферала (${orderAmount} PZ) - прямая система 25%`;
-        } else {
-          // Многоуровневая система: 15%
-          bonusAmount = orderAmount * 0.15;
-          description = `Бонус за заказ прямого реферала (${orderAmount} PZ) - многоуровневая система 15%`;
-        }
+        // Для активных партнеров - 25%
+        bonusAmount = orderAmount * 0.25;
+        description = `Бонус за заказ прямого реферала (${orderAmount} PZ) - 25%`;
       }
-    } else if (referral.level === 2) {
-      // Уровень 2: только для активных партнеров
-      if (isActive) {
-        bonusAmount = orderAmount * 0.05;
-        description = `Бонус за заказ реферала 2-го уровня (${orderAmount} PZ)`;
-      } else {
-        console.log(`⚠️ Partner ${partnerProfile.userId} (level 2) is not active, skipping bonus`);
-        continue;
-      }
-    } else if (referral.level === 3) {
-      // Уровень 3: только для активных партнеров
-      if (isActive) {
-        bonusAmount = orderAmount * 0.05;
-        description = `Бонус за заказ реферала 3-го уровня (${orderAmount} PZ)`;
-      } else {
-        console.log(`⚠️ Partner ${partnerProfile.userId} (level 3) is not active, skipping bonus`);
-        continue;
-      }
+    } else {
+      // Уровни 2 и 3 отключены по новому требованию (только 1 уровень 25%)
+      console.log(`ℹ️ Level ${referral.level} bonus skipped (single level system active)`);
+      continue;
     }
 
     if (bonusAmount > 0) {
@@ -572,14 +551,11 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
         let notificationMessage = '';
 
         if (isPartnerActive) {
-          // Если партнерка активна - показываем повышенный процент
-          const percentage = referral.level === 1 ?
-            (referral.referralType === 'DIRECT' ? '25%' : '15%') :
-            '5%';
-          notificationMessage = `🎉 Ваш счет пополнен на сумму ${bonusAmount.toFixed(2)} PZ (${percentage}) от покупки вашего реферала!`;
+          // Если партнерка активна - показываем 25%
+          notificationMessage = `🎉 Ваш счет пополнен на сумму ${bonusAmount.toFixed(2)} PZ (25%) от покупки вашего реферала!`;
         } else {
           // Если партнерка не активна - показываем 10% и предлагаем активацию
-          notificationMessage = `🎉 Ваш счет пополнен на сумму ${bonusAmount.toFixed(2)} PZ (10%) от покупки вашего реферала!\n\n💡 Если вы желаете получать повышенный % (25% или 15%+5%+5%), вам нужно активировать партнерку на 120 PZ товарооборота в месяц.`;
+          notificationMessage = `🎉 Ваш счет пополнен на сумму ${bonusAmount.toFixed(2)} PZ (10%) от покупки вашего реферала!\n\n💡 Если вы желаете получать повышенный % (25%), вам нужно активировать партнерку на 15000 ₽ товарооборота.`;
         }
 
         await bot.telegram.sendMessage(partnerProfile.user.telegramId, notificationMessage);

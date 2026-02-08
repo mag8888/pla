@@ -553,7 +553,11 @@ async function showDirectInvite(ctx: Context) {
   await ctx.answerCbQuery('Ссылка скопирована', { show_alert: false });
 
   const referralLink = buildReferralLink(dashboard.profile.referralCode, 'DIRECT', user.username || undefined).main;
-  let qrUrl = dashboard.profile.referralDirectQrUrl;
+  /* 
+   * NOTE: We cast to any here because sometimes Prisma types lag behind 
+   * after schema updates in the dev environment.
+   */
+  let qrUrl = (dashboard.profile as any).referralDirectQrUrl;
 
   // Generate QR if missing
   if (!qrUrl) {
@@ -564,7 +568,7 @@ async function showDirectInvite(ctx: Context) {
       // Save to profile
       await prisma.partnerProfile.update({
         where: { id: dashboard.profile.id },
-        data: { referralDirectQrUrl: qrUrl }
+        data: { referralDirectQrUrl: qrUrl } as any
       });
 
       await ctx.telegram.deleteMessage(ctx.chat?.id as any, generatingMsg.message_id);
@@ -578,57 +582,16 @@ async function showDirectInvite(ctx: Context) {
     await ctx.replyWithPhoto(qrUrl, { caption: '📱 Ваш персональный QR-код' });
   }
 
-  const shareGuide = `💫 Хочешь получать бонусы от рекомендаций?\nПросто перешли это сообщение выше друзьям или в свои чаты — прямо как оно есть.\n\n🔗 Бот автоматически закрепит всех, кто перейдёт по твоей ссылке, за тобой.\nТы будешь получать до 25% с покупок и бонусы с трёх уровней (15% + 5% + 5%).\n\n📩 Чтобы поделиться:\n1️⃣ Нажми и удерживай сообщение\n2️⃣ Выбери «Переслать»\n3️⃣ Отправь его своим друзьям или в чаты\n\nВот и всё — система сама всё посчитает 🔥`;
+  const shareGuide = `💫 Хочешь получать бонусы от рекомендаций?\nПросто перешли это сообщение выше друзьям или в свои чаты — прямо как оно есть.\n\n🔗 Бот автоматически закрепит всех, кто перейдёт по твоей ссылке, за тобой.\nТы будешь получать 25% с покупок твоих друзей.\n\n📩 Чтобы поделиться:\n1️⃣ Нажми и удерживай сообщение\n2️⃣ Выбери «Переслать»\n3️⃣ Отправь его своим друзьям или в чаты\n\nВот и всё — система сама всё посчитает 🔥`;
 
   await ctx.reply(`Дружище 🌟\nЯ желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧\nПопробуй PLAZMA — структурированная вода для здоровья, которая реально меняет состояние ⚡️\n🔗 Твоя ссылка:\n${referralLink}`);
   await ctx.reply(shareGuide);
 }
 
 async function showMultiInvite(ctx: Context) {
-  const user = await ensureUser(ctx);
-  if (!user) {
-    await ctx.reply('Не удалось получить ссылку.');
-    return;
-  }
-
-  const dashboard = await getPartnerDashboard(user.id);
-  if (!dashboard) {
-    await ctx.reply('Активируйте один из тарифов, чтобы получить ссылку.');
-    return;
-  }
-
-  await ctx.answerCbQuery();
-
-  const referralLink = buildReferralLink(dashboard.profile.referralCode, 'MULTI_LEVEL', user.username || undefined).main;
-  let qrUrl = dashboard.profile.referralMultiQrUrl;
-
-  // Generate QR if missing
-  if (!qrUrl) {
-    try {
-      const generatingMsg = await ctx.reply('⏳ Генерирую QR-код...');
-      qrUrl = await generateAndUploadQRCode(referralLink, 'vital/qr-codes', `qr_multi_${dashboard.profile.referralCode}`);
-
-      // Save to profile
-      await prisma.partnerProfile.update({
-        where: { id: dashboard.profile.id },
-        data: { referralMultiQrUrl: qrUrl }
-      });
-
-      await ctx.telegram.deleteMessage(ctx.chat?.id as any, generatingMsg.message_id);
-    } catch (error) {
-      console.error('Failed to generate QR:', error);
-      // Continue without QR if failed
-    }
-  }
-
-  if (qrUrl) {
-    await ctx.replyWithPhoto(qrUrl, { caption: '📱 Ваш персональный QR-код' });
-  }
-
-  const shareGuide = `💫 Хочешь получать бонусы от рекомендаций?\nПросто перешли это сообщение выше друзьям или в свои чаты — прямо как оно есть.\n\n🔗 Бот автоматически закрепит всех, кто перейдёт по твоей ссылке, за тобой.\nТы будешь получать до 25% с покупок и бонусы с трёх уровней (15% + 5% + 5%).\n\n📩 Чтобы поделиться:\n1️⃣ Нажми и удерживай сообщение\n2️⃣ Выбери «Переслать»\n3️⃣ Отправь его своим друзьям или в чаты\n\nВот и всё — система сама всё посчитает 🔥`;
-  await ctx.reply(`Дружище 🌟\nЯ желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧\nПопробуй PLAZMA — структурированная вода для здоровья, которая реально меняет состояние ⚡️\n🔗 Твоя ссылка (сеть 15% + 5% + 5%):\n${referralLink}`);
-  await ctx.reply(shareGuide);
-  await ctx.reply('Выберите уровень партнёров для просмотра:', partnerLevelsKeyboard());
+  // Multi-level logic is now same as Direct (Single Level 25%)
+  // Redirect to showDirectInvite to ensure consistency
+  return showDirectInvite(ctx);
 }
 
 export const partnerModule: BotModule = {
@@ -664,18 +627,17 @@ export const partnerModule: BotModule = {
     });
 
     bot.action(DIRECT_PLAN_ACTION, async (ctx) => {
-      // Перенаправляем на многоуровневую программу
-      console.log('💰 Partner: Direct plan button pressed, redirecting to multi-level');
-      const multiPlanText = await getBotContent('multi_plan_text') || fallbackMultiPlanText;
-      const success = await handlePlanSelection(ctx, 'MULTI_LEVEL', multiPlanText);
-      await ctx.answerCbQuery(success ? 'Сеть 15% + 5% + 5% активирована' : 'Не удалось активировать программу');
+      console.log('💰 Partner: Direct plan button pressed');
+      const directPlanText = await getBotContent('direct_plan_text') || fallbackDirectPlanText;
+      const success = await handlePlanSelection(ctx, 'DIRECT', directPlanText);
+      await ctx.answerCbQuery(success ? 'Партнёрская программа (25%) активирована' : 'Не удалось активировать программу');
     });
 
     bot.action(MULTI_PLAN_ACTION, async (ctx) => {
-      console.log('💰 Partner: Multi-level plan button pressed');
-      const multiPlanText = await getBotContent('multi_plan_text') || fallbackMultiPlanText;
-      const success = await handlePlanSelection(ctx, 'MULTI_LEVEL', multiPlanText);
-      await ctx.answerCbQuery(success ? 'Сеть 15% + 5% + 5% активирована' : 'Не удалось активировать программу');
+      console.log('💰 Partner: Multi-level button pressed, redirecting to Direct');
+      const directPlanText = await getBotContent('direct_plan_text') || fallbackDirectPlanText;
+      const success = await handlePlanSelection(ctx, 'DIRECT', directPlanText);
+      await ctx.answerCbQuery(success ? 'Партнёрская программа (25%) активирована' : 'Не удалось активировать программу');
     });
 
     bot.action(PARTNERS_ACTION, async (ctx) => {
@@ -754,7 +716,7 @@ async function showPartnerDetails(ctx: Context) {
   const text = `💠 Реферальная программа VITAL
 Любой продукт нуждается в маркетинге —
 и мы решили отдавать маркетинговый бюджет клиентам!
-Теперь ты можешь зарабатывать до 25%, просто рекомендуя VITAL = здоровье 💧`;
+Теперь ты можешь зарабатывать 25%, просто рекомендуя VITAL = здоровье 💧`;
 
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback('🤔 Как работает?!', 'partner:how_it_works')]
@@ -766,10 +728,10 @@ async function showPartnerDetails(ctx: Context) {
 async function showHowItWorks(ctx: Context) {
   const text = `Как это работает 👇
 👥 Делись ссылкой с друзьями
-💸 Получай 10% от их покупок
+💸 Получай 25% от их покупок
 🌟 Хочешь больше?
 Стань партнёром и получай 25% дохода + скидку 10%
-(при покупках на 120 PZ = 12 000 ₽ в месяц)`;
+(при покупке на 15 000 ₽)`;
 
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback('📈 Больше', 'partner:more')]
@@ -779,20 +741,19 @@ async function showHowItWorks(ctx: Context) {
 }
 
 async function showMoreDetails(ctx: Context) {
-  const text = `Хочешь строить сеть и получать больше? 📈
-Партнёрская сеть даёт 15 % + 5 % + 5 % от трёх уровней!
+  const text = `Хочешь получать высокий доход? 📈
+Партнёрская программа даёт 25% с каждой покупки по твоей ссылке!
 
 💵 Пример:
-1️⃣ 10 партнёров × 30 $ = 300 $
-2️⃣ 100 партнёров × 10 $ = 1 000 $
-3️⃣ 1 000 партнёров × 10 $ = 10 000 $
-✨ Итого: 11 300 $ в месяц!
+1️⃣ Пригласил друга, он купил на 15 000 ₽
+2️⃣ Твой бонус: 3 750 ₽ (25%)
+3️⃣ Пригласил 10 друзей = 37 500 ₽
 
 ⚡️ Рекомендуй VITAL — помогай друзьям, повышай вибрации и зарабатывай 💎`;
 
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback('📊 Карточка клиента', DASHBOARD_ACTION)],
-    [Markup.button.callback('📈 15% + 5% + 5%', MULTI_PLAN_ACTION)],
+    [Markup.button.callback('💎 Стать партнером (25%)', DIRECT_PLAN_ACTION)],
     [Markup.button.callback('📋 Оферта', 'partner:offer')]
   ]);
 
@@ -818,19 +779,12 @@ async function showPartnerOffer(ctx: Context) {
 
 ⸻
 
-💰 Уровни и вознаграждения
+💰 Вознаграждения
 
 💎 Партнёр (доход 25%)
-— покупай продукцию на 120 PZ = 12 000 ₽ / месяц
-— получай 25% дохода + скидку 10% на все заказы
-
-📈 Партнёрская сеть (15 % + 5 % + 5 %)
-— выстраивай структуру из партнёров и получай доход с трёх уровней
-💵 Пример:
-1️⃣ 10 партнёров × 30 $ = 300 $
-2️⃣ 100 партнёров × 10 $ = 1 000 $
-3️⃣ 1 000 партнёров × 10 $ = 10 000 $
-✨ Итого ≈ 11 300 $ в месяц!
+— соверши покупку на 15 000 ₽
+— получай 25% дохода от всех заказов твоих рефералов
+— моментальные начисления
 
 🧍‍♂️ Клиенты закрепляются за тобой навсегда после первой покупки.
 
@@ -840,7 +794,7 @@ async function showPartnerOffer(ctx: Context) {
 
 В кабинете ты можешь:
 📊 отслеживать статистику и баланс
-🛒 пользоваться личным магазином со скидкой 10%
+🛒 пользоваться личным магазином
 💸 выводить средства от 3 000 ₽
 
 ⸻
@@ -851,7 +805,6 @@ async function showPartnerOffer(ctx: Context) {
 🚫 Запрещены:
 • спам и вводящая в заблуждение реклама
 • регистрация родственников или фейковых аккаунтов
-• любые манипуляции уровнями сети
 
 🔒 За нарушения аккаунт может быть удалён без восстановления.
 
@@ -879,7 +832,7 @@ async function showPartnerOffer(ctx: Context) {
 
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback('📊 Карточка клиента', DASHBOARD_ACTION)],
-    [Markup.button.callback('📈 15% + 5% + 5%', MULTI_PLAN_ACTION)]
+    [Markup.button.callback('💎 Стать партнером (25%)', DIRECT_PLAN_ACTION)]
   ]);
 
   await ctx.reply(text, keyboard);

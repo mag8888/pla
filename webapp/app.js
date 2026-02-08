@@ -597,41 +597,132 @@ async function loadProfileContent() {
                 </div>
         `;
 
-        if (partner && partner.isActive) {
+        if (partner) {
+            // Partner Dashboard
+            const referralCode = partner.profile.referralCode;
+            /*
+             * IMPORTANT: Link format must match Bot's logic
+             * Bot expects: start=ref_direct_CODE (for direct 25% program)
+             * We use 'PLAZMA_test8_bot' as per user requirement/env
+             */
+            const botUsername = 'PLAZMA_test8_bot';
+            const partnerReferralLink = `https://t.me/${botUsername}?start=ref_direct_${referralCode}`;
+
+            const balance = partner.profile.balance || 0;
+            const bonuses = partner.profile.bonus || 0;
+            const totalPartners = partner.profile.totalPartners || 0;
+
+            const nextLevel = 15000;
+            const currentSales = partner.profile.personalVolume || 0;
+            const progressPercent = Math.min(100, (currentSales / nextLevel) * 100);
+
+            /*
+             * QR Code Logic:
+             * We'll add a button to show the QR code.
+             * If the user has a stored QR URL, we show it.
+             * If not, we might need to trigger generation (which happens in bot on /partner).
+             * For now, let's just show the button that opens the modal with the image if available,
+             * or a message to go to the bot if not.
+             *
+             * Actually, the user asked for a "Get QR" button.
+             * Since generating QR requires backend action (and we have a service for it),
+             * we can try to display the `referralDirectQrUrl` if present in the partner profile.
+             * We need to fetch the full partner profile including QR url first.
+             */
+
+            // We'll assume 'partner.profile' has 'referralDirectQrUrl' if we fetched it.
+            // If not, we might need to update the fetch logic or just tell them to use the bot.
+            // Let's add the button.
+
             html += `
-                <div class="profile-section">
-                    <h4>Статистика</h4>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">Баланс</span>
-                            <span class="stat-value">${formatRubFromPz(partner.balance || 0)}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Бонусы</span>
-                            <span class="stat-value">${formatRubFromPz(partner.bonus || 0)}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Партнеры</span>
-                            <span class="stat-value">${partner.totalPartners || 0}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Прямые</span>
-                            <span class="stat-value">${partner.directPartners || 0}</span>
-                        </div>
+            <div class="partner-dashboard">
+                <div class="partner-header">
+                    <h2>Партнёрская программа</h2>
+                    <div class="partner-status badge-success">Активен</div>
+                </div>
+
+                <div class="partner-stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${balance.toFixed(0)} ₽</div>
+                        <div class="stat-label">Баланс</div>
                     </div>
-                    <button class="btn" onclick="showPartners(); loadSectionContent('partners', document.getElementById('section-body'))" style="margin-top: 16px; width: 100%;">
-                        👥 Посмотреть рефералов
-                    </button>
+                    <div class="stat-card">
+                        <div class="stat-value">${bonuses.toFixed(0)} ₽</div>
+                        <div class="stat-label">Бонусы</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${totalPartners}</div>
+                        <div class="stat-label">Партнёров</div>
+                    </div>
                 </div>
-            `;
+
+                <div class="referral-section">
+                    <h3>Ваша реферальная ссылка</h3>
+                    <p>Станьте партнёром Fatal и получайте 25% по вашей ссылке!</p>
+                    
+                    <div class="referral-link-box">
+                        <input type="text" value="${referralLink}" readonly id="refLinkInput">
+                        <button class="btn-icon" onclick="copyReferralLink()">
+                            📋
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 12px; display: flex; gap: 10px;">
+                        <button class="btn" onclick="shareReferralLink('${referralLink}')">
+                            📤 Поделиться
+                        </button>
+                         <button class="btn btn-secondary" onclick="showQrCode('${escapeAttr(partner.profile.referralDirectQrUrl || '')}')" style="width: auto; aspect-ratio: 1;">
+                            📱 QR
+                        </button>
+                    </div>
+                </div>
+
+                <div class="partner-info-card">
+                    <h3>Условия программы</h3>
+                    <ul class="partner-benefits">
+                        <li>
+                            <span class="benefit-icon">💎</span>
+                            <div>
+                                <strong>25% с покупок</strong>
+                                <p>Вы получаете 25% от суммы заказов ваших прямых рефералов.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="benefit-icon">🚀</span>
+                            <div>
+                                <strong>Мгновенные начисления</strong>
+                                <p>Бонусы начисляются сразу после оплаты заказа.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>`;
         } else {
+            // Not a partner or not active
             html += `
-                <div class="profile-section">
-                    <h4>Партнерская программа</h4>
-                    <p>Активируйте партнерскую программу для получения реферальных бонусов</p>
-                    <button class="btn" onclick="openSection('partner')">Активировать</button>
+            <div class="partner-promo">
+                <div class="promo-icon">🤝</div>
+                <h2>Станьте партнёром</h2>
+                <p>Рекомендуйте Plazma и зарабатывайте 25% с покупок ваших друзей!</p>
+
+                <div class="benefits-grid">
+                    <div class="benefit-item">
+                        <div class="benefit-value">25%</div>
+                        <div class="benefit-desc">Комиссия с продаж</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-value">0 ₽</div>
+                        <div class="benefit-desc">Вложений</div>
+                    </div>
                 </div>
-            `;
+
+                <div class="promo-actions">
+                   <p style="opacity: 0.8; font-size: 14px; margin-bottom: 16px;">
+                     Для активации партнерской программы необходимо совершить покупку от 15 000 ₽.
+                   </p>
+                   <button class="btn" onclick="openShop()">Перейти в каталог</button>
+                </div>
+            </div>`;
         }
 
         html += `
@@ -2560,6 +2651,10 @@ async function showPartnerDashboard() {
         content += '<h3>Личный кабинет партнёра</h3>';
 
         if (dashboard) {
+            // Updated link generation to match bot
+            const botUsername = 'PLAZMA_test8_bot';
+            const referralLink = `https://t.me/${botUsername}?start=ref_direct_${dashboard.profile.referralCode}`;
+
             content += `
                 <div style="background: #f9f9f9; 
                             border: 1px solid var(--border-color); 
@@ -2572,10 +2667,25 @@ async function showPartnerDashboard() {
                     <p style="color: #333333; margin-bottom: 8px;">🎁 Всего бонусов: ${formatRubFromPz(dashboard.bonus || 0)}</p>
                 </div>
                 
-                <div style="margin: 20px 0;">
-                    <button class="btn" onclick="showReferralLink()">
-                        🔗 Моя реферальная ссылка
-                    </button>
+                <div class="referral-section" style="margin: 20px 0;">
+                    <h3>Ваша реферальная ссылка</h3>
+                    <p>Делитесь ссылкой и получайте 25% с покупок приглашенных!</p>
+                    
+                    <div class="referral-link-box" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <input type="text" value="${referralLink}" readonly id="refLinkInput" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
+                        <button class="btn-icon" onclick="copyReferralLink(document.getElementById('refLinkInput').value)" style="padding: 10px;">
+                            📋
+                        </button>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" onclick="shareReferralLink('${referralLink}')" style="flex: 1;">
+                            📤 Поделиться
+                        </button>
+                        <button class="btn btn-secondary" onclick="showQrCode('${escapeAttr(dashboard.profile.referralDirectQrUrl || '')}')" style="width: auto; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
+                            📱 QR
+                        </button>
+                    </div>
                 </div>
                 
                 <div style="margin: 20px 0;">
@@ -2705,11 +2815,19 @@ function showPartnerProgram() {
     const content = `
         <div class="content-section">
             <h3>Партнёрская программа</h3>
-            <p>Станьте партнёром Vital и получайте бонусы 15% + 5% + 5% по вашей ссылке!</p>
+            <p>Станьте партнёром Vital и получайте бонусы 25% по вашей ссылке!</p>
+            
+            <div class="partner-promo-info" style="background: #f9f9f9; border-radius: 12px; padding: 16px; margin: 20px 0;">
+                <p style="margin-bottom: 12px;"><strong>Как стать партнером:</strong></p>
+                <ul style="padding-left: 20px; color: #333;">
+                    <li>Совершите покупку на сумму от 15 000 ₽</li>
+                    <li>Получите реферальную ссылку автоматически</li>
+                </ul>
+            </div>
             
             <div style="margin: 20px 0;">
-                <button class="btn" onclick="activatePartnerProgram('MULTI_LEVEL')">
-                    📈 Многоуровневая 15% + 5% + 5%
+                <button class="btn" onclick="openShop()">
+                    🛍 Перейти в каталог
                 </button>
             </div>
             
@@ -4027,3 +4145,38 @@ async function showProductDetails(productId) {
 }
 
 
+
+function showQrCode(url) {
+    if (!url || url === 'undefined' || url === 'null') {
+        showError('QR-код еще не сгенерирован. Пожалуйста, запросите ссылку в боте (/partner).');
+        return;
+    }
+
+    // Create modal to show QR
+    const modal = document.createElement('div');
+    modal.className = 'instruction-modal';
+    modal.innerHTML = `
+        <div class="instruction-overlay" onclick="this.parentElement.remove()">
+            <div class="instruction-content" onclick="event.stopPropagation()" style="text-align: center;">
+                <div class="instruction-header">
+                    <h3>📱 Ваш QR-код</h3>
+                    <button class="btn-close" onclick="this.closest('.instruction-modal').remove()">×</button>
+                </div>
+                <div class="instruction-body">
+                    <img src="${escapeAttr(url)}" alt="QR Code" style="max-width: 100%; border-radius: 12px; margin-bottom: 12px;">
+                    <p style="color: var(--text-secondary);">Покажите этот код для сканирования</p>
+                </div>
+                <div class="instruction-footer">
+                    <button class="btn btn-secondary" onclick="this.closest('.instruction-modal').remove()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Animation
+    setTimeout(() => {
+        const content = modal.querySelector('.instruction-content');
+        if (content) content.style.transform = 'scale(1)';
+    }, 10);
+}
