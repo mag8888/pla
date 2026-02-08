@@ -277,7 +277,9 @@ model PartnerProfile {
   expiresAt      DateTime?
   activationType String?
   programType    PartnerProgramType   @default(DIRECT)
-  referralCode   String               @unique
+  referralCode       String               @unique
+  referralDirectQrUrl String?             // URL QR-кода для Direct (Cloudinary)
+  referralMultiQrUrl  String?             // URL QR-кода для Multi-level (Cloudinary)
   balance        Float                @default(0)
   bonus          Float                @default(0)
   totalPartners  Int                  @default(0)

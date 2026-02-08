@@ -6,6 +6,7 @@ import { buildReferralLink, getOrCreatePartnerProfile, getPartnerDashboard, getP
 import { getBotContent } from '../../services/bot-content-service.js';
 import { prisma } from '../../lib/prisma.js';
 import { PartnerProgramType } from '@prisma/client';
+import { generateAndUploadQRCode } from '../../services/qr-service.js';
 
 // Тип для партнерского реферала с включенными данными
 type PartnerReferralWithUser = {
@@ -550,8 +551,36 @@ async function showDirectInvite(ctx: Context) {
   }
 
   await ctx.answerCbQuery('Ссылка скопирована', { show_alert: false });
+
+  const referralLink = buildReferralLink(dashboard.profile.referralCode, 'DIRECT', user.username || undefined).main;
+  let qrUrl = dashboard.profile.referralDirectQrUrl;
+
+  // Generate QR if missing
+  if (!qrUrl) {
+    try {
+      const generatingMsg = await ctx.reply('⏳ Генерирую QR-код...');
+      qrUrl = await generateAndUploadQRCode(referralLink, 'vital/qr-codes', `qr_direct_${dashboard.profile.referralCode}`);
+
+      // Save to profile
+      await prisma.partnerProfile.update({
+        where: { id: dashboard.profile.id },
+        data: { referralDirectQrUrl: qrUrl }
+      });
+
+      await ctx.telegram.deleteMessage(ctx.chat?.id as any, generatingMsg.message_id);
+    } catch (error) {
+      console.error('Failed to generate QR:', error);
+      // Continue without QR if failed
+    }
+  }
+
+  if (qrUrl) {
+    await ctx.replyWithPhoto(qrUrl, { caption: '📱 Ваш персональный QR-код' });
+  }
+
   const shareGuide = `💫 Хочешь получать бонусы от рекомендаций?\nПросто перешли это сообщение выше друзьям или в свои чаты — прямо как оно есть.\n\n🔗 Бот автоматически закрепит всех, кто перейдёт по твоей ссылке, за тобой.\nТы будешь получать до 25% с покупок и бонусы с трёх уровней (15% + 5% + 5%).\n\n📩 Чтобы поделиться:\n1️⃣ Нажми и удерживай сообщение\n2️⃣ Выбери «Переслать»\n3️⃣ Отправь его своим друзьям или в чаты\n\nВот и всё — система сама всё посчитает 🔥`;
-  await ctx.reply(`Дружище 🌟\nЯ желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧\nПопробуй PLAZMA — структурированная вода для здоровья, которая реально меняет состояние ⚡️\n🔗 Твоя ссылка:\n${buildReferralLink(dashboard.profile.referralCode, 'DIRECT', user.username || undefined).main}`);
+
+  await ctx.reply(`Дружище 🌟\nЯ желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧\nПопробуй PLAZMA — структурированная вода для здоровья, которая реально меняет состояние ⚡️\n🔗 Твоя ссылка:\n${referralLink}`);
   await ctx.reply(shareGuide);
 }
 
@@ -569,8 +598,35 @@ async function showMultiInvite(ctx: Context) {
   }
 
   await ctx.answerCbQuery();
+
+  const referralLink = buildReferralLink(dashboard.profile.referralCode, 'MULTI_LEVEL', user.username || undefined).main;
+  let qrUrl = dashboard.profile.referralMultiQrUrl;
+
+  // Generate QR if missing
+  if (!qrUrl) {
+    try {
+      const generatingMsg = await ctx.reply('⏳ Генерирую QR-код...');
+      qrUrl = await generateAndUploadQRCode(referralLink, 'vital/qr-codes', `qr_multi_${dashboard.profile.referralCode}`);
+
+      // Save to profile
+      await prisma.partnerProfile.update({
+        where: { id: dashboard.profile.id },
+        data: { referralMultiQrUrl: qrUrl }
+      });
+
+      await ctx.telegram.deleteMessage(ctx.chat?.id as any, generatingMsg.message_id);
+    } catch (error) {
+      console.error('Failed to generate QR:', error);
+      // Continue without QR if failed
+    }
+  }
+
+  if (qrUrl) {
+    await ctx.replyWithPhoto(qrUrl, { caption: '📱 Ваш персональный QR-код' });
+  }
+
   const shareGuide = `💫 Хочешь получать бонусы от рекомендаций?\nПросто перешли это сообщение выше друзьям или в свои чаты — прямо как оно есть.\n\n🔗 Бот автоматически закрепит всех, кто перейдёт по твоей ссылке, за тобой.\nТы будешь получать до 25% с покупок и бонусы с трёх уровней (15% + 5% + 5%).\n\n📩 Чтобы поделиться:\n1️⃣ Нажми и удерживай сообщение\n2️⃣ Выбери «Переслать»\n3️⃣ Отправь его своим друзьям или в чаты\n\nВот и всё — система сама всё посчитает 🔥`;
-  await ctx.reply(`Дружище 🌟\nЯ желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧\nПопробуй PLAZMA — структурированная вода для здоровья, которая реально меняет состояние ⚡️\n🔗 Твоя ссылка (сеть 15% + 5% + 5%):\n${buildReferralLink(dashboard.profile.referralCode, 'MULTI_LEVEL', user.username || undefined).main}`);
+  await ctx.reply(`Дружище 🌟\nЯ желаю тебе энергии, здоровья и внутренней силы, поэтому делюсь с тобой этим ботом 💧\nПопробуй PLAZMA — структурированная вода для здоровья, которая реально меняет состояние ⚡️\n🔗 Твоя ссылка (сеть 15% + 5% + 5%):\n${referralLink}`);
   await ctx.reply(shareGuide);
   await ctx.reply('Выберите уровень партнёров для просмотра:', partnerLevelsKeyboard());
 }
