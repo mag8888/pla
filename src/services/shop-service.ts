@@ -6,7 +6,7 @@ export async function getActiveCategories() {
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
-    return categories.filter((c: any) => c?.isVisibleInWebapp !== false);
+    return categories.filter((c: any) => c?.isVisibleInWebapp !== false && c?.name !== 'Отключенные');
   } catch (error: any) {
     console.error('❌ getActiveCategories error:', error?.message || error);
     if (error?.code === 'P2031' || error?.message?.includes('replica set')) return [];
@@ -22,8 +22,8 @@ export async function getCategoryById(id: string) {
 
 export async function getProductsByCategory(categoryId: string) {
   const products = await prisma.product.findMany({
-    where: { 
-      categoryId, 
+    where: {
+      categoryId,
       isActive: true,
     },
     orderBy: { title: 'asc' },
