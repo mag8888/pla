@@ -2219,15 +2219,24 @@ async function importProducts() {
 }
 
 // Partner content
+// Partner content
 async function loadPartnerContent() {
     return `
         <div class="content-section">
             <h3>Партнёрская программа</h3>
-            <p>Станьте партнёром Vital и получайте бонусы 15% + 5% + 5% по вашей ссылке!</p>
+            <p>Станьте партнёром Vital и получайте бонусы 25% по вашей ссылке!</p>
+            
+            <div class="partner-promo-info" style="background: #f9f9f9; border-radius: 12px; padding: 16px; margin: 20px 0;">
+                <p style="margin-bottom: 12px;"><strong>Как стать партнером:</strong></p>
+                <ul style="padding-left: 20px; color: #333;">
+                    <li>Совершите покупку на сумму от 15 000 ₽</li>
+                    <li>Получите реферальную ссылку автоматически</li>
+                </ul>
+            </div>
             
             <div style="margin: 20px 0;">
-                <button class="btn" onclick="activatePartnerProgram('MULTI_LEVEL')">
-                    📈 Многоуровневая 15% + 5% + 5%
+                <button class="btn" onclick="openShop()">
+                    🛍 Перейти в каталог
                 </button>
             </div>
             
