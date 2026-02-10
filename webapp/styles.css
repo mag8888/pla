@@ -263,6 +263,7 @@ h4 {
 }
 
 .brand-label {
+    display: none; /* Hide text label in favor of logo */
     font-size: 24px;
     font-weight: 400;
     letter-spacing: 0.05em;
@@ -270,6 +271,13 @@ h4 {
     line-height: 1.2;
     font-family: serif;
     text-transform: uppercase;
+}
+
+.brand-logo {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
+    display: block;
 }
 
 .brand-description {

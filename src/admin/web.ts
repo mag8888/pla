@@ -6663,6 +6663,7 @@ router.get('/products', requireAdmin, async (req, res) => {
             const availableInRussia = String(button.dataset.russia || 'false').trim() === 'true';
             const availableInBali = String(button.dataset.bali || 'false').trim() === 'true';
             const imageUrl = String(button.dataset.image || '').trim();
+            const stock = String(button.dataset.stock || '').trim();
             
             console.log('📦 Product data extracted:', {
               productId: productId.substring(0, 10) + '...',
@@ -6670,8 +6671,10 @@ router.get('/products', requireAdmin, async (req, res) => {
               price,
               categoryId,
               isActive,
+              isActive,
               availableInRussia,
-              availableInBali
+              availableInBali,
+              stock
             });
             
             if (!productId) {
@@ -6913,7 +6916,7 @@ router.get('/products', requireAdmin, async (req, res) => {
               if (editProductDescriptionEl) editProductDescriptionEl.value = decodeHtml(description) || '';
               editProductPriceEl.value = price || '0';
               if (editProductPriceRubEl) editProductPriceRubEl.value = ((parseFloat(price) || 0) * 100).toFixed(2);
-              if (editProductStockEl) editProductStockEl.value = '999';
+              if (editProductStockEl) editProductStockEl.value = stock && stock !== 'null' && stock !== 'undefined' ? stock : '999';
               if (editProductStatusEl) editProductStatusEl.checked = isActive;
               if (editProductRussiaEl) editProductRussiaEl.checked = availableInRussia;
               if (editProductBaliEl) editProductBaliEl.checked = availableInBali;
@@ -7867,6 +7870,7 @@ router.get('/products', requireAdmin, async (req, res) => {
         'data-russia="' + ((p as any).availableInRussia ? 'true' : 'false') + '" ' +
         'data-bali="' + ((p as any).availableInBali ? 'true' : 'false') + '" ' +
         'data-image="' + escapeAttr(p.imageUrl) + '" ' +
+        'data-stock="' + (p.stock !== undefined && p.stock !== null ? p.stock : 999) + '" ' +
         'onclick="if(typeof window.editProduct===\'function\'){window.editProduct(this);}else{alert(\'Ошибка: функция редактирования не загружена.\');} return false;"' +
         '><span class="btn-ico">' + ICONS.pencil + '</span><span>Редактировать</span></button>' +
         '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/toggle-active" style="display:inline;">' +

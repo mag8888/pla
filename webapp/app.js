@@ -176,10 +176,17 @@ function getTelegramUserData() {
 // Get headers with Telegram user data
 function getApiHeaders() {
     const user = getTelegramUserData();
-    return {
+    const headers = {
         'Content-Type': 'application/json',
         'X-Telegram-User': JSON.stringify(user)
     };
+
+    // Add init data if available (for backend verification)
+    if (tg && tg.initData) {
+        headers['X-Telegram-Init-Data'] = tg.initData;
+    }
+
+    return headers;
 }
 
 function pzToRub(pz) {
@@ -4106,11 +4113,24 @@ async function showProductDetails(productId) {
         console.log('📖 Showing product details for:', productId);
 
         let product = null;
-        const response = await fetch(`${API_BASE}/products/${productId}`);
-        if (!response.ok) {
-            throw new Error('Failed to fetch product details');
+
+        // 1. Try to find in local cache first (instant load)
+        if (typeof SHOP_PRODUCTS_CACHE !== 'undefined' && Array.isArray(SHOP_PRODUCTS_CACHE)) {
+            product = SHOP_PRODUCTS_CACHE.find(p => String(p.id) === String(productId));
+            if (product) {
+                console.log('✅ Found product in cache:', productId);
+            }
         }
-        product = await response.json();
+
+        // 2. If not in cache, fetch from API
+        if (!product) {
+            const response = await fetch(`${API_BASE}/products/${productId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch product details');
+            }
+            product = await response.json();
+        }
+
         if (!product) {
             throw new Error('Product not found');
         }
