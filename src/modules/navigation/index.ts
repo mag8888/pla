@@ -1044,9 +1044,34 @@ export const navigationModule: BotModule = {
         return;
       }
 
-      // Check if this is admin @Aurelia_8888 replying to a user
-      const aureliaAdminId = '7077195545';
-      if (ctx.from?.id?.toString() === aureliaAdminId && ctx.session?.replyingTo) {
+      // Check for native reply (reply_to_message)
+      if (ctx.message && 'reply_to_message' in ctx.message && ctx.message.reply_to_message) {
+        const replyTo = ctx.message.reply_to_message as any;
+        // Check if the message we are replying to has the user ID in it (from our template)
+        if (replyTo.text && (replyTo.text.includes('Telegram ID:') || replyTo.text.includes('ID:'))) {
+          const match = replyTo.text.match(/Telegram ID:\s*(\d+)/) || replyTo.text.match(/ID:\s*(\d+)/) || replyTo.text.match(/ID:.*?(\d+)/);
+          if (match && match[1]) {
+            const userTelegramId = match[1];
+            const { getAdminChatIds } = await import('../../config/env.js');
+            const adminIds = getAdminChatIds();
+            if (adminIds.includes(ctx.from?.id?.toString() || '')) {
+              // It is an admin replying to a support ticket notification
+              // Fake the session context so the next block handles it
+              if (!ctx.session) ctx.session = {};
+              ctx.session.replyingTo = {
+                userTelegramId,
+                userName: 'Пользователь'
+              };
+            }
+          }
+        }
+      }
+
+      // Check if this is an admin replying to a user
+      const { getAdminChatIds } = await import('../../config/env.js');
+      const adminIds = getAdminChatIds();
+
+      if (adminIds.includes(ctx.from?.id?.toString() || '') && ctx.session?.replyingTo) {
         const { userTelegramId, userName } = ctx.session.replyingTo;
 
         try {
