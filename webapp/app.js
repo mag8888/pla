@@ -34,6 +34,7 @@ let currentSection = null;
 let userData = null;
 let cartItems = [];
 let favoritesSet = new Set();
+let supportChatInterval = null;
 
 // API Base URL - adjust based on your backend
 const API_BASE = '/webapp/api';
@@ -1164,6 +1165,12 @@ function showFavorites() {
 }
 
 function openSection(sectionName) {
+    // Clear any existing intervals
+    if (supportChatInterval) {
+        clearInterval(supportChatInterval);
+        supportChatInterval = null;
+    }
+
     currentSection = sectionName;
     const overlay = document.getElementById('section-overlay');
     const title = document.getElementById('section-title');
@@ -1220,6 +1227,11 @@ function openSection(sectionName) {
 }
 
 function closeSection() {
+    if (supportChatInterval) {
+        clearInterval(supportChatInterval);
+        supportChatInterval = null;
+    }
+
     const overlay = document.getElementById('section-overlay');
     overlay.classList.remove('open');
     try {
@@ -2300,12 +2312,16 @@ async function loadAboutContent() {
     return `
         <div class="content-section">
             <h3>О нас</h3>
-            <p>Название Витал происходит от слова Vita, с латыни обозначающего жизнь.</p>
-            <p>Так вот, всё то, что представлено в портале здоровья, молодости и долголетия, связано с жизнью.</p>
-            <p>Все товары, которые размещены на портале, все приносят жизнь и дают жизненную, настоящую, чистую энергию. Энергию для жизни.</p>
-            <p>Соответственно, вся косметика и продукты по уходу за телом полностью произведены из натуральных ингредиентов и на 100% натуральные.</p>
-            <p>Товары, которые далее мы будем размещать, также будут произведены из натуральных материалов, созданных с любовью производителями, которые вкладывают душу в создание своего продукта.</p>
-            <p>Все те специалисты, которые уже размещены и будут размещены на портале, это отобранные годами опыта люди, которые действительно делают то, что делают от души, с любовью и за большим уважением к тому, для кого они это делают.</p>
+            <p><strong>🌀 Добро пожаловать в эру будущего!</strong></p>
+            <p>Plazma Water - это инновационная космическая эко технология, которая использует передовые наноматериалы в сфере здоровья, долголетия.</p>
+            
+            <p><strong>⚡️ Быстро, легко и без нагрузки на печень и почки — питание прямо в клетки.</strong></p>
+            
+            <p>💧 Plazma Water - это инновационный водный раствор, содержащий микроэлементы в уникальной плазменной наноструктуре. Благодаря особой технологии, частицы в составе имеют нано размер и равномерно распределены в воде, что обеспечивает их естественное взаимодействие с биологическими системами организма.</p>
+            
+            <p><strong>🧬 Усвоение — 99,9% (в отличие от таблеток 1–20%).</strong></p>
+            
+            <p>В отличие от традиционных форм добавок, где усвоение может быть ограничено, плазменная наноформа способствует более мягкому и естественному включению микроэлементов в обменные процессы. При этом не требуется участие дополнительных вспомогательных веществ, что делает продукт лёгким для восприятия и безопасным при разумном использовании.</p>
 
             <div style="margin-top: 18px;">
               <button class="btn btn-secondary" onclick="openSection('support')">
@@ -2846,6 +2862,10 @@ function initSupportChat() {
     }
 
     loadSupportChatMessages();
+
+    // Start polling
+    if (supportChatInterval) clearInterval(supportChatInterval);
+    supportChatInterval = setInterval(loadSupportChatMessages, 3000);
 }
 
 function renderSupportMessages() {
@@ -2887,26 +2907,45 @@ function renderSupportMessages() {
 
 async function loadSupportChatMessages() {
     const box = document.getElementById('support-messages');
-    if (!box) return;
+
+    // Stop polling if the element is no longer in the DOM
+    if (!box) {
+        if (supportChatInterval) {
+            clearInterval(supportChatInterval);
+            supportChatInterval = null;
+        }
+        return;
+    }
 
     try {
         const response = await fetch(`${API_BASE}/support/messages`, { headers: getApiHeaders() });
         if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            throw new Error(`Failed to load support messages: ${response.status} ${errorText}`);
+            // Keep silent api errors during polling, unless it's the initial empty state
+            if (!supportMessages || supportMessages.length === 0) {
+                const errorText = await response.text().catch(() => '');
+                throw new Error(`Failed to load support messages: ${response.status} ${errorText}`);
+            }
+            return;
         }
         const data = await response.json();
-        supportMessages = Array.isArray(data) ? data : [];
-        renderSupportMessages();
+        const newMessages = Array.isArray(data) ? data : [];
+
+        // Only render if changed (simple serialization check)
+        if (JSON.stringify(newMessages) !== JSON.stringify(supportMessages)) {
+            supportMessages = newMessages;
+            renderSupportMessages();
+        }
     } catch (error) {
         console.error('❌ Error loading support messages:', error);
-        box.innerHTML = `
-            <div class="error-message">
-                <h3>Ошибка загрузки чата</h3>
-                <p>Попробуйте обновить страницу.</p>
-                <button class="btn" onclick="loadSupportChatMessages()" style="margin-top:12px;">Обновить</button>
-            </div>
-        `;
+        if (!supportMessages || supportMessages.length === 0) {
+            box.innerHTML = `
+                <div class="error-message">
+                    <h3>Ошибка загрузки чата</h3>
+                    <p>Попробуйте обновить страницу.</p>
+                    <button class="btn" onclick="loadSupportChatMessages()" style="margin-top:12px;">Обновить</button>
+                </div>
+            `;
+        }
     }
 }
 
