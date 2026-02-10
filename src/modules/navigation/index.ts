@@ -1047,11 +1047,23 @@ export const navigationModule: BotModule = {
       // Check for native reply (reply_to_message)
       if (ctx.message && 'reply_to_message' in ctx.message && ctx.message.reply_to_message) {
         const replyTo = ctx.message.reply_to_message as any;
+        console.log('🔍 Checking reply_to_message:', JSON.stringify(replyTo.text).substring(0, 100));
+
         // Check if the message we are replying to has the user ID in it (from our template)
+        // Template: 🆔 Telegram ID: <code>123456789</code>
         if (replyTo.text && (replyTo.text.includes('Telegram ID:') || replyTo.text.includes('ID:'))) {
-          const match = replyTo.text.match(/Telegram ID:\s*(\d+)/) || replyTo.text.match(/ID:\s*(\d+)/) || replyTo.text.match(/ID:.*?(\d+)/);
+          // Try multiple patterns
+          // 1. "Telegram ID: 123456789"
+          // 2. "ID: 123456789"
+          // 3. "ID: <code>123456789</code>" (if HTML tags are stripped but content remains)
+          const match = replyTo.text.match(/Telegram ID:\s*(\d+)/) ||
+            replyTo.text.match(/ID:\s*(\d+)/) ||
+            replyTo.text.match(/ID:.*?(\d+)/);
+
           if (match && match[1]) {
             const userTelegramId = match[1];
+            console.log('✅ Found User ID in reply:', userTelegramId);
+
             const { getAdminChatIds } = await import('../../config/env.js');
             const adminIds = getAdminChatIds();
             if (adminIds.includes(ctx.from?.id?.toString() || '')) {
@@ -1062,7 +1074,12 @@ export const navigationModule: BotModule = {
                 userTelegramId,
                 userName: 'Пользователь'
               };
+              console.log('✅ Session context set for reply');
+            } else {
+              console.log('❌ User is not admin:', ctx.from?.id);
             }
+          } else {
+            console.log('❌ Could not extract ID from reply text. Text starts with:', replyTo.text.substring(0, 50));
           }
         }
       }
