@@ -26,17 +26,40 @@ export async function generateQRCode(text: string): Promise<Buffer> {
 
         if (fs.existsSync(logoPath)) {
             try {
-                // Resize logo to fit in the center (approx 20% of QR size)
-                const logo = await sharp(logoPath)
-                    .resize(100, 100, {
-                        fit: 'contain',
-                        background: { r: 255, g: 255, b: 255, alpha: 0 }
+                // Settings
+                const logoSize = 110;
+                const borderSize = 10;
+                const bgSize = logoSize + borderSize; // 120
+
+                // 1. Create White Circular Background
+                const whiteBg = Buffer.from(
+                    `<svg width="${bgSize}" height="${bgSize}">
+                        <circle cx="${bgSize / 2}" cy="${bgSize / 2}" r="${bgSize / 2}" fill="white"/>
+                    </svg>`
+                );
+
+                // 2. Process Logo: Resize and Crop to Circle
+                // We use 'cover' to ensure the logo fills the circular area if it has a background
+                const logoRounded = await sharp(logoPath)
+                    .resize(logoSize, logoSize, {
+                        fit: 'cover',
                     })
+                    .composite([{
+                        input: Buffer.from(
+                            `<svg width="${logoSize}" height="${logoSize}">
+                                <circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="black"/>
+                            </svg>`
+                        ),
+                        blend: 'dest-in'
+                    }])
                     .toBuffer();
 
-                // Composite logo onto QR code
+                // 3. Composite everything onto QR code
                 const compositeBuffer = await sharp(qrBuffer)
-                    .composite([{ input: logo, gravity: 'center' }])
+                    .composite([
+                        { input: whiteBg, gravity: 'center' },
+                        { input: logoRounded, gravity: 'center' }
+                    ])
                     .toBuffer();
 
                 return compositeBuffer;
