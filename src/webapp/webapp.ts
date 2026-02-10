@@ -200,7 +200,8 @@ router.get('/api/user/profile', async (req, res) => {
       phone: user.phone,
       deliveryAddress: user.deliveryAddress,
       selectedRegion: user.selectedRegion,
-      balance: (user as any).balance || 0
+      balance: (user as any).balance || 0,
+      botUsername: (await import('../config/env.js')).env.botUsername
     });
   } catch (error) {
     console.error('Error getting user profile:', error);

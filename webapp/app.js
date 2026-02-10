@@ -630,7 +630,7 @@ async function loadProfileContent() {
                 </div>
                 ` : `
                 <div class="partner-subscription-info" style="margin-bottom: 15px; padding: 12px; background: #fff3f3; border-radius: 8px;">
-                     <div style="font-size: 14px; color: #d63031;">Подписка не активна. Совершите покупку от 15 000 ₽ для активации.</div>
+                     <div style="font-size: 14px; color: #d63031;">Подписка не активна. Совершите покупку от 12 000 ₽ для активации.</div>
                 </div>
                 `}
 
@@ -704,7 +704,7 @@ async function loadProfileContent() {
 
                 <div class="promo-actions">
                    <p style="opacity: 0.8; font-size: 14px; margin-bottom: 16px;">
-                     Для активации партнерской программы необходимо совершить покупку от 15 000 ₽.
+                     Для активации партнерской программы необходимо совершить покупку от 12 000 ₽.
                    </p>
                    <button class="btn" onclick="openShop()">Перейти в каталог</button>
                 </div>
@@ -926,9 +926,9 @@ async function loadCartContent() {
                     </div>
                 </div>
 
-                ${(!userData?.partner?.isActive && total < 150) ? `
+                ${(!userData?.partner?.isActive && total < 120) ? `
                 <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; border-radius: 12px; padding: 12px; margin: 12px 0; font-size: 13px; line-height: 1.4;">
-                    Чтобы активировать систему лояльности и получать скидку 10% на свои покупки и партнёрку 25% от покупок ваших друзей, вам нужно добрать <b>${pzToRub(150 - total)} ₽</b>
+                    Чтобы активировать систему лояльности и получать скидку 10% на свои покупки и партнёрку 25% от покупок ваших друзей, вам нужно добрать <b>${pzToRub(120 - total)} ₽</b>
                 </div>
                 ` : ''}
                 <button class="btn btn-primary checkout-btn" onclick="checkoutCart()" style="width: 100%; margin-top: 16px;">
@@ -2232,7 +2232,7 @@ async function loadPartnerContent() {
             <div class="partner-promo-info" style="background: #f9f9f9; border-radius: 12px; padding: 16px; margin: 20px 0;">
                 <p style="margin-bottom: 12px;"><strong>Как стать партнером:</strong></p>
                 <ul style="padding-left: 20px; color: #333;">
-                    <li>Совершите покупку на сумму от 15 000 ₽</li>
+                    <li>Совершите покупку на сумму от 12 000 ₽</li>
                     <li>Получите реферальную ссылку автоматически</li>
                 </ul>
             </div>
@@ -2593,7 +2593,8 @@ async function activatePartnerProgram(type) {
         const referralCode = 'PLAZMA' + Math.random().toString(36).substr(2, 6).toUpperCase();
 
         // Создаем реферальную ссылку
-        const referralLink = `https://t.me/ivitalbot?start=${referralCode}`;
+        const botUsername = userData?.botUsername || 'PLAZMA_test8_bot';
+        const referralLink = `https://t.me/${botUsername}?start=${referralCode}`;
 
         // Текст как в боте
         let message = '';
@@ -2836,7 +2837,7 @@ function showPartnerProgram() {
             <div class="partner-promo-info" style="background: #f9f9f9; border-radius: 12px; padding: 16px; margin: 20px 0;">
                 <p style="margin-bottom: 12px;"><strong>Как стать партнером:</strong></p>
                 <ul style="padding-left: 20px; color: #333;">
-                    <li>Совершите покупку на сумму от 15 000 ₽</li>
+                    <li>Совершите покупку на сумму от 12 000 ₽</li>
                     <li>Получите реферальную ссылку автоматически</li>
                 </ul>
             </div>
@@ -3566,7 +3567,7 @@ function closeBalanceTopUpDialog() {
 
 function openBotForBalance() {
     // Открываем бота с командой пополнения баланса
-    const botUsername = 'PLAZMA_test8_bot';
+    const botUsername = userData?.botUsername || 'PLAZMA_test8_bot';
     const botUrl = `https://t.me/${botUsername}?start=add_balance`;
 
     // Пытаемся открыть через Telegram WebApp

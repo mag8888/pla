@@ -179,9 +179,9 @@ export async function checkPaymentStatus(ctx: Context, paymentId: string) {
       try {
         const { activatePartnerProfile, extendPartnerProfile, getOrCreatePartnerProfile } = await import('../../services/partner-service.js');
 
-        if (payment.amount >= 15000) {
-          // Activate for 40 days
-          console.log('💎 Payment >= 15000 RUB. Activating partner program for 40 days.');
+        if (payment.amount >= 12000) {
+          // Logic for auto-activation or extending partner program
+          console.log('💎 Payment >= 12000 RUB. Activating partner program for 40 days.');
           // Ensure profile exists first
           await getOrCreatePartnerProfile(payment.userId, 'DIRECT');
           // Using extendPartnerProfile with 40 days which handles both activation and extension
