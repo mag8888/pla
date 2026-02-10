@@ -793,6 +793,28 @@ export const navigationModule: BotModule = {
               partnerId: partnerProfile.id,
               programType
             });
+
+            // Notify partner about new referral
+            try {
+              console.log('🔗 Referral: Sending notification to partner:', partnerProfile.user.telegramId);
+              const joinedLabel = user.username ? `@${user.username}` : (user.firstName || 'пользователь');
+              const notificationText =
+                '🎉 <b>Новый партнёр!</b>\n\n' +
+                `✨ К вам присоединился ${joinedLabel} по вашей реферальной ссылке!\n\n` +
+                `👥 Всего партнёров: ${partnerProfile.totalPartners + 1}\n` +
+                `💰 Вы получите 25% с покупок этого пользователя\n\n` +
+                `Приглашайте больше друзей и получайте бонусы!`;
+
+              await ctx.telegram.sendMessage(
+                partnerProfile.user.telegramId,
+                notificationText,
+                { parse_mode: 'HTML' }
+              );
+              console.log('🔗 Referral: Partner notification sent successfully');
+            } catch (error: any) {
+              console.error('🔗 Referral: Failed to send partner notification:', error?.message || error);
+            }
+
             return; // Don't call renderHome to avoid duplicate greeting
           } else {
             console.log('🔗 Referral: Partner profile not found for code:', referralCode);
