@@ -2653,7 +2653,7 @@ ${referralLink}`;
 
 async function showPartnerDashboard() {
     try {
-        const response = await fetch(`${API_BASE}/partner/dashboard`);
+        const response = await fetch(`${API_BASE}/partner/dashboard`, { headers: getApiHeaders() });
         const dashboard = await response.json();
 
         let content = '<div class="content-section">';
