@@ -917,9 +917,21 @@ async function getFavoritesSetForUserId(userId: string): Promise<Set<string>> {
 
   const set = new Set<string>();
   for (const e of events as any[]) {
-    const payload = (e.payload || {}) as any;
+    let payload = e.payload;
+
+    // Fix for legacy data stored as string
+    if (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload);
+      } catch (e) {
+        continue;
+      }
+    }
+
+    payload = payload || {};
     const productId = (payload.productId || '').toString();
     const isFavorite = !!payload.isFavorite;
+
     if (!productId) continue;
     if (isFavorite) set.add(productId);
     else set.delete(productId);
@@ -995,7 +1007,7 @@ router.post('/api/favorites/toggle', async (req, res) => {
       data: {
         userId: user.id,
         action: 'favorites:toggle',
-        payload: JSON.stringify({ productId, isFavorite: next })
+        payload: { productId, isFavorite: next }
       }
     });
 
