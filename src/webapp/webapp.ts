@@ -14,7 +14,8 @@ import { CATALOG_STRUCTURE } from '../services/catalog-structure.js';
 import { addProductToCart, getCartItems, cartItemsToText } from '../services/cart-service.js';
 import { createOrderRequest } from '../services/order-service.js';
 import { getActiveReviews } from '../services/review-service.js';
-import { getOrCreatePartnerProfile, getPartnerDashboard } from '../services/partner-service.js';
+import { getOrCreatePartnerProfile, getPartnerDashboard, buildReferralLink } from '../services/partner-service.js';
+import { generateAndUploadQRCode } from '../services/qr-service.js';
 import { env } from '../config/env.js';
 
 const router = express.Router();
@@ -1489,6 +1490,39 @@ router.get('/api/partner/dashboard', async (req, res) => {
         isActive: false,
         message: 'Партнерская программа не активирована'
       });
+    }
+
+    // Auto-generate QR code if missing
+    if (!user.partner.referralDirectQrUrl) {
+      try {
+        console.log(`🔄 Auto-generating QR code for partner ${user.partner.referralCode}...`);
+
+        const referralLink = buildReferralLink(
+          user.partner.referralCode,
+          'DIRECT',
+          user.username || undefined
+        ).main;
+
+        const qrUrl = await generateAndUploadQRCode(
+          referralLink,
+          'vital/qr-codes',
+          `qr_direct_${user.partner.referralCode}`
+        );
+
+        // Save QR URL to database
+        await prisma.partnerProfile.update({
+          where: { id: user.partner.id },
+          data: { referralDirectQrUrl: qrUrl }
+        });
+
+        // Update in-memory object for response
+        user.partner.referralDirectQrUrl = qrUrl;
+
+        console.log(`✅ QR code generated and saved: ${qrUrl}`);
+      } catch (qrError) {
+        console.error('⚠️  Failed to auto-generate QR code:', qrError);
+        // Continue without QR - graceful degradation
+      }
     }
 
     res.json({

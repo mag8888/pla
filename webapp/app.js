@@ -197,7 +197,7 @@ function pzToRub(pz) {
 }
 
 function formatRubFromPz(pz) {
-    return `${pzToRub(pz)} ₽`;
+    return `${pzToRub(pz)} PZ`;
 }
 
 // Initialize app
