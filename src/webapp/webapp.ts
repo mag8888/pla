@@ -2413,7 +2413,7 @@ router.post('/api/plazma/orders', async (req, res) => {
           quantity: quantity,
           price: price
         }],
-        message: `Заказ товара "${productTitle}" через Vital магазин`
+        message: `Заказ товара "${productTitle}" через Plazma магазин`
       })
     });
 
@@ -2438,9 +2438,9 @@ router.post('/api/plazma/orders', async (req, res) => {
           price: price,
           quantity: quantity
         }],
-        message: `Заказ товара "${productTitle}" из Plazma через Vital магазин. Order ID: ${data.data?.orderId || 'N/A'}`
+        message: `Заказ товара "${productTitle}" из Plazma через Plazma магазин. Order ID: ${data.data?.orderId || 'N/A'}`
       });
-      console.log('✅ Order saved to VITAL database:', order?.id);
+      console.log('✅ Order saved to Plazma database:', order?.id);
     } catch (dbError) {
       console.warn('⚠️ Failed to save order to local database:', dbError);
       // Continue anyway - the order was created in Plazma
@@ -2479,9 +2479,9 @@ router.post('/api/plazma/orders', async (req, res) => {
           `📊 <b>Количество:</b> ${quantity} шт.\n` +
           `💰 <b>Цена:</b> ${price.toFixed(2)} PZ × ${quantity} = ${totalPrice.toFixed(2)} PZ\n\n` +
           `🔗 <b>Plazma Order ID:</b> <code>${plazmaOrderId}</code>\n` +
-          (order ? `🆔 <b>VITAL Order ID:</b> <code>${order.id}</code>\n` : '') +
+          (order ? `🆔 <b>PLAZMA Order ID:</b> <code>${order.id}</code>\n` : '') +
           `📅 <b>Дата:</b> ${new Date().toLocaleString('ru-RU')}\n\n` +
-          `ℹ️ <i>Заказ отправлен в Plazma API и сохранен в базе VITAL</i>`;
+          `ℹ️ <i>Заказ отправлен в Plazma API и сохранен в базе Plazma</i>`;
 
         // Send to all admins
         for (const adminId of adminIds) {
@@ -2504,7 +2504,7 @@ router.post('/api/plazma/orders', async (req, res) => {
                   ],
                   ...(order ? [[
                     {
-                      text: '📋 Просмотреть в админ-панели VITAL',
+                      text: '📋 Просмотреть в админ-панели Plazma',
                       url: `${env.webappUrl || 'https://vital-production-82b0.up.railway.app'}/admin/resources/order-requests/${order.id}`
                     }
                   ]] : [])
@@ -2525,7 +2525,7 @@ router.post('/api/plazma/orders', async (req, res) => {
     res.json({
       success: true,
       orderId: data.data?.orderId,
-      vitalOrderId: order?.id,
+      plazmaOrderId: order?.id,
       message: 'Заказ успешно создан! Администратор свяжется с вами.'
     });
   } catch (error: any) {

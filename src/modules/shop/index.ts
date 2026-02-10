@@ -17,7 +17,7 @@ const REGION_SELECT_PREFIX = 'shop:region:';
 
 export async function showRegionSelection(ctx: Context) {
   await logUserAction(ctx, 'shop:region_selection');
-  
+
   await ctx.reply(
     '🌍 Выберите ваш регион для просмотра доступных товаров:',
     Markup.inlineKeyboard([
@@ -32,29 +32,29 @@ export async function showRegionSelection(ctx: Context) {
 export async function showCategories(ctx: Context, region?: string) {
   // Регион больше не используется, всегда показываем все товары
   await logUserAction(ctx, 'shop:open');
-  
+
   try {
     console.log('🛍️ Loading categories...');
     const categories = await getActiveCategories();
     console.log('🛍️ Found active categories:', categories.length);
-    
+
     // Debug: also check all categories
     const allCategories = await prisma.category.findMany();
     console.log('🛍️ Total categories in DB:', allCategories.length);
     allCategories.forEach(cat => {
       console.log(`  - ${cat.name} (ID: ${cat.id}, Active: ${cat.isActive})`);
     });
-    
+
     if (categories.length === 0) {
       console.log('🛍️ No active categories found, showing empty message');
       // Получаем баланс пользователя
       const user = await ensureUser(ctx);
       const userBalance = Number((user as any)?.balance || 0);
-      
-      await ctx.reply(`🛍️ Каталог товаров Vital\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n\nКаталог пока пуст. Добавьте категории и товары в админке.`);
+
+      await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n\nКаталог пока пуст. Добавьте категории и товары в админке.`);
       return;
     }
-    
+
     // Get cart items count
     const user = await ensureUser(ctx);
     let cartItemsCount = 0;
@@ -84,8 +84,8 @@ export async function showCategories(ctx: Context, region?: string) {
 
     // Получаем баланс пользователя
     const userBalance = Number((user as any)?.balance || 0);
-    
-    await ctx.reply(`🛍️ Каталог товаров Vital\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n\nВыберите категорию:`, {
+
+    await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n\nВыберите категорию:`, {
       reply_markup: {
         inline_keyboard: keyboard,
       },
@@ -95,8 +95,8 @@ export async function showCategories(ctx: Context, region?: string) {
     // Получаем баланс пользователя
     const user = await ensureUser(ctx);
     const userBalance = Number((user as any)?.balance || 0);
-    
-    await ctx.reply(`🛍️ Каталог товаров Vital\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n\n❌ Ошибка загрузки каталога. Попробуйте позже.`);
+
+    await ctx.reply(`🛍️ Каталог товаров Plazma Water\n\n💰 Баланс: ${userBalance.toFixed(2)} PZ\n\n❌ Ошибка загрузки каталога. Попробуйте позже.`);
   }
 }
 
@@ -113,9 +113,9 @@ async function sendProductCards(ctx: Context, categoryId: string) {
       await ctx.reply('❌ Категория не найдена.');
       return;
     }
-    
+
     const products = await getProductsByCategory(categoryId);
-    
+
     if (products.length === 0) {
       await ctx.reply(`📂 ${category.name}\n\nВ этой категории пока нет товаров.`);
       return;
@@ -128,9 +128,9 @@ async function sendProductCards(ctx: Context, categoryId: string) {
     for (let i = 0; i < products.length; i++) {
       const product = products[i];
       console.log(`🛍️ Product: ${product.title}, ImageUrl: ${product.imageUrl}`);
-      
+
       const buttons = [];
-      
+
       // Первая строка: Подробнее + Инструкция
       const firstRow = [];
       if (product.description) {
@@ -142,7 +142,7 @@ async function sendProductCards(ctx: Context, categoryId: string) {
       if (firstRow.length > 0) {
         buttons.push(firstRow);
       }
-      
+
       // Вторая строка: В корзину + Купить
       const secondRow = [];
       secondRow.push(Markup.button.callback('🛒 В корзину', `${PRODUCT_CART_PREFIX}${product.id}`));
@@ -150,7 +150,7 @@ async function sendProductCards(ctx: Context, categoryId: string) {
       buttons.push(secondRow);
 
       const message = formatProductMessage(product);
-      
+
       if (product.imageUrl && product.imageUrl.trim() !== '') {
         console.log(`🛍️ Sending product with image: ${product.imageUrl}`);
         await ctx.replyWithPhoto(product.imageUrl, {
@@ -161,7 +161,7 @@ async function sendProductCards(ctx: Context, categoryId: string) {
         console.log(`🛍️ Sending product without image (no imageUrl)`);
         await ctx.reply(message, Markup.inlineKeyboard(buttons));
       }
-      
+
       // Add 1 second delay between products (except for the last one)
       if (i < products.length - 1) {
         console.log(`🛍️ Waiting 1 second before next product...`);
@@ -191,14 +191,14 @@ async function handleAddToCart(ctx: Context, productId: string) {
   await addProductToCart(user.id, product.id);
   await logUserAction(ctx, 'shop:add-to-cart', { productId: product.id });
   await ctx.answerCbQuery('Добавлено в корзину ✅');
-  
+
   // Get updated cart info for button
   const cartItems = await getCartItems(user.id);
   const totalQuantity = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const totalSum = cartItems.reduce((sum, item) => sum + ((item.product?.price || 0) * (item.quantity || 0)), 0);
-  
+
   const cartButtonText = `🛒 Корзина (${totalQuantity} 💧, ${totalSum.toFixed(2)} PZ)`;
-  
+
   await ctx.reply(`«${product.title}» добавлен(а) в корзину.`, {
     reply_markup: {
       inline_keyboard: [
@@ -222,7 +222,7 @@ async function handleProductMore(ctx: Context, productId: string) {
 
   await logUserAction(ctx, 'shop:product-details', { productId });
   await ctx.answerCbQuery();
-  
+
   // Создаем кнопки для действий с товаром
   const actionButtons = [
     [
@@ -230,7 +230,7 @@ async function handleProductMore(ctx: Context, productId: string) {
       Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product.id}`)
     ]
   ];
-  
+
   await ctx.reply(`ℹ️ ${product.title}\n\n${product.description}`, Markup.inlineKeyboard(actionButtons));
 }
 
@@ -243,7 +243,7 @@ async function handleProductInstruction(ctx: Context, productId: string) {
 
   await logUserAction(ctx, 'shop:product-instruction', { productId });
   await ctx.answerCbQuery();
-  
+
   // Создаем кнопки для действий с товаром
   const actionButtons = [
     [
@@ -251,7 +251,7 @@ async function handleProductInstruction(ctx: Context, productId: string) {
       Markup.button.callback('💳 Купить', `${PRODUCT_BUY_PREFIX}${product.id}`)
     ]
   ];
-  
+
   await ctx.reply(`📋 Инструкция по применению\n\n${product.title}\n\n${product.instruction}`, Markup.inlineKeyboard(actionButtons));
 }
 
@@ -269,7 +269,7 @@ async function handleBuy(ctx: Context, productId: string) {
   }
 
   const cartItems = await getCartItems(user.id);
-  
+
   // Create full items list including main product
   const allItems = [...cartItems];
   allItems.push({
@@ -279,7 +279,7 @@ async function handleBuy(ctx: Context, productId: string) {
     },
     quantity: 1
   } as any);
-  
+
   const summaryText = cartItemsToText(allItems);
 
   const lines = [
@@ -310,13 +310,13 @@ async function handleBuy(ctx: Context, productId: string) {
   });
 
   console.log('🛒 SHOP: About to create order request for user:', user.id, user.firstName, user.username);
-  
+
   await createOrderRequest({
     userId: user.id,
     message: `Покупка через бота. Основной товар: ${product.title}`,
     items: itemsPayload,
   });
-  
+
   console.log('✅ SHOP: Order request created successfully');
 
   await logUserAction(ctx, 'shop:buy', { productId });
@@ -325,11 +325,11 @@ async function handleBuy(ctx: Context, productId: string) {
   const { getBotInstance } = await import('../../lib/bot-instance.js');
   const { getAdminChatIds } = await import('../../config/env.js');
   const bot = await getBotInstance();
-  
+
   if (bot) {
     const adminIds = getAdminChatIds();
     const fullMessage = `${message}\n\nЗдравствуйте, хочу приобрести товар…`;
-    
+
     // Send to all admins
     for (const adminId of adminIds) {
       try {
@@ -361,7 +361,7 @@ async function handleBuy(ctx: Context, productId: string) {
 
   await ctx.reply(
     '📞 <b>В ближайшее время с вами свяжется менеджер.</b>\n\n' +
-      'Вы можете написать менеджеру напрямую: @Aurelia_8888',
+    'Вы можете написать менеджеру напрямую: @Aurelia_8888',
     {
       parse_mode: 'HTML'
     }
@@ -421,12 +421,12 @@ export const shopModule: BotModule = {
       const match = ctx.match as RegExpExecArray;
       const regionOrAction = match[1];
       await ctx.answerCbQuery();
-      
+
       if (regionOrAction === 'change') {
         await showRegionSelection(ctx);
         return;
       }
-      
+
       // Save region to user and show categories
       const user = await ensureUser(ctx);
       if (user && (regionOrAction === 'RUSSIA' || regionOrAction === 'BALI')) {
@@ -443,7 +443,7 @@ export const shopModule: BotModule = {
       const match = ctx.match as RegExpExecArray;
       const categoryId = match[1];
       await ctx.answerCbQuery();
-      
+
       await logUserAction(ctx, 'shop:category', { categoryId });
       await sendProductCards(ctx, categoryId);
     });

@@ -651,7 +651,7 @@ async function loadProfileContent() {
 
                 <div class="referral-section">
                     <h3>Ваша реферальная ссылка</h3>
-                    <p>Станьте партнёром Vital и получайте 25% по вашей ссылке!</p>
+                    <p>Станьте партнёром Plazma Water и получайте 25% по вашей ссылке!</p>
                     
                     <div class="referral-link-box">
                         <input type="text" value="${referralLink}" readonly id="refLinkInput">
@@ -925,6 +925,12 @@ async function loadCartContent() {
                         <strong>${pzToRub(total)} ₽</strong>
                     </div>
                 </div>
+
+                ${(!userData?.partner?.isActive && total < 150) ? `
+                <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; border-radius: 12px; padding: 12px; margin: 12px 0; font-size: 13px; line-height: 1.4;">
+                    Чтобы активировать систему лояльности и получать скидку 10% на свои покупки и партнёрку 25% от покупок ваших друзей, вам нужно добрать <b>${pzToRub(150 - total)} ₽</b>
+                </div>
+                ` : ''}
                 <button class="btn btn-primary checkout-btn" onclick="checkoutCart()" style="width: 100%; margin-top: 16px;">
                     Оформить заказ (${pzToRub(total)} ₽)
                 </button>
@@ -2221,7 +2227,7 @@ async function loadPartnerContent() {
     return `
         <div class="content-section">
             <h3>Партнёрская программа</h3>
-            <p>Станьте партнёром Vital и получайте бонусы 25% по вашей ссылке!</p>
+            <p>Станьте партнёром Plazma Water и получайте бонусы 25% по вашей ссылке!</p>
             
             <div class="partner-promo-info" style="background: #f9f9f9; border-radius: 12px; padding: 16px; margin: 20px 0;">
                 <p style="margin-bottom: 12px;"><strong>Как стать партнером:</strong></p>
@@ -2348,7 +2354,7 @@ async function loadSupportContent() {
     return `
         <div class="content-section">
             <h3>Служба поддержки</h3>
-            <p>Напишите свой вопрос прямо здесь — команда Vital ответит как можно быстрее.</p>
+            <p>Напишите свой вопрос прямо здесь — команда Plazma Water ответит как можно быстрее.</p>
 
             <div id="support-chat" style="margin-top: 16px;">
                 <div id="support-messages" style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 14px; padding: 14px; height: 340px; overflow-y: auto;">
@@ -2825,7 +2831,7 @@ function showPartnerProgram() {
     const content = `
         <div class="content-section">
             <h3>Партнёрская программа</h3>
-            <p>Станьте партнёром Vital и получайте бонусы 25% по вашей ссылке!</p>
+            <p>Станьте партнёром Plazma Water и получайте бонусы 25% по вашей ссылке!</p>
             
             <div class="partner-promo-info" style="background: #f9f9f9; border-radius: 12px; padding: 16px; margin: 20px 0;">
                 <p style="margin-bottom: 12px;"><strong>Как стать партнером:</strong></p>
@@ -3560,7 +3566,7 @@ function closeBalanceTopUpDialog() {
 
 function openBotForBalance() {
     // Открываем бота с командой пополнения баланса
-    const botUsername = 'Vital_shop_bot';
+    const botUsername = 'PLAZMA_test8_bot';
     const botUrl = `https://t.me/${botUsername}?start=add_balance`;
 
     // Пытаемся открыть через Telegram WebApp

@@ -245,7 +245,7 @@ const navigationItems: NavigationItem[] = [
     id: 'about',
     title: 'О нас',
     emoji: 'ℹ️',
-    description: 'Информация о Vital и соцсети',
+    description: 'Информация о Plazma Water и соцсети',
     handler: async (ctx) => {
       const { showAbout } = await import('../about/index.js');
       await showAbout(ctx);

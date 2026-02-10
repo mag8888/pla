@@ -5,9 +5,9 @@ import { logUserAction } from '../../services/user-history.js';
 import { getBotContent } from '../../services/bot-content-service.js';
 
 // Fallback текст, если контент не найден в БД
-const fallbackAboutText = `💧 <b>О VITAL</b>
+const fallbackAboutText = `💧 <b>О PLAZMA WATER</b>
 
-✨ <b>Vital</b> — это революционная форма витаминов и микроэлементов в плазменной наноформе.
+✨ <b>Plazma Water</b> — это революционная форма витаминов и микроэлементов в плазменной наноформе.
 
 🚀 <b>Преимущества:</b>
 • Усвоение до 99,9% (в отличие от таблеток 1-10%)
@@ -30,7 +30,7 @@ export const aboutModule: BotModule = {
       }
     });
 
-    bot.hears(['ℹ️ О VITAL'], async (ctx) => {
+    bot.hears(['ℹ️ О PLAZMA WATER'], async (ctx) => {
       try {
         await logUserAction(ctx, 'menu:about');
         await showAbout(ctx);
@@ -45,7 +45,7 @@ export const aboutModule: BotModule = {
 export async function showAbout(ctx: Context) {
   try {
     const aboutText = (await getBotContent('about_text')) || fallbackAboutText;
-    
+
     const keyboard = Markup.inlineKeyboard([
       [
         Markup.button.url('📱 VK', 'https://vk.com/ivital'),
