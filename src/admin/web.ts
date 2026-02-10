@@ -384,6 +384,7 @@ function adminIcon(name: string): string {
     upload: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5"/><path d="M12 5v14"/></svg>',
     wrench: '<svg viewBox="0 0 24 24"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4l-5.3 5.3a2 2 0 0 0 2.8 2.8l5.3-5.3a5 5 0 0 0 6.4-6.4l-3 3-2-2z"/></svg>',
     logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>',
   };
   return icons[name] || icons.dashboard;
 }
@@ -416,6 +417,7 @@ function renderAdminShellStart(opts: { title: string; activePath: string; buildM
         <nav class="admin-nav">
           <a class="admin-nav-item ${isActive('/admin/products')}" href="/admin/products"><span class="admin-ico">${adminIcon('box')}</span><span>Товары</span></a>
           <a class="admin-nav-item ${isActive('/admin/categories')}" href="/admin/categories"><span class="admin-ico">${adminIcon('tag')}</span><span>Категории</span></a>
+          <a class="admin-nav-item ${isActive('/admin/regions')}" href="/admin/regions"><span class="admin-ico">${adminIcon('globe')}</span><span>Регионы</span></a>
           <a class="admin-nav-item ${isActive('/admin/reviews')}" href="/admin/reviews"><span class="admin-ico">${adminIcon('star')}</span><span>Отзывы</span></a>
           <a class="admin-nav-item ${isActive('/admin/orders')}" href="/admin/orders"><span class="admin-ico">${adminIcon('cart')}</span><span>Заказы</span></a>
           <a class="admin-nav-item ${isActive('/admin/certificates')}" href="/admin/certificates"><span class="admin-ico">${adminIcon('tag')}</span><span>Сертификаты</span></a>
@@ -18055,6 +18057,178 @@ router.delete('/api/specialists/:id', requireAdmin, async (req, res) => {
   } catch (error: any) {
     console.error('Admin specialist delete error:', error);
     res.status(500).json({ success: false, error: error?.message || 'Ошибка удаления' });
+  }
+});
+
+// ------------------------------------------------------------------
+// Regions Management
+// ------------------------------------------------------------------
+
+router.get('/regions', requireAdmin, async (req, res) => {
+  try {
+    const regions = await prisma.region.findMany({
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    const error = req.query.error;
+    const success = req.query.success;
+
+    let messageHtml = '';
+    if (error) {
+      const messages: Record<string, string> = {
+        create_failed: 'Ошибка создания региона',
+        delete_failed: 'Ошибка удаления региона',
+        update_failed: 'Ошибка обновления региона',
+        not_found: 'Регион не найден',
+        default_region: 'Нельзя удалить регион по умолчанию'
+      };
+      messageHtml = `<div style="padding: 15px; margin-bottom: 20px; border-radius: 8px; background: #fee2e2; color: #991b1b;">${messages[String(error)] || 'Произошла ошибка'}</div>`;
+    }
+    if (success) {
+      const messages: Record<string, string> = {
+        created: 'Регион успешно создан',
+        deleted: 'Регион успешно удален',
+        updated: 'Регион успешно обновлен',
+      };
+      messageHtml = `<div style="padding: 15px; margin-bottom: 20px; border-radius: 8px; background: #dcfce7; color: #166534;">${messages[String(success)] || 'Успешно'}</div>`;
+    }
+
+    res.send(`
+      ${renderAdminShellStart({ title: 'Управление регионами', activePath: '/admin/regions' })}
+        
+        <div class="section-header">
+           <h2 class="section-title">🌍 Регионы</h2>
+        </div>
+
+        ${messageHtml}
+
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 30px;">
+           <h3 style="margin-top: 0; margin-bottom: 20px;">Добавить новый регион</h3>
+           <form action="/admin/regions" method="post" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
+              <div class="form-group" style="margin-bottom: 0;">
+                 <label style="display: block; margin-bottom: 6px; font-weight: 500;">Код (например: TURKEY)</label>
+                 <input type="text" name="code" required placeholder="UPPERCASE_CODE" style="width: 100%; padding: 10px;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                 <label style="display: block; margin-bottom: 6px; font-weight: 500;">Название (например: Турция)</label>
+                 <input type="text" name="name" required style="width: 100%; padding: 10px;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                 <label style="display: block; margin-bottom: 6px; font-weight: 500;">Валюта (например: TRY)</label>
+                 <input type="text" name="currency" required value="RUB" style="width: 100%; padding: 10px;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                 <label style="display: block; margin-bottom: 6px; font-weight: 500;">Сортировка</label>
+                 <input type="number" name="sortOrder" value="0" style="width: 100%; padding: 10px;">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                 <button type="submit" class="btn btn-success" style="width: 100%; height: 42px;">Добавить</button>
+              </div>
+           </form>
+        </div>
+
+        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+           <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                 <tr style="background: #f8f9fa; text-align: left; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">
+                    <th style="padding: 15px 20px;">Сорт.</th>
+                    <th style="padding: 15px 20px;">Код</th>
+                    <th style="padding: 15px 20px;">Название</th>
+                    <th style="padding: 15px 20px;">Валюта</th>
+                    <th style="padding: 15px 20px;">Статус</th>
+                    <th style="padding: 15px 20px;">Действия</th>
+                 </tr>
+              </thead>
+              <tbody>
+                 ${regions.map(region => `
+                    <tr style="border-top: 1px solid #e5e7eb;">
+                       <td style="padding: 15px 20px;">${region.sortOrder}</td>
+                       <td style="padding: 15px 20px; font-family: monospace; font-weight: 600;">${region.code}</td>
+                       <td style="padding: 15px 20px; font-weight: 500;">${region.name}</td>
+                       <td style="padding: 15px 20px;">${region.currency}</td>
+                       <td style="padding: 15px 20px;">
+                          <span style="display: inline-block; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; ${region.isActive ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;'}">
+                             ${region.isActive ? 'Активен' : 'Скрыт'}
+                          </span>
+                       </td>
+                       <td style="padding: 15px 20px;">
+                          <div style="display: flex; gap: 8px;">
+                             <form action="/admin/regions/${region.id}/toggle-active" method="post" style="margin: 0;">
+                                <button type="submit" class="action-btn" title="${region.isActive ? 'Скрыть' : 'Показать'}">
+                                   ${region.isActive ? '👁️' : '🙈'}
+                                </button>
+                             </form>
+                             ${!region.isDefault ? `
+                             <form action="/admin/regions/${region.id}/delete" method="post" style="margin: 0;" onsubmit="return confirm('Вы уверены, что хотите удалить этот регион?');">
+                                <button type="submit" class="action-btn" style="color: #dc2626; border-color: #fee2e2; background: #fef2f2;" title="Удалить">
+                                   🗑️
+                                </button>
+                             </form>
+                             ` : '<span style="font-size: 11px; color: #9ca3af; padding: 6px;">DEFAULT</span>'}
+                          </div>
+                       </td>
+                    </tr>
+                 `).join('')}
+              </tbody>
+           </table>
+        </div>
+        
+    </main></div></div></body></html>
+    `);
+  } catch (error) {
+    console.error('Error rendering regions page:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+router.post('/regions', requireAdmin, async (req, res) => {
+  try {
+    const { code, name, currency, sortOrder } = req.body;
+    await prisma.region.create({
+      data: {
+        code: String(code).toUpperCase().trim(),
+        name: String(name).trim(),
+        currency: String(currency).toUpperCase().trim(),
+        sortOrder: Number(sortOrder) || 0,
+        isActive: true
+      }
+    });
+    res.redirect('/admin/regions?success=created');
+  } catch (error) {
+    console.error('Error creating region:', error);
+    res.redirect('/admin/regions?error=create_failed');
+  }
+});
+
+router.post('/regions/:id/toggle-active', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const region = await prisma.region.findUnique({ where: { id } });
+    if (!region) return res.redirect('/admin/regions?error=not_found');
+
+    await prisma.region.update({
+      where: { id },
+      data: { isActive: !region.isActive }
+    });
+    res.redirect('/admin/regions?success=updated');
+  } catch (error) {
+    console.error('Error toggling region:', error);
+    res.redirect('/admin/regions?error=update_failed');
+  }
+});
+
+router.post('/regions/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const region = await prisma.region.findUnique({ where: { id } });
+    if (!region) return res.redirect('/admin/regions?error=not_found');
+    if (region.isDefault) return res.redirect('/admin/regions?error=default_region');
+
+    await prisma.region.delete({ where: { id } });
+    res.redirect('/admin/regions?success=deleted');
+  } catch (error) {
+    console.error('Error deleting region:', error);
+    res.redirect('/admin/regions?error=delete_failed');
   }
 });
 

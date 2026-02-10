@@ -9,10 +9,19 @@ datasource db {
 }
 
 // Enums
-enum Region {
-  RUSSIA
-  BALI
-  WORLD
+// Region enum is deprecated in favor of Region model, but kept for compatibility if needed.
+// User.selectedRegion is now a String.
+
+model Region {
+  id        String   @id @default(uuid())
+  code      String   @unique // e.g. RUSSIA, BALI, DUBAI
+  name      String   // e.g. Россия, Бали, Дубай
+  currency  String   @default("RUB") // RUB, IDR, AED
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum PartnerProgramType {
@@ -54,8 +63,7 @@ model User {
   languageCode    String?
   phone           String?
   photoUrl        String?
-  // Region enum is treated as String in SQLite underlying, handled by Prisma
-  selectedRegion  Region?           @default(RUSSIA) 
+  selectedRegion  String?           @default("RUSSIA")
   deliveryAddress String?
   balance         Float             @default(0)
   cartItems       CartItem[]

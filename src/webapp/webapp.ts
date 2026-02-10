@@ -198,6 +198,7 @@ router.get('/api/user/profile', async (req, res) => {
       username: user.username,
       phone: user.phone,
       deliveryAddress: user.deliveryAddress,
+      selectedRegion: user.selectedRegion,
       balance: (user as any).balance || 0
     });
   } catch (error) {
@@ -214,7 +215,7 @@ router.put('/api/user/profile', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { phone, deliveryAddress } = req.body;
+    const { phone, deliveryAddress, selectedRegion } = req.body;
     const { prisma } = await import('../lib/prisma.js');
 
     let user = await prisma.user.findUnique({
@@ -228,6 +229,7 @@ router.put('/api/user/profile', async (req, res) => {
     const updateData: any = {};
     if (phone !== undefined) updateData.phone = phone;
     if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
+    if (selectedRegion !== undefined) updateData.selectedRegion = selectedRegion;
 
     user = await prisma.user.update({
       where: { id: user.id },
@@ -242,6 +244,7 @@ router.put('/api/user/profile', async (req, res) => {
       username: user.username,
       phone: user.phone,
       deliveryAddress: user.deliveryAddress,
+      selectedRegion: user.selectedRegion,
       balance: (user as any).balance || 0
     });
   } catch (error) {
@@ -314,6 +317,21 @@ router.get('/api/categories', async (req, res) => {
     res.json(categories);
   } catch (error) {
     console.error('Error getting categories:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Regions
+router.get('/api/regions', async (req, res) => {
+  try {
+    const { prisma } = await import('../lib/prisma.js');
+    const regions = await prisma.region.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' }
+    });
+    res.json(regions);
+  } catch (error) {
+    console.error('Error getting regions:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

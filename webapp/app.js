@@ -207,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadFavorites();
     updateBadges();
     loadProductsOnMainPage(); // Load products immediately on main page
+    loadRegions(); // Load dynamic regions
 
     // Apply Telegram theme colors on load
     // Force Telegram Theme Variables Override on Load
@@ -4238,3 +4239,134 @@ function getTelegramUserDataSafe() {
         return null;
     }
 }
+
+// ------------------------------------------------------------------
+// Dynamic Regions
+// ------------------------------------------------------------------
+
+let REGIONS_CACHE = null;
+let SELECTED_REGION = null;
+
+async function loadRegions() {
+    try {
+        const response = await fetch(`${API_BASE}/regions`, { headers: getApiHeaders() });
+        if (!response.ok) {
+            console.warn('Failed to load regions:', response.status);
+            return;
+        }
+        const regions = await response.json();
+        REGIONS_CACHE = Array.isArray(regions) ? regions.filter(r => r.isActive) : [];
+        console.log(`✅ Loaded ${REGIONS_CACHE.length} regions`);
+
+        // Get user's current región
+        const userRes = await fetch(`${API_BASE}/user/profile`, { headers: getApiHeaders() }).catch(() => ({ ok: false }));
+        if (userRes.ok) {
+            const user = await userRes.json();
+            SELECTED_REGION = user.selectedRegion || 'RUSSIA';
+        }
+
+        renderRegionButtons();
+    } catch (error) {
+        console.error('Error loading regions:', error);
+    }
+}
+
+function renderRegionButtons() {
+    const container = document.getElementById('region-menu-container');
+    if (!container || !REGIONS_CACHE || !REGIONS_CACHE.length) return;
+
+    const innerDiv = container.querySelector('div');
+    if (!innerDiv) return;
+
+    // Find Bali and other regions
+    const baliRegion = REGIONS_CACHE.find(r => r.code === 'BALI');
+    const otherRegions = REGIONS_CACHE.filter(r => r.code !== 'BALI');
+
+    let html = '';
+
+    // Bali button (standalone)
+    if (baliRegion) {
+        const isSelected = SELECTED_REGION === 'BALI';
+        html += `
+            <button class="btn ${isSelected ? '' : 'btn-secondary'}" onclick="selectRegion('BALI')" style="flex: 1; min-width: 120px;">
+                🏝️ ${baliRegion.name}
+            </button>
+        `;
+    }
+
+    // My Region button (for all others)
+    if (otherRegions.length > 0) {
+        const isOtherSelected = SELECTED_REGION && SELECTED_REGION !== 'BALI';
+        const selectedOtherRegion = otherRegions.find(r => r.code === SELECTED_REGION);
+        const buttonText = selectedOtherRegion ? selectedOtherRegion.name : 'Мой регион';
+        html += `
+            <button class="btn ${isOtherSelected ? '' : 'btn-secondary'}" onclick="openRegionModal()" style="flex: 1; min-width: 120px;">
+                🌍 ${buttonText}
+            </button>
+        `;
+    }
+
+    innerDiv.innerHTML = html;
+}
+
+function openRegionModal() {
+    if (!REGIONS_CACHE) return;
+
+    const modal = document.getElementById('region-modal');
+    const modalBody = document.getElementById('region-modal-body');
+    if (!modal || !modalBody) return;
+
+    const otherRegions = REGIONS_CACHE.filter(r => r.code !== 'BALI');
+
+    let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+    otherRegions.forEach(region => {
+        const isSelected = SELECTED_REGION === region.code;
+        html += `
+            <button class="btn ${isSelected ? '' : 'btn-secondary'}" onclick="selectRegion('${region.code}')" style="width: 100%;">
+                ${isSelected ? '✓ ' : ''}${region.name}
+            </button>
+        `;
+    });
+    html += '</div>';
+
+    modalBody.innerHTML = html;
+    modal.style.display = 'flex';
+}
+
+function closeRegionModal() {
+    const modal = document.getElementById('region-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function selectRegion(regionCode) {
+    try {
+        console.log('Selecting region:', regionCode);
+
+        const response = await fetch(`${API_BASE}/user/profile`, {
+            method: 'PUT',
+            headers: {
+                ...getApiHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ selectedRegion: regionCode })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update region');
+        }
+
+        SELECTED_REGION = regionCode;
+        renderRegionButtons();
+        closeRegionModal();
+
+        // Show success message
+        if (tg && tg.showPopup) {
+            const regionName = REGIONS_CACHE?.find(r => r.code === regionCode)?.name || regionCode;
+            tg.showPopup({ message: `Регион изменён на: ${regionName}` });
+        }
+    } catch (error) {
+        console.error('Error selecting region:', error);
+        showError('Ошибка при изменении региона');
+    }
+}
+
