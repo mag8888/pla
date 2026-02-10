@@ -4119,33 +4119,44 @@ function resetProductDetailQty(productId) {
     setProductDetailQty(1);
 }
 
+function formatDescription(text) {
+    if (!text) return '';
+    // 1. Escape HTML
+    let safeText = escapeHtml(text);
+    // 2. Linkify URLs
+    safeText = safeText.replace(
+        /((https?:\/\/)|(www\.))[^\s]+/gi,
+        (url) => {
+            let href = url;
+            if (!href.startsWith('http')) href = 'http://' + href;
+            return `<a href="${href}" target="_blank" style="text-decoration:underline; color:var(--text-primary);">${url}</a>`;
+        }
+    );
+    // 3. Newlines to <br>
+    return safeText.replace(/\n/g, '<br>');
+}
+
 async function showProductDetails(productId) {
     try {
         console.log('📖 Showing product details for:', productId);
 
         let product = null;
 
-        // 1. Try to find in local cache first (instant load)
-        if (typeof SHOP_PRODUCTS_CACHE !== 'undefined' && Array.isArray(SHOP_PRODUCTS_CACHE)) {
-            product = SHOP_PRODUCTS_CACHE.find(p => String(p.id) === String(productId));
-            if (product) {
-                console.log('✅ Found product in cache:', productId);
-            }
+        // Fetch fresh data from API to ensure accuracy (price, description)
+        const response = await fetch(`${API_BASE}/products/${productId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch product details');
         }
-
-        // 2. If not in cache, fetch from API
-        if (!product) {
-            const response = await fetch(`${API_BASE}/products/${productId}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch product details');
-            }
-            product = await response.json();
-        }
+        product = await response.json();
 
         if (!product) {
             throw new Error('Product not found');
         }
         resetProductDetailQty(product.id);
+
+        // Calculate prices
+        const priceRub = pzToRub(product.price);
+        const pricePz = Math.round(product.price);
 
         // Create detailed product view
         let content = `
@@ -4161,28 +4172,40 @@ async function showProductDetails(productId) {
                     ${product.imageUrl ? `<div class="product-details-image"><img src="${product.imageUrl}" alt="${product.title}" onerror="this.style.display='none'"></div>` : ''}
                     
                     <div class="product-details-info">
-                        <div class="product-header-row">
-                            <div class="product-price">💰 Цена: ${pzToRub(product.price)} ₽</div>
-                            ${extractProductWeight(product.summary).weight ? `<div class="product-weight-badge-large">${extractProductWeight(product.summary).weight}</div>` : ''}
+                        
+                        <!-- Price and Buy Row -->
+                        <div class="product-price-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 12px; background: var(--bg-secondary); border-radius: 12px;">
+                            <div class="price-block" style="display: flex; flex-direction: column;">
+                                <div class="price-rub" style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 2px;">
+                                    💰 Цена: ${priceRub} ₽
+                                </div>
+                                <div class="price-pz" style="font-size: 14px; color: var(--text-secondary); font-weight: 500;">
+                                    ${pricePz} PZ
+                                </div>
+                            </div>
+
+                            <button class="btn-buy-inline" onclick="addToCartAndOpenCart('${product.id}', getProductDetailQty())" 
+                                style="background: var(--button-bg); color: var(--button-text); border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer;">
+                                🛍 Купить
+                            </button>
                         </div>
-                        
-                        ${product.summary ? `<div class="product-summary"><h4>Краткое описание:</h4><p>${product.summary}</p></div>` : ''}
-                        
-                        ${product.description ? `<div class="product-description-full"><h4>Подробное описание:</h4><p>${product.description}</p></div>` : ''}
-                        
-                        ${product.instruction ? `<div class="product-instruction"><h4>📋 Инструкция по применению:</h4><p>${product.instruction}</p></div>` : ''}
-                    </div>
-                    
-                    <div class="product-details-actions">
-                        <div class="qty-control" aria-label="Количество">
-                            <button class="qty-btn" type="button" aria-label="Уменьшить" onclick="changeProductDetailQty(-1)">−</button>
-                            <div class="qty-value" id="product-detail-qty">1</div>
-                            <button class="qty-btn" type="button" aria-label="Увеличить" onclick="changeProductDetailQty(1)">+</button>
+
+                        <!-- Quantity Selector (Optional - keeping it clean, or could move above) -->
+                        <div class="qty-control-wrapper" style="margin-bottom: 20px;">
+                             <div class="qty-control" aria-label="Количество" style="width: 100%; justify-content: center;">
+                                <button class="qty-btn" type="button" aria-label="Уменьшить" onclick="changeProductDetailQty(-1)">−</button>
+                                <div class="qty-value" id="product-detail-qty">1</div>
+                                <button class="qty-btn" type="button" aria-label="Увеличить" onclick="changeProductDetailQty(1)">+</button>
+                            </div>
                         </div>
-                        <button class="btn-buy" onclick="addToCartAndOpenCart('${product.id}', getProductDetailQty())">
-                            🛍 Купить
-                        </button>
-                        ${product.instruction ? `<button class="btn-instruction" onclick="showInstruction('${product.id}', \`${product.instruction.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">📋 Инструкция</button>` : ''}
+
+                        ${extractProductWeight(product.summary).weight ? `<div class="product-weight-badge-large" style="margin-bottom: 16px;">${extractProductWeight(product.summary).weight}</div>` : ''}
+                        
+                        ${product.summary ? `<div class="product-summary"><h4>Краткое описание:</h4><p>${formatDescription(product.summary)}</p></div>` : ''}
+                        
+                        ${product.description ? `<div class="product-description-full"><h4>Подробное описание:</h4><p>${formatDescription(product.description)}</p></div>` : ''}
+                        
+                        ${product.instruction ? `<div class="product-instruction"><h4>📋 Инструкция по применению:</h4><p>${formatDescription(product.instruction)}</p></div>` : ''}
                     </div>
                 </div>
             </div>
@@ -4273,44 +4296,43 @@ async function loadRegions() {
         }
 
         renderRegionButtons();
+
+        // Ensure RUSSIA is default if nothing selected
+        let currentRegion = localStorage.getItem('selectedRegion');
+        if (!currentRegion) {
+            currentRegion = 'RUSSIA';
+            localStorage.setItem('selectedRegion', 'RUSSIA');
+        }
+
+        // Render as Select Dropdown
+        container.innerHTML = `
+            <div style="padding: 0 16px;">
+                <label style="display:block; margin-bottom:8px; font-weight:600; color:var(--text-primary); font-size:14px;">
+                    Ваш регион
+                </label>
+                <div class="select-wrapper" style="position:relative;">
+                    <select id="region-select" onchange="selectRegion(this.value)" 
+                        style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 16px; appearance: none; -webkit-appearance: none;">
+                        <option value="" disabled>Выберите регион</option>
+                        ${regions.map(r => `
+                            <option value="${r.code}" ${r.code === currentRegion ? 'selected' : ''}>
+                                ${r.name}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <div style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--text-secondary);">
+                        ▼
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Update global state
+        selectedRegion = currentRegion;
+        updateRegionUI(selectedRegion);
+
     } catch (error) {
         console.error('Error loading regions:', error);
-    }
-}
-
-function renderRegionButtons() {
-    const container = document.getElementById('region-menu-container');
-    if (!container || !REGIONS_CACHE || !REGIONS_CACHE.length) return;
-
-    const innerDiv = container.querySelector('div');
-    if (!innerDiv) return;
-
-    // Find Bali and other regions
-    const baliRegion = REGIONS_CACHE.find(r => r.code === 'BALI');
-    const otherRegions = REGIONS_CACHE.filter(r => r.code !== 'BALI');
-
-    let html = '';
-
-    // Bali button (standalone)
-    if (baliRegion) {
-        const isSelected = SELECTED_REGION === 'BALI';
-        html += `
-            <button class="btn ${isSelected ? '' : 'btn-secondary'}" onclick="selectRegion('BALI')" style="flex: 1; min-width: 120px;">
-                🏝️ ${baliRegion.name}
-            </button>
-        `;
-    }
-
-    // My Region button (for all others)
-    if (otherRegions.length > 0) {
-        const isOtherSelected = SELECTED_REGION && SELECTED_REGION !== 'BALI';
-        const selectedOtherRegion = otherRegions.find(r => r.code === SELECTED_REGION);
-        const buttonText = selectedOtherRegion ? selectedOtherRegion.name : 'Мой регион';
-        html += `
-            <button class="btn ${isOtherSelected ? '' : 'btn-secondary'}" onclick="openRegionModal()" style="flex: 1; min-width: 120px;">
-                🌍 ${buttonText}
-            </button>
-        `;
     }
 
     innerDiv.innerHTML = html;

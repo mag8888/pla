@@ -415,7 +415,12 @@ function renderAdminShellStart(opts: { title: string; activePath: string; buildM
 
         <div class="admin-nav-group">Контент</div>
         <nav class="admin-nav">
+import { promotionsRouter } from './promotions.js';
+router.use('/promotions', requireAdmin, promotionsRouter); // Register before other routes if possible, or just add it
+
+// ... (in renderAdminShellStart)
           <a class="admin-nav-item ${isActive('/admin/products')}" href="/admin/products"><span class="admin-ico">${adminIcon('box')}</span><span>Товары</span></a>
+          <a class="admin-nav-item ${isActive('/admin/promotions')}" href="/admin/promotions"><span class="admin-ico">${adminIcon('star')}</span><span>Акции</span></a>
           <a class="admin-nav-item ${isActive('/admin/categories')}" href="/admin/categories"><span class="admin-ico">${adminIcon('tag')}</span><span>Категории</span></a>
           <a class="admin-nav-item ${isActive('/admin/regions')}" href="/admin/regions"><span class="admin-ico">${adminIcon('globe')}</span><span>Регионы</span></a>
           <a class="admin-nav-item ${isActive('/admin/reviews')}" href="/admin/reviews"><span class="admin-ico">${adminIcon('star')}</span><span>Отзывы</span></a>

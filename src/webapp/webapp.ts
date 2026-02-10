@@ -343,6 +343,21 @@ router.get('/api/catalog-structure', async (_req, res) => {
   res.json({ success: true, structure: CATALOG_STRUCTURE });
 });
 
+// Promotions endpoint
+router.get('/api/promotions', async (req, res) => {
+  try {
+    const { prisma } = await import('../lib/prisma.js');
+    const promotions = await prisma.promotion.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' }
+    });
+    res.json(promotions);
+  } catch (error) {
+    console.error('Error fetching promotions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Total products count endpoint (must be before /api/products/:id)
 router.get('/api/products/count', async (req, res) => {
   try {
