@@ -192,12 +192,17 @@ function getApiHeaders() {
     return headers;
 }
 
+// 1 PZ = 100 RUB
 function pzToRub(pz) {
-    return Math.round(Number(pz || 0));
+    return Math.toLocaleString('ru-RU') ?
+        Math.round(Number(pz || 0) * 100).toLocaleString('ru-RU') :
+        Math.round(Number(pz || 0) * 100);
 }
 
-function formatRubFromPz(pz) {
-    return `${pzToRub(pz)} PZ`;
+// Just format PZ value (e.g. "120 PZ")
+function formatPz(pz) {
+    const val = Math.round(Number(pz || 0));
+    return `${val} PZ`;
 }
 
 // Initialize app
@@ -917,7 +922,7 @@ async function loadCartContent() {
             <div class="cart-summary">
                 <div class="balance-display">
                     <span class="balance-label">Ваш баланс:</span>
-                    <span class="balance-value">${formatRubFromPz(userBalance)}</span>
+                    <span class="balance-value">${formatPz(userBalance)}</span>
                 </div>
                 <div class="cart-total">
                     <div class="cart-total-row">
@@ -2679,9 +2684,9 @@ async function showPartnerDashboard() {
                             padding: 20px; 
                             margin-bottom: 20px;">
                     <h4 style="color: #000000; margin-bottom: 16px;">📊 Статистика</h4>
-                    <p style="color: #333333; margin-bottom: 8px;">💰 Баланс: ${formatRubFromPz(dashboard.balance || 0)}</p>
+                    <p style="color: #333333; margin-bottom: 8px;">💰 Баланс: ${formatPz(dashboard.balance || 0)}</p>
                     <p style="color: #333333; margin-bottom: 8px;">👥 Партнёры: ${dashboard.partners || 0}</p>
-                    <p style="color: #333333; margin-bottom: 8px;">🎁 Всего бонусов: ${formatRubFromPz(dashboard.bonus || 0)}</p>
+                    <p style="color: #333333; margin-bottom: 8px;">🎁 Всего бонусов: ${formatPz(dashboard.bonus || 0)}</p>
                 </div>
                 
                 <div class="referral-section" style="margin: 20px 0;">
@@ -3463,7 +3468,7 @@ async function loadBalanceContent() {
                 <h3>💰 Баланс</h3>
                 <div class="balance-display" style="margin-bottom: 16px;">
                     <span class="balance-label">Ваш баланс:</span>
-                    <span class="balance-value">${formatRubFromPz(balance)}</span>
+                    <span class="balance-value">${formatPz(balance)}</span>
                 </div>
                 <div style="margin-bottom: 16px; padding: 14px; border: 1px solid var(--border-color); border-radius: 12px; background: #ffffff;">
                     <div style="font-weight: 800; margin-bottom: 8px;">Реквизиты пополнения</div>
