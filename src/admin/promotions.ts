@@ -8,11 +8,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 // Main Promotions page
 router.get('/', async (req, res) => {
-    const promotions = await prisma.promotion.findMany({
-        orderBy: { sortOrder: 'asc' }
-    });
+  const promotions = await prisma.promotion.findMany({
+    orderBy: { sortOrder: 'asc' }
+  });
 
-    res.send(`
+  res.send(`
     ${renderAdminHeader('Акции и спецпредложения')}
     
     <div class="table-controls">
@@ -206,45 +206,45 @@ router.get('/', async (req, res) => {
 
 // Save Promotion (Create/Update)
 router.post('/save', upload.single('image'), async (req, res) => {
-    try {
-        const { id, title, description, sortOrder, isActive, buttonText, buttonLink, existingImageUrl } = req.body;
-        let imageUrl = existingImageUrl;
+  try {
+    const { id, title, description, sortOrder, isActive, buttonText, buttonLink, existingImageUrl } = req.body;
+    let imageUrl = existingImageUrl;
 
-        if (req.file) {
-            imageUrl = await uploadImage(req.file.buffer, 'promotions');
-        }
-
-        const data = {
-            title,
-            description,
-            imageUrl,
-            buttonText,
-            buttonLink,
-            sortOrder: parseInt(sortOrder) || 0,
-            isActive: isActive === 'true'
-        };
-
-        if (id) {
-            await prisma.promotion.update({ where: { id }, data });
-        } else {
-            await prisma.promotion.create({ data });
-        }
-
-        res.json({ success: true });
-    } catch (error: any) {
-        console.error('Error saving promotion:', error);
-        res.json({ success: false, error: error.message });
+    if (req.file) {
+      imageUrl = await uploadImage(req.file.buffer, { folder: 'promotions' });
     }
+
+    const data = {
+      title,
+      description,
+      imageUrl,
+      buttonText,
+      buttonLink,
+      sortOrder: parseInt(sortOrder) || 0,
+      isActive: isActive === 'true'
+    };
+
+    if (id) {
+      await prisma.promotion.update({ where: { id }, data });
+    } else {
+      await prisma.promotion.create({ data });
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error saving promotion:', error);
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Delete Promotion
 router.post('/delete/:id', async (req, res) => {
-    try {
-        await prisma.promotion.delete({ where: { id: req.params.id } });
-        res.json({ success: true });
-    } catch (error: any) {
-        res.json({ success: false, error: error.message });
-    }
+  try {
+    await prisma.promotion.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // --- Shared Helper Functions (Mocked imports for standalone file, but in real project use web.ts exports if possible or duplicate) ---
@@ -253,7 +253,7 @@ router.post('/delete/:id', async (req, res) => {
 // For this task, I'll inline a simple version compatible with web.ts styles.
 
 function renderAdminHeader(title: string) {
-    return `
+  return `
     <!DOCTYPE html>
     <html>
     <head>
@@ -300,7 +300,7 @@ function renderAdminHeader(title: string) {
 }
 
 function renderAdminFooter() {
-    return `
+  return `
       </div>
     </body>
     </html>
