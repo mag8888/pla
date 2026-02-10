@@ -8,7 +8,8 @@ if (tg) {
 
     // Use Telegram theme colors
     // Force Monochrome Premium Theme (Ignore Telegram Dark Mode)
-    tg.setHeaderColor('#ffffff');
+    // Force Dark Header to match new design
+    tg.setHeaderColor('#0d1b2a');
     tg.setBackgroundColor('#ffffff');
 
     // Reset CSS variables to strict white theme
@@ -25,7 +26,9 @@ if (tg) {
 
     // Force light theme status bar
     if (tg.setHeaderColor) {
-        tg.setHeaderColor('#ffffff');
+        if (tg.setHeaderColor) {
+            tg.setHeaderColor('#0d1b2a');
+        }
     }
 }
 
