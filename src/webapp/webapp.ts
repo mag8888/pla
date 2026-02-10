@@ -1474,13 +1474,15 @@ router.get('/api/partner/dashboard', async (req, res) => {
     }
 
     res.json({
-      isActive: user.partner.isActive,
       balance: user.partner.balance,
       bonus: user.partner.bonus,
-      referralCode: user.partner.referralCode,
-      programType: user.partner.programType || 'DIRECT',
-      totalPartners: user.partner.totalPartners,
-      directPartners: user.partner.directPartners
+      partners: user.partner.totalPartners,
+      profile: {
+        referralCode: user.partner.referralCode,
+        referralDirectQrUrl: user.partner.referralDirectQrUrl,
+        programType: user.partner.programType || 'DIRECT',
+        isActive: user.partner.isActive
+      }
     });
   } catch (error) {
     console.error('Error getting partner dashboard:', error);
