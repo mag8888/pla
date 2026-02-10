@@ -1614,9 +1614,9 @@ router.get('/api/products/:id', async (req, res) => {
     const { prisma } = await import('../lib/prisma.js');
     const productId = req.params.id;
 
-    // Validate that ID is a valid MongoDB ObjectID format
-    if (!productId || productId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(productId)) {
-      return res.status(400).json({ error: 'Invalid product ID format' });
+    // Validate that ID is present
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required' });
     }
 
     const product = await prisma.product.findUnique({
