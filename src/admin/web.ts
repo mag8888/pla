@@ -5608,7 +5608,75 @@ router.get('/partners', requireAdmin, async (req, res) => {
           .btn-mini:hover{ background: rgba(17,24,39,0.06); }
           .btn-mini.danger{ border-color: rgba(220,38,38,0.35); color: #991b1b; }
           .btn-mini.danger:hover{ background: rgba(220,38,38,0.08); }
+          
+          /* Bulk actions styles */
+          .bulk-actions-container {
+            display: none; /* Hidden by default */
+            align-items: center;
+            gap: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 10px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+          }
+          .bulk-actions-container.active { display: flex; }
+          .bulk-count { font-weight: bold; color: #856404; }
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         </style>
+        <script>
+          function toggleAllPartners(source) {
+            const checkboxes = document.querySelectorAll('.partner-checkbox');
+            for(var i=0, n=checkboxes.length;i<n;i++) {
+              checkboxes[i].checked = source.checked;
+            }
+            updateBulkActionsState();
+          }
+
+          function updateBulkActionsState() {
+            const checkboxes = document.querySelectorAll('.partner-checkbox:checked');
+            const container = document.getElementById('bulkActionsContainer');
+            const countSpan = document.getElementById('selectedCount');
+            
+            if (checkboxes.length > 0) {
+              container.classList.add('active');
+              countSpan.textContent = checkboxes.length;
+            } else {
+              container.classList.remove('active');
+            }
+          }
+
+          function deactivateSelectedPartners() {
+            const checkboxes = document.querySelectorAll('.partner-checkbox:checked');
+            const ids = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (ids.length === 0) return;
+
+            if (confirm(\`Вы уверены, что хотите деактивировать \${ids.length} партнёров? Это действие отменит их партнёрский статус.\`)) {
+              fetch('/admin/partners/bulk-deactivate', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userIds: ids }),
+              })
+              .then(response => response.json())
+              .then(data => {
+                if (data.success) {
+                  alert(\`Успешно деактивировано \${data.count} партнёров\`);
+                  location.reload();
+                } else {
+                  alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+              })
+              .catch(error => {
+                console.error('Error:', error);
+                alert('Ошибка при выполнении запроса');
+              });
+            }
+          }
+        </script>
       </head>
       <body>
         ${renderAdminShellStart({ title: 'Партнёры', activePath: '/admin/partners', buildMarker })}
@@ -5638,6 +5706,11 @@ router.get('/partners', requireAdmin, async (req, res) => {
           <form method="post" action="/admin/reset-all-partners">
             <button type="submit" class="btn btn-danger" onclick="const confirmed = confirm('КРИТИЧЕСКОЕ ПОДТВЕРЖДЕНИЕ!\\n\\nЭто удалит ВСЕ партнерские профили, рефералы и транзакции!\\n\\nЭто действие НЕОБРАТИМО!\\n\\nПродолжить?'); if (!confirmed) return false; const doubleCheck = prompt('Для подтверждения введите точно: УДАЛИТЬ ВСЕХ ПАРТНЕРОВ'); return doubleCheck === 'УДАЛИТЬ ВСЕХ ПАРТНЕРОВ';">Сбросить всех партнёров</button>
         </form>
+        </div>
+        
+        <div id="bulkActionsContainer" class="bulk-actions-container">
+          <span class="bulk-count">Выбрано: <span id="selectedCount">0</span></span>
+          <button class="btn btn-danger" onclick="deactivateSelectedPartners()">Деактивировать выбранных</button>
         </div>
         
         <div class="metric-card">
@@ -5673,14 +5746,21 @@ router.get('/partners', requireAdmin, async (req, res) => {
         ${req.query.error === 'referral_cleanup_failed' ? '<div class="alert alert-error">❌ Ошибка при очистке дублей рефералов</div>' : ''}
         ${req.query.error === 'cleanup_failed' ? '<div class="alert alert-error">❌ Ошибка при очистке дублей</div>' : ''}
         <table>
-          <tr><th>Пользователь</th><th>Тип программы</th><th>Баланс</th><th>Всего бонусов</th><th>Партнёров</th><th>Код</th><th>Пригласитель</th><th>Создан</th><th>Действия</th></tr>
+          <tr>
+            <th style="width: 40px; text-align: center;"><input type="checkbox" onclick="toggleAllPartners(this)"></th>
+            <th>Пользователь</th><th>Тип программы</th><th>Баланс</th><th>Всего бонусов</th><th>Партнёров</th><th>Код</th><th>Пригласитель</th><th>Создан</th><th>Действия</th>
+          </tr>
     `;
 
     partnersWithInviters.forEach(partner => {
       html += `
         <tr>
+          <td style="text-align: center;">
+            <input type="checkbox" class="partner-checkbox" value="${partner.user.id}" onclick="updateBulkActionsState()">
+          </td>
           <td>${partner.user.firstName || 'Не указан'}</td>
           <td>${partner.programType === 'DIRECT' ? 'Прямая (25%)' : 'Многоуровневая (15%+5%+5%)'}</td>
+
           <td>${partner.balance} PZ</td>
           <td>${partner.bonus} PZ</td>
           <td>${partner.totalPartners}</td>
@@ -5724,6 +5804,32 @@ router.get('/partners', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Partners page error:', error);
     res.status(500).send('Ошибка загрузки партнёров');
+  }
+});
+
+router.post('/partners/bulk-deactivate', requireAdmin, async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'No users selected' });
+    }
+
+    const result = await prisma.partnerProfile.updateMany({
+      where: {
+        userId: {
+          in: userIds
+        }
+      },
+      data: {
+        isActive: false
+      }
+    });
+
+    res.json({ success: true, count: result.count });
+  } catch (error) {
+    console.error('Bulk deactivate error:', error);
+    res.status(500).json({ success: false, error: 'Database error' });
   }
 });
 // Partners hierarchy route
@@ -7762,19 +7868,19 @@ window.closeConfirmDeleteModal = function () {
 </script>
   </head>
   <body>
-        ${ renderAdminShellStart({ title: 'Товары', activePath: '/admin/products', buildMarker }) }
+        ${renderAdminShellStart({ title: 'Товары', activePath: '/admin/products', buildMarker })}
 <div class="admin-page-row" >
   <button type="button" class="btn" onclick = "try{ if(typeof window.openAddProductModal==='function'){ window.openAddProductModal(); } else { window.location.href='/admin/products?openAdd=1'; } }catch(e){}" > Добавить товар </button>
     < button type = "button" class="btn" onclick = "scrapeAllImages()" > Собрать фото </button>
       < button type = "button" class="btn" onclick = "moveAllToCosmetics()" > Переместить в «Косметика»</button>
         </div>
         
-        ${ req.query.success === 'image_updated' ? '<div class="alert alert-success">✅ Фото успешно обновлено!</div>' : '' }
-        ${ req.query.error === 'no_image' ? '<div class="alert alert-error">❌ Файл не выбран</div>' : '' }
-        ${ req.query.error === 'image_upload' ? '<div class="alert alert-error">❌ Ошибка загрузки фото</div>' : '' }
-        ${ req.query.error === 'cloudinary_not_configured' ? '<div class="alert alert-error">❌ Загрузка фото недоступна: Cloudinary не настроен (нужны CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET на Railway).</div>' : '' }
-        ${ req.query.error === 'product_not_found' ? '<div class="alert alert-error">❌ Товар не найден</div>' : '' }
-        ${ req.query.success === 'images_scraped' ? '<div class="alert alert-success">✅ Фото успешно собраны! Проверьте результаты ниже.</div>' : '' }
+        ${req.query.success === 'image_updated' ? '<div class="alert alert-success">✅ Фото успешно обновлено!</div>' : ''}
+        ${req.query.error === 'no_image' ? '<div class="alert alert-error">❌ Файл не выбран</div>' : ''}
+        ${req.query.error === 'image_upload' ? '<div class="alert alert-error">❌ Ошибка загрузки фото</div>' : ''}
+        ${req.query.error === 'cloudinary_not_configured' ? '<div class="alert alert-error">❌ Загрузка фото недоступна: Cloudinary не настроен (нужны CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET на Railway).</div>' : ''}
+        ${req.query.error === 'product_not_found' ? '<div class="alert alert-error">❌ Товар не найден</div>' : ''}
+        ${req.query.success === 'images_scraped' ? '<div class="alert alert-success">✅ Фото успешно собраны! Проверьте результаты ниже.</div>' : ''}
 
 <div id="scraping-status" style = "display: none; margin: 20px 0; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;" >
   <h3 style="margin: 0 0 10px 0; color: #1976d2;" >📸 Сбор фотографий...</h3>
@@ -7805,12 +7911,12 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
           </select>
           </div>
           </div>
-          < button type = "button" class="filter-btn active" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="all" > Все категории(${ allProducts.length }) </button>
+          < button type = "button" class="filter-btn active" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="all" > Все категории(${allProducts.length}) </button>
             `;
 
     categories.forEach((category) => {
       html += `
-            < button type = "button" class="filter-btn" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="${category.id}" > ${ category.name } (${ category.products.length })</button>
+            < button type = "button" class="filter-btn" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="${category.id}" > ${category.name} (${category.products.length})</button>
               `;
     });
 
@@ -7856,86 +7962,86 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
         (url) => {
           let href = url;
           if (!href.startsWith('http')) href = 'http://' + href;
-          return `< a href = "${href}" target = "_blank" style = "text-decoration:underline; color:#1976d2;" > ${ url } </a>`;
+          return `< a href = "${href}" target = "_blank" style = "text-decoration:underline; color:#1976d2;" > ${url} </a>`;
         }
       );
-// 3. Newlines to <br>
-return safeText.replace(/\n/g, '<br>');
+      // 3. Newlines to <br>
+      return safeText.replace(/\n/g, '<br>');
     };
 
-// Helper function to escape HTML attributes safely
-// Улучшенная функция экранирования для HTML атрибутов
-const escapeAttr = (str: string | null | undefined): string => {
-  if (!str) return '';
-  try {
-    // Сначала нормализуем и очищаем строку
-    let result = String(str)
-      .trim()
-      // Удаляем все управляющие символы и null байты
-      .replace(/[\x00-\x1F\x7F-\u009F]/g, '')
-      // Удаляем специальные разделители строк
-      .replace(/\u2028/g, ' ')
-      .replace(/\u2029/g, ' ')
-      // Заменяем все виды переносов строк на пробелы
-      .replace(/[\r\n]+/g, ' ')
-      .replace(/\r/g, ' ')
-      .replace(/\n/g, ' ')
-      // Заменяем табуляцию и множественные пробелы
-      .replace(/\t/g, ' ')
-      .replace(/\s+/g, ' ')
-      // Удаляем потенциально проблемные символы Unicode
-      .replace(/[\u200B-\u200D\uFEFF]/g, '');
+    // Helper function to escape HTML attributes safely
+    // Улучшенная функция экранирования для HTML атрибутов
+    const escapeAttr = (str: string | null | undefined): string => {
+      if (!str) return '';
+      try {
+        // Сначала нормализуем и очищаем строку
+        let result = String(str)
+          .trim()
+          // Удаляем все управляющие символы и null байты
+          .replace(/[\x00-\x1F\x7F-\u009F]/g, '')
+          // Удаляем специальные разделители строк
+          .replace(/\u2028/g, ' ')
+          .replace(/\u2029/g, ' ')
+          // Заменяем все виды переносов строк на пробелы
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/\r/g, ' ')
+          .replace(/\n/g, ' ')
+          // Заменяем табуляцию и множественные пробелы
+          .replace(/\t/g, ' ')
+          .replace(/\s+/g, ' ')
+          // Удаляем потенциально проблемные символы Unicode
+          .replace(/[\u200B-\u200D\uFEFF]/g, '');
 
-    // Затем экранируем специальные символы HTML в правильном порядке
-    result = result
-      .replace(/&/g, '&amp;') // Must be first
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;') // Двойные кавычки
-      .replace(/'/g, '&#39;') // Одинарные кавычки
-      .replace(/`/g, '&#96;'); // Обратные кавычки
+        // Затем экранируем специальные символы HTML в правильном порядке
+        result = result
+          .replace(/&/g, '&amp;') // Must be first
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;') // Двойные кавычки
+          .replace(/'/g, '&#39;') // Одинарные кавычки
+          .replace(/`/g, '&#96;'); // Обратные кавычки
 
-    // Ограничиваем длину для предотвращения очень длинных атрибутов
-    if (result.length > 10000) {
-      result = result.substring(0, 10000) + '...';
-    }
+        // Ограничиваем длину для предотвращения очень длинных атрибутов
+        if (result.length > 10000) {
+          result = result.substring(0, 10000) + '...';
+        }
 
-    return result;
-  } catch (error) {
-    console.error('Error in escapeAttr:', error);
-    return ''; // В случае ошибки возвращаем пустую строку
-  }
-};
+        return result;
+      } catch (error) {
+        console.error('Error in escapeAttr:', error);
+        return ''; // В случае ошибки возвращаем пустую строку
+      }
+    };
 
-// Helper function to escape HTML content safely
-const escapeHtml = (str: string | null | undefined): string => {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-};
+    // Helper function to escape HTML content safely
+    const escapeHtml = (str: string | null | undefined): string => {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    };
 
-allProducts.forEach((product) => {
-  const rubPrice = (product.price * 100).toFixed(2);
-  const priceFormatted = `${rubPrice} руб. / ${product.price.toFixed(2)} PZ`;
-  const createdAt = new Date(product.createdAt).toLocaleDateString();
-  const imageId = `product-img-${product.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
-  const placeholderId = `product-placeholder-${product.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    allProducts.forEach((product) => {
+      const rubPrice = (product.price * 100).toFixed(2);
+      const priceFormatted = `${rubPrice} руб. / ${product.price.toFixed(2)} PZ`;
+      const createdAt = new Date(product.createdAt).toLocaleDateString();
+      const imageId = `product-img-${product.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      const placeholderId = `product-placeholder-${product.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
-  const innerImageSection = product.imageUrl
-    ? `<img id="${imageId}" src="${escapeAttr(product.imageUrl)}" alt="${escapeAttr(product.title)}" class="product-image" loading="lazy" data-onerror-img="${imageId}" data-onerror-placeholder="${placeholderId}">
+      const innerImageSection = product.imageUrl
+        ? `<img id="${imageId}" src="${escapeAttr(product.imageUrl)}" alt="${escapeAttr(product.title)}" class="product-image" loading="lazy" data-onerror-img="${imageId}" data-onerror-placeholder="${placeholderId}">
            <div id="${placeholderId}" class="product-image-placeholder" style="display: none;">
              <span class="placeholder-icon">📷</span>
              <span class="placeholder-text">Нет фото</span>
            </div>`
-    : `<div class="product-image-placeholder">
+        : `<div class="product-image-placeholder">
              <span class="placeholder-icon">📷</span>
              <span class="placeholder-text">Нет фото</span>
            </div>`;
 
-  const imageSection = `
+      const imageSection = `
             <button type="button" class="product-image-btn"
               data-product-id="${escapeAttr(product.id)}"
               data-title="${escapeAttr(product.title)}"
@@ -7945,7 +8051,7 @@ allProducts.forEach((product) => {
             </button>
       `;
 
-  html += `
+      html += `
           <div class="product-card"
                data-category="${escapeAttr(product.categoryId)}"
                data-id="${escapeAttr(product.id)}"
@@ -8001,8 +8107,8 @@ allProducts.forEach((product) => {
             </div>
           </div>
       `;
-});
-html += `
+    });
+    html += `
           </div>
         </div>
 
@@ -8022,63 +8128,63 @@ html += `
               </thead>
               <tbody>
                 ${allProducts.map((p) => {
-  const rubPrice = (p.price * 100).toFixed(2);
-  const priceFormatted = rubPrice + ' руб. / ' + p.price.toFixed(2) + ' PZ';
-  const sku = String((p as any).sku || '').trim();
-  const imgUrl = String((p as any).imageUrl || '').trim();
-  return (
-    '<tr ' +
-    'data-id="' + escapeAttr(p.id) + '" ' +
-    'data-category-id="' + escapeAttr(p.categoryId) + '" ' +
-    'data-category="' + escapeAttr(p.categoryName) + '" ' +
-    'data-title="' + escapeAttr(p.title) + '" ' +
-    'data-sku="' + escapeAttr(sku) + '">' +
-    '<td style="padding:10px 12px; border-bottom:1px solid #f1f5f9;">' +
-    '<button type="button" class="table-thumb" ' +
-    'data-product-id="' + escapeAttr(p.id) + '" ' +
-    'data-title="' + escapeAttr(p.title) + '" ' +
-    'data-image="' + escapeAttr(imgUrl) + '" ' +
-    'style="width:48px; height:48px; border-radius:10px; overflow:hidden; border:1px solid #e5e7eb; background:#f9fafb; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center;"' +
-    '>' +
-    (imgUrl
-      ? ('<img src="' + escapeAttr(imgUrl) + '" alt="" style="width:100%; height:100%; object-fit:cover; display:block;" loading="lazy">')
-      : ('<span style="font-size:16px; color:#9ca3af;">📷</span>')
-    ) +
-    '</button>' +
-    '</td>' +
-    '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + escapeHtml(p.title) + '</td>' +
-    '<td style="padding:12px; border-bottom:1px solid #f1f5f9; color:#6b7280;">' + (sku ? escapeHtml(sku) : '-') + '</td>' +
-    '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + escapeHtml(p.categoryName) + '</td>' +
-    '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + (p.isActive ? '✅ Активен' : '❌ Неактивен') + '</td>' +
-    '<td style="padding:12px; border-bottom:1px solid #f1f5f9; white-space:nowrap;">' + priceFormatted + '</td>' +
-    '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' +
-    '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
-    '<button type="button" class="btn-action btn-compact btn-solid-black edit-btn" ' +
-    'data-id="' + escapeAttr(p.id) + '" ' +
-    'data-title="' + escapeAttr(p.title) + '" ' +
-    'data-summary="' + escapeAttr(p.summary) + '" ' +
-    'data-description="' + escapeAttr((p.description || '').substring(0, 5000)) + '" ' +
-    'data-instruction="' + escapeAttr((((p as any).instruction || '') as string).substring(0, 5000)) + '" ' +
-    'data-price="' + (p.price as any) + '" ' +
-    'data-category-id="' + escapeAttr(p.categoryId) + '" ' +
-    'data-active="' + (p.isActive ? 'true' : 'false') + '" ' +
-    'data-russia="' + ((p as any).availableInRussia ? 'true' : 'false') + '" ' +
-    'data-bali="' + ((p as any).availableInBali ? 'true' : 'false') + '" ' +
-    'data-image="' + escapeAttr(p.imageUrl) + '" ' +
-    'data-stock="' + (p.stock !== undefined && p.stock !== null ? p.stock : 999) + '" ' +
-    'onclick="if(typeof window.editProduct===\'function\'){window.editProduct(this);}else{alert(\'Ошибка: функция редактирования не загружена.\');} return false;"' +
-    '><span class="btn-ico">' + ICONS.pencil + '</span><span>Редактировать</span></button>' +
-    '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/toggle-active" style="display:inline;">' +
-    '<button type="submit" class="btn-action btn-compact btn-outline toggle-btn"><span class="btn-ico">' + ICONS.power + '</span><span>' + (p.isActive ? 'Отключить' : 'Включить') + '</span></button>' +
-    '</form>' +
-    '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/delete" class="delete-product-form" data-product-id="' + escapeAttr(p.id) + '" data-product-title="' + escapeAttr(p.title) + '" style="display:inline;">' +
-    '<button type="button" class="btn-action btn-compact btn-solid-danger delete-btn"><span class="btn-ico">' + ICONS.trash + '</span><span>Удалить</span></button>' +
-    '</form>' +
-    '</div>' +
-    '</td>' +
-    '</tr>'
-  );
-}).join('')}
+      const rubPrice = (p.price * 100).toFixed(2);
+      const priceFormatted = rubPrice + ' руб. / ' + p.price.toFixed(2) + ' PZ';
+      const sku = String((p as any).sku || '').trim();
+      const imgUrl = String((p as any).imageUrl || '').trim();
+      return (
+        '<tr ' +
+        'data-id="' + escapeAttr(p.id) + '" ' +
+        'data-category-id="' + escapeAttr(p.categoryId) + '" ' +
+        'data-category="' + escapeAttr(p.categoryName) + '" ' +
+        'data-title="' + escapeAttr(p.title) + '" ' +
+        'data-sku="' + escapeAttr(sku) + '">' +
+        '<td style="padding:10px 12px; border-bottom:1px solid #f1f5f9;">' +
+        '<button type="button" class="table-thumb" ' +
+        'data-product-id="' + escapeAttr(p.id) + '" ' +
+        'data-title="' + escapeAttr(p.title) + '" ' +
+        'data-image="' + escapeAttr(imgUrl) + '" ' +
+        'style="width:48px; height:48px; border-radius:10px; overflow:hidden; border:1px solid #e5e7eb; background:#f9fafb; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center;"' +
+        '>' +
+        (imgUrl
+          ? ('<img src="' + escapeAttr(imgUrl) + '" alt="" style="width:100%; height:100%; object-fit:cover; display:block;" loading="lazy">')
+          : ('<span style="font-size:16px; color:#9ca3af;">📷</span>')
+        ) +
+        '</button>' +
+        '</td>' +
+        '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + escapeHtml(p.title) + '</td>' +
+        '<td style="padding:12px; border-bottom:1px solid #f1f5f9; color:#6b7280;">' + (sku ? escapeHtml(sku) : '-') + '</td>' +
+        '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + escapeHtml(p.categoryName) + '</td>' +
+        '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + (p.isActive ? '✅ Активен' : '❌ Неактивен') + '</td>' +
+        '<td style="padding:12px; border-bottom:1px solid #f1f5f9; white-space:nowrap;">' + priceFormatted + '</td>' +
+        '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+        '<button type="button" class="btn-action btn-compact btn-solid-black edit-btn" ' +
+        'data-id="' + escapeAttr(p.id) + '" ' +
+        'data-title="' + escapeAttr(p.title) + '" ' +
+        'data-summary="' + escapeAttr(p.summary) + '" ' +
+        'data-description="' + escapeAttr((p.description || '').substring(0, 5000)) + '" ' +
+        'data-instruction="' + escapeAttr((((p as any).instruction || '') as string).substring(0, 5000)) + '" ' +
+        'data-price="' + (p.price as any) + '" ' +
+        'data-category-id="' + escapeAttr(p.categoryId) + '" ' +
+        'data-active="' + (p.isActive ? 'true' : 'false') + '" ' +
+        'data-russia="' + ((p as any).availableInRussia ? 'true' : 'false') + '" ' +
+        'data-bali="' + ((p as any).availableInBali ? 'true' : 'false') + '" ' +
+        'data-image="' + escapeAttr(p.imageUrl) + '" ' +
+        'data-stock="' + (p.stock !== undefined && p.stock !== null ? p.stock : 999) + '" ' +
+        'onclick="if(typeof window.editProduct===\'function\'){window.editProduct(this);}else{alert(\'Ошибка: функция редактирования не загружена.\');} return false;"' +
+        '><span class="btn-ico">' + ICONS.pencil + '</span><span>Редактировать</span></button>' +
+        '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/toggle-active" style="display:inline;">' +
+        '<button type="submit" class="btn-action btn-compact btn-outline toggle-btn"><span class="btn-ico">' + ICONS.power + '</span><span>' + (p.isActive ? 'Отключить' : 'Включить') + '</span></button>' +
+        '</form>' +
+        '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/delete" class="delete-product-form" data-product-id="' + escapeAttr(p.id) + '" data-product-title="' + escapeAttr(p.title) + '" style="display:inline;">' +
+        '<button type="button" class="btn-action btn-compact btn-solid-danger delete-btn"><span class="btn-ico">' + ICONS.trash + '</span><span>Удалить</span></button>' +
+        '</form>' +
+        '</div>' +
+        '</td>' +
+        '</tr>'
+      );
+    }).join('')}
               </tbody>
             </table>
           </div>
@@ -9235,11 +9341,11 @@ html += `
       </html>
     `;
 
-res.send(html);
+    res.send(html);
   } catch (error) {
-  console.error('Products page error:', error);
-  res.status(500).send('Ошибка загрузки товаров');
-}
+    console.error('Products page error:', error);
+    res.status(500).send('Ошибка загрузки товаров');
+  }
 });
 
 // Product2 module - управление товарами через веб-интерфейс
