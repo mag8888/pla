@@ -2854,8 +2854,7 @@ router.get('/users/export', requireAdmin, async (req, res) => {
     const users = await prisma.user.findMany({
       include: {
         partner: true,
-        orders: true,
-        reviews: true
+        orders: true
       },
       orderBy: {
         createdAt: 'desc'
@@ -2871,12 +2870,12 @@ router.get('/users/export', requireAdmin, async (req, res) => {
       const partner = user.partner;
 
       // Calculate total paid orders
-      const paidOrders = user.orders.filter(o => o.status === 'COMPLETED');
-      const totalSpent = paidOrders.reduce((sum, o) => {
+      const paidOrders = user.orders.filter((o: any) => o.status === 'COMPLETED');
+      const totalSpent = paidOrders.reduce((sum: number, o: any) => {
         try {
           const items = typeof o.itemsJson === 'string' ? JSON.parse(o.itemsJson) : (o.itemsJson || []);
           // @ts-ignore
-          return sum + items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0);
+          return sum + items.reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0);
         } catch { return sum; }
       }, 0);
 
