@@ -180,7 +180,7 @@ async function showGiftMessage(ctx: Context) {
     reply_markup: {
       inline_keyboard: [
         [{ text: '🎶 Слушать звуковые матрицы', callback_data: 'nav:gift_audio' }],
-        [Markup.button.webApp('📁 Каталог по плазменному здоровью', webappUrl)],
+        [{ text: '📚 Гайд', url: 'https://t.me/iplasmanano/584' }],
       ],
     },
   });
