@@ -7,6 +7,7 @@ import { partnerModule } from '../modules/partner/index.js';
 import { reviewsModule } from '../modules/reviews/index.js';
 import { aboutModule } from '../modules/about/index.js';
 import { adminModule } from '../modules/admin/index.js';
+import { adminOrderModule } from '../modules/admin/admin-orders.js';
 import { cartModule } from '../modules/cart/index.js';
 import { audioModule } from '../modules/audio/index.js';
 import { balanceModule } from '../modules/balance/index.js';
@@ -21,6 +22,7 @@ const modules: BotModule[] = [
   reviewsModule,
   aboutModule,
   adminModule,
+  adminOrderModule,  // Admin order processing
 ];
 
 export async function applyBotModules(bot: Telegraf<Context>) {
