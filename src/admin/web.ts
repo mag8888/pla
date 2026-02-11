@@ -2855,7 +2855,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
     const buildMarker = String(process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || '').slice(0, 8) || 'local';
 
     // Get all users with their related data
-    // Optional search by username
+    // Search by username or phone
     const search = (req.query.search as string | undefined)?.trim();
     const users = await prisma.user.findMany({
       include: {
@@ -2867,7 +2867,12 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
         },
         orders: true
       },
-      where: search ? { username: { contains: search } } : undefined,
+      where: search ? {
+        OR: [
+          { username: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search } }
+        ]
+      } : undefined,
       orderBy: {
         createdAt: sortOrder === 'desc' ? 'desc' : 'asc'
       }
