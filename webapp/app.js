@@ -2673,6 +2673,35 @@ async function showPartnerDashboard() {
         content += '<h3>Личный кабинет партнёра</h3>';
 
         if (dashboard) {
+            // Activation status banner
+            if (dashboard.profile.isActive) {
+                content += `
+                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+                                color: white; 
+                                padding: 16px; 
+                                border-radius: 12px; 
+                                margin-bottom: 20px;
+                                text-align: center;
+                                font-weight: 600;
+                                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                        ✅ Ваша партнёрка активна
+                    </div>
+                `;
+            } else {
+                content += `
+                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                                color: white; 
+                                padding: 16px; 
+                                border-radius: 12px; 
+                                margin-bottom: 20px;
+                                text-align: center;
+                                box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                        <div style="font-weight: 600; margin-bottom: 8px;">⚠️ Партнёрская программа не активна</div>
+                        <div style="font-size: 14px; opacity: 0.95;">Совершите покупки на сумму от 12,000 ₽ для активации</div>
+                    </div>
+                `;
+            }
+
             // Updated link generation to match bot
             const botUsername = 'PLAZMA_test8_bot';
             const referralLink = `https://t.me/${botUsername}?start=ref_direct_${dashboard.profile.referralCode}`;
@@ -2714,6 +2743,20 @@ async function showPartnerDashboard() {
                     <button class="btn btn-secondary" onclick="showPartners()">
                         👥 Мои партнёры
                     </button>
+                </div>
+                
+                <div style="margin: 20px 0; 
+                            background: #f9f9f9; 
+                            border: 1px solid var(--border-color); 
+                            border-radius: 12px; 
+                            padding: 20px;">
+                    <h4 style="color: #000000; margin-bottom: 12px;">📋 Правила партнёрской программы</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: #333333; line-height: 1.8;">
+                        <li>Получайте 25% от каждой покупки ваших рефералов</li>
+                        <li>Активация требует покупок на сумму от 12,000 ₽</li>
+                        <li>Скидка 10% на свои покупки после активации</li>
+                        <li>Бонусы начисляются автоматически на ваш баланс</li>
+                    </ul>
                 </div>
             `;
         } else {
