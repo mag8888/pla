@@ -6646,962 +6646,963 @@ router.get('/products', requireAdmin, async (req, res) => {
             background: #5a6268;
           }
         </style>
-// КРИТИЧНО: Определяем функции глобально ДО загрузки HTML, чтобы они были доступны для onclick обработчиков
-// Защита от ошибок выполнения - оборачиваем в try-catch
-try {
-  window.editProduct = function (button) {
-    console.log('🔵 editProduct called', button);
-
-    if (!button) {
-      console.error('❌ editProduct: button is required');
-      alert('Ошибка: кнопка не найдена');
-      return;
-    }
-
-    // Safely extract data from button attributes
-    const productId = String(button.dataset.id || '').trim();
-    const title = String(button.dataset.title || '').trim();
-    const summary = String(button.dataset.summary || '').trim();
-    const description = String(button.dataset.description || '').trim();
-    const price = String(button.dataset.price || '0').trim();
-    const categoryId = String(button.dataset.categoryId || '').trim();
-    const isActive = String(button.dataset.active || 'false').trim() === 'true';
-    const availableInRussia = String(button.dataset.russia || 'false').trim() === 'true';
-    const availableInBali = String(button.dataset.bali || 'false').trim() === 'true';
-    const imageUrl = String(button.dataset.image || '').trim();
-    const stock = String(button.dataset.stock || '').trim();
-
-    console.log('📦 Product data extracted:', {
-      productId: productId.substring(0, 10) + '...',
-      title: title.substring(0, 30) + '...',
-      price,
-      categoryId,
-      isActive,
-      isActive,
-      availableInRussia,
-      availableInBali,
-      stock
-    });
-
-    if (!productId) {
-      console.error('❌ Product ID is missing');
-      alert('Ошибка: ID товара не найден');
-      return;
-    }
-
-    // Create modal if it doesn't exist
-    let modal = document.getElementById('editProductModal');
-    if (!modal) {
-      console.log('🔵 Creating new edit modal');
-      modal = document.createElement('div');
-      modal.id = 'editProductModal';
-      modal.className = 'modal-overlay';
-      modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;';
-      modal.onclick = function (e) {
-        if (e.target === modal) {
-          window.closeEditModal();
-        }
-      };
-      const content = document.createElement('div');
-      content.className = 'modal-content';
-      content.style.cssText = 'background: white; border-radius: 12px; padding: 0; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
-      content.addEventListener('click', function (e) { e.stopPropagation(); });
-      // Разбиваем длинную innerHTML строку на части для предотвращения SyntaxError
-      content.innerHTML =
-        '<div class="modal-header">' +
-        '<h2>Редактировать товар</h2>' +
-        '<button type="button" class="close-btn" onclick="window.closeEditModal()">&times;</button>' +
-        '</div>' +
-        '<form id="editProductForm" enctype="multipart/form-data" class="modal-form">' +
-        '<input type="hidden" id="editProductId" name="productId" value="">' +
-        '<div class="form-section">' +
-        '<div class="form-section-title">Основная информация</div>' +
-        '<div class="form-grid single">' +
-        '<div class="form-group">' +
-        '<label for="editProductName">Название товара</label>' +
-        '<input type="text" id="editProductName" name="title" required placeholder="Введите название товара">' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-grid">' +
-        '<div class="form-group">' +
-        '<label for="editProductPrice">Цена в PZ</label>' +
-        '<div class="price-input">' +
-        '<input type="number" id="editProductPrice" name="price" step="0.01" required placeholder="0.00">' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-group">' +
-        '<label for="editProductPriceRub">Цена в RUB</label>' +
-        '<div class="price-input rub">' +
-        '<input type="number" id="editProductPriceRub" name="priceRub" step="0.01" readonly placeholder="0.00">' +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-grid">' +
-        '<div class="form-group">' +
-        '<label for="editProductStock">Остаток на складе</label>' +
-        '<input type="number" id="editProductStock" name="stock" value="999" required placeholder="999">' +
-        '</div>' +
-        '<div class="form-group">' +
-        '<label for="editProductCategory">Категория</label>' +
-        '<select id="editProductCategory" name="categoryId" required>' +
-        '<option value="">Загрузка категорий...</option>' +
-        '</select>' +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-        '<div class="form-section-title">Описание товара</div>' +
-        '<div class="form-group">' +
-        '<label for="editProductSummary">Краткое описание</label>' +
-        '<textarea id="editProductSummary" name="summary" rows="3" placeholder="Краткое описание для карточки товара"></textarea>' +
-        '</div>' +
-        '<div class="form-group">' +
-        '<label for="editProductDescription">Полное описание</label>' +
-        '<textarea id="editProductDescription" name="description" rows="5" class="large" placeholder="Подробное описание товара, применение, состав и т.д."></textarea>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-        '<div class="form-section-title">Настройки доставки</div>' +
-        '<div class="form-group">' +
-        '<label>Регионы доставки</label>' +
-        '<div class="regions-grid">' +
-        '<label class="switch-row">' +
-        '<input type="checkbox" id="editProductRussia" name="availableInRussia">' +
-        '<span class="switch-slider"></span>' +
-        '<span class="switch-label">Россия</span>' +
-        '</label>' +
-        '<label class="switch-row">' +
-        '<input type="checkbox" id="editProductBali" name="availableInBali">' +
-        '<span class="switch-slider"></span>' +
-        '<span class="switch-label">Бали</span>' +
-        '</label>' +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-        '<div class="form-section-title">Статус публикации</div>' +
-        '<div class="status-section">' +
-        '<label class="status-row">' +
-        '<input type="checkbox" id="editProductStatus" name="isActive">' +
-        '<span class="switch-slider"></span>' +
-        '<span class="status-label">Товар активен и доступен для покупки</span>' +
-        '</label>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-actions">' +
-        '<button type="button" onclick="window.closeEditModal()">Отмена</button>' +
-        '<button type="submit">Обновить товар</button>' +
-        '</div>' +
-        '</form>';
-      modal.appendChild(content);
-      document.body.appendChild(modal);
-
-      // Setup form submission handler - удаляем старый обработчик если есть
-      const editForm = document.getElementById('editProductForm');
-      if (editForm) {
-        // Удаляем старый обработчик если есть
-        const oldHandler = editForm.getAttribute('data-handler-attached');
-        if (oldHandler) {
-          editForm.removeEventListener('submit', oldHandler);
-        }
-
-        // Создаем новый обработчик
-        const submitHandler = function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const form = e.target;
-          const formData = new FormData(form);
-          const productId = formData.get('productId');
-
-          if (!productId) {
-            alert('Ошибка: ID товара не найден');
-            return;
-          }
-
-          const formDataToSend = new FormData();
-          formDataToSend.append('productId', String(productId));
-          formDataToSend.append('title', String(formData.get('title') || ''));
-          formDataToSend.append('price', String(formData.get('price') || '0'));
-          formDataToSend.append('summary', String(formData.get('summary') || ''));
-          formDataToSend.append('description', String(formData.get('description') || ''));
-          formDataToSend.append('categoryId', String(formData.get('categoryId') || ''));
-          formDataToSend.append('stock', String(formData.get('stock') || '999'));
-
-          const statusCheckbox = document.getElementById('editProductStatus');
-          const russiaCheckbox = document.getElementById('editProductRussia');
-          const baliCheckbox = document.getElementById('editProductBali');
-
-          if (statusCheckbox && statusCheckbox.checked) {
-            formDataToSend.append('isActive', 'true');
-          } else {
-            formDataToSend.append('isActive', 'false');
-          }
-
-          if (russiaCheckbox && russiaCheckbox.checked) {
-            formDataToSend.append('availableInRussia', 'true');
-          } else {
-            formDataToSend.append('availableInRussia', 'false');
-          }
-
-          if (baliCheckbox && baliCheckbox.checked) {
-            formDataToSend.append('availableInBali', 'true');
-          } else {
-            formDataToSend.append('availableInBali', 'false');
-          }
-
-          console.log('📤 Sending update request for product:', productId);
-
-          fetch('/admin/products/' + productId + '/update', {
-            method: 'POST',
-            body: formDataToSend,
-            credentials: 'include'
-          })
-            .then(response => {
-              if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-              }
-              return response.json();
-            })
-            .then(data => {
-              if (data.success) {
-                alert('✅ Товар успешно обновлен!');
-                window.closeEditModal();
-                setTimeout(() => {
-                  if (typeof window.reloadAdminProductsPreservingState === 'function') {
-                    window.reloadAdminProductsPreservingState({ success: 'product_updated' });
-                  } else {
-                    location.reload();
-                  }
-                }, 150);
-              } else {
-                alert('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-              }
-            })
-            .catch(error => {
-              console.error('❌ Update error:', error);
-              alert('❌ Ошибка при обновлении товара: ' + (error instanceof Error ? error.message : String(error)));
-            });
-        };
-
-        editForm.addEventListener('submit', submitHandler);
-        editForm.setAttribute('data-handler-attached', 'true');
-      }
-    }
-
-    // Helper function to decode HTML entities safely
-    const decodeHtml = function (html) {
-      if (!html) return '';
-      const txt = document.createElement('textarea');
-      txt.innerHTML = html;
-      return txt.value;
-    };
-
-    // Fill form fields with decoded values
-    try {
-      const editProductIdEl = document.getElementById('editProductId');
-      const editProductNameEl = document.getElementById('editProductName');
-      const editProductSummaryEl = document.getElementById('editProductSummary');
-      const editProductDescriptionEl = document.getElementById('editProductDescription');
-      const editProductPriceEl = document.getElementById('editProductPrice');
-      const editProductPriceRubEl = document.getElementById('editProductPriceRub');
-      const editProductStockEl = document.getElementById('editProductStock');
-      const editProductStatusEl = document.getElementById('editProductStatus');
-      const editProductRussiaEl = document.getElementById('editProductRussia');
-      const editProductBaliEl = document.getElementById('editProductBali');
-
-      if (!editProductIdEl || !editProductNameEl || !editProductPriceEl) {
-        console.error('❌ Required form elements not found');
-        alert('Ошибка: форма редактирования не найдена. Пожалуйста, обновите страницу.');
-        return;
-      }
-
-      editProductIdEl.value = productId || '';
-      if (editProductNameEl) editProductNameEl.value = decodeHtml(title) || '';
-      if (editProductSummaryEl) editProductSummaryEl.value = decodeHtml(summary) || '';
-      if (editProductDescriptionEl) editProductDescriptionEl.value = decodeHtml(description) || '';
-      editProductPriceEl.value = price || '0';
-      if (editProductPriceRubEl) editProductPriceRubEl.value = ((parseFloat(price) || 0) * 100).toFixed(2);
-      if (editProductStockEl) editProductStockEl.value = stock && stock !== 'null' && stock !== 'undefined' ? stock : '999';
-      if (editProductStatusEl) editProductStatusEl.checked = isActive;
-      if (editProductRussiaEl) editProductRussiaEl.checked = availableInRussia;
-      if (editProductBaliEl) editProductBaliEl.checked = availableInBali;
-
-      console.log('✅ Form fields filled:', {
-        productId,
-        title: title.substring(0, 50),
-        price,
-        isActive,
-        availableInRussia,
-        availableInBali
-      });
-    } catch (error) {
-      console.error('❌ Error filling form fields:', error);
-      alert('Ошибка при загрузке данных товара: ' + (error instanceof Error ? error.message : String(error)));
-      return;
-    }
-
-    // Load categories
-    fetch('/admin/api/categories', { credentials: 'include' })
-      .then(response => response.json())
-      .then(categories => {
-        const select = document.getElementById('editProductCategory');
-        if (select) {
-          select.innerHTML = '<option value="">Выберите категорию</option>';
-          categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.id;
-            option.textContent = category.name;
-            if (category.id === categoryId) {
-              option.selected = true;
+        <script>
+          // КРИТИЧНО: Определяем функции глобально ДО загрузки HTML, чтобы они были доступны для onclick обработчиков
+          // Защита от ошибок выполнения - оборачиваем в try-catch
+          try {
+          window.editProduct = function(button) {
+            console.log('🔵 editProduct called', button);
+            
+            if (!button) {
+              console.error('❌ editProduct: button is required');
+              alert('Ошибка: кнопка не найдена');
+              return;
             }
-            select.appendChild(option);
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Error loading categories:', error);
-      });
+            
+            // Safely extract data from button attributes
+            const productId = String(button.dataset.id || '').trim();
+            const title = String(button.dataset.title || '').trim();
+            const summary = String(button.dataset.summary || '').trim();
+            const description = String(button.dataset.description || '').trim();
+            const price = String(button.dataset.price || '0').trim();
+            const categoryId = String(button.dataset.categoryId || '').trim();
+            const isActive = String(button.dataset.active || 'false').trim() === 'true';
+            const availableInRussia = String(button.dataset.russia || 'false').trim() === 'true';
+            const availableInBali = String(button.dataset.bali || 'false').trim() === 'true';
+            const imageUrl = String(button.dataset.image || '').trim();
+            const stock = String(button.dataset.stock || '').trim();
+            
+            console.log('📦 Product data extracted:', {
+              productId: productId.substring(0, 10) + '...',
+              title: title.substring(0, 30) + '...',
+              price,
+              categoryId,
+              isActive,
+              isActive,
+              availableInRussia,
+              availableInBali,
+              stock
+            });
+            
+            if (!productId) {
+              console.error('❌ Product ID is missing');
+              alert('Ошибка: ID товара не найден');
+              return;
+            }
+            
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('editProductModal');
+            if (!modal) {
+              console.log('🔵 Creating new edit modal');
+              modal = document.createElement('div');
+              modal.id = 'editProductModal';
+              modal.className = 'modal-overlay';
+              modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;';
+              modal.onclick = function(e) {
+                if (e.target === modal) {
+                  window.closeEditModal();
+                }
+              };
+              const content = document.createElement('div');
+              content.className = 'modal-content';
+              content.style.cssText = 'background: white; border-radius: 12px; padding: 0; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
+              content.addEventListener('click', function(e) { e.stopPropagation(); });
+              // Разбиваем длинную innerHTML строку на части для предотвращения SyntaxError
+              content.innerHTML = 
+                '<div class="modal-header">' +
+                  '<h2>Редактировать товар</h2>' +
+                  '<button type="button" class="close-btn" onclick="window.closeEditModal()">&times;</button>' +
+                '</div>' +
+                '<form id="editProductForm" enctype="multipart/form-data" class="modal-form">' +
+                  '<input type="hidden" id="editProductId" name="productId" value="">' +
+                  '<div class="form-section">' +
+                    '<div class="form-section-title">Основная информация</div>' +
+                    '<div class="form-grid single">' +
+                      '<div class="form-group">' +
+                        '<label for="editProductName">Название товара</label>' +
+                        '<input type="text" id="editProductName" name="title" required placeholder="Введите название товара">' +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="form-grid">' +
+                      '<div class="form-group">' +
+                        '<label for="editProductPrice">Цена в PZ</label>' +
+                        '<div class="price-input">' +
+                          '<input type="number" id="editProductPrice" name="price" step="0.01" required placeholder="0.00">' +
+                        '</div>' +
+                      '</div>' +
+                      '<div class="form-group">' +
+                        '<label for="editProductPriceRub">Цена в RUB</label>' +
+                        '<div class="price-input rub">' +
+                          '<input type="number" id="editProductPriceRub" name="priceRub" step="0.01" readonly placeholder="0.00">' +
+                        '</div>' +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="form-grid">' +
+                      '<div class="form-group">' +
+                        '<label for="editProductStock">Остаток на складе</label>' +
+                        '<input type="number" id="editProductStock" name="stock" value="999" required placeholder="999">' +
+                      '</div>' +
+                      '<div class="form-group">' +
+                        '<label for="editProductCategory">Категория</label>' +
+                        '<select id="editProductCategory" name="categoryId" required>' +
+                          '<option value="">Загрузка категорий...</option>' +
+                        '</select>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="form-section">' +
+                    '<div class="form-section-title">Описание товара</div>' +
+                    '<div class="form-group">' +
+                      '<label for="editProductSummary">Краткое описание</label>' +
+                      '<textarea id="editProductSummary" name="summary" rows="3" placeholder="Краткое описание для карточки товара"></textarea>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                      '<label for="editProductDescription">Полное описание</label>' +
+                      '<textarea id="editProductDescription" name="description" rows="5" class="large" placeholder="Подробное описание товара, применение, состав и т.д."></textarea>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="form-section">' +
+                    '<div class="form-section-title">Настройки доставки</div>' +
+                    '<div class="form-group">' +
+                      '<label>Регионы доставки</label>' +
+                      '<div class="regions-grid">' +
+                        '<label class="switch-row">' +
+                          '<input type="checkbox" id="editProductRussia" name="availableInRussia">' +
+                          '<span class="switch-slider"></span>' +
+                          '<span class="switch-label">Россия</span>' +
+                        '</label>' +
+                        '<label class="switch-row">' +
+                          '<input type="checkbox" id="editProductBali" name="availableInBali">' +
+                          '<span class="switch-slider"></span>' +
+                          '<span class="switch-label">Бали</span>' +
+                        '</label>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="form-section">' +
+                    '<div class="form-section-title">Статус публикации</div>' +
+                    '<div class="status-section">' +
+                      '<label class="status-row">' +
+                        '<input type="checkbox" id="editProductStatus" name="isActive">' +
+                        '<span class="switch-slider"></span>' +
+                        '<span class="status-label">Товар активен и доступен для покупки</span>' +
+                      '</label>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="form-actions">' +
+                    '<button type="button" onclick="window.closeEditModal()">Отмена</button>' +
+                    '<button type="submit">Обновить товар</button>' +
+                  '</div>' +
+                '</form>';
+              modal.appendChild(content);
+              document.body.appendChild(modal);
+              
+              // Setup form submission handler - удаляем старый обработчик если есть
+              const editForm = document.getElementById('editProductForm');
+              if (editForm) {
+                // Удаляем старый обработчик если есть
+                const oldHandler = editForm.getAttribute('data-handler-attached');
+                if (oldHandler) {
+                  editForm.removeEventListener('submit', oldHandler);
+                }
+                
+                // Создаем новый обработчик
+                const submitHandler = function(e) {
+                e.preventDefault();
+                  e.stopPropagation();
+                  
+                  const form = e.target;
+                  const formData = new FormData(form);
+                const productId = formData.get('productId');
+                  
+                  if (!productId) {
+                    alert('Ошибка: ID товара не найден');
+                    return;
+                  }
+                
+                const formDataToSend = new FormData();
+                  formDataToSend.append('productId', String(productId));
+                  formDataToSend.append('title', String(formData.get('title') || ''));
+                  formDataToSend.append('price', String(formData.get('price') || '0'));
+                  formDataToSend.append('summary', String(formData.get('summary') || ''));
+                  formDataToSend.append('description', String(formData.get('description') || ''));
+                  formDataToSend.append('categoryId', String(formData.get('categoryId') || ''));
+                  formDataToSend.append('stock', String(formData.get('stock') || '999'));
+                  
+                  const statusCheckbox = document.getElementById('editProductStatus');
+                  const russiaCheckbox = document.getElementById('editProductRussia');
+                  const baliCheckbox = document.getElementById('editProductBali');
+                  
+                  if (statusCheckbox && statusCheckbox.checked) {
+                  formDataToSend.append('isActive', 'true');
+                  } else {
+                    formDataToSend.append('isActive', 'false');
+                }
+                  
+                  if (russiaCheckbox && russiaCheckbox.checked) {
+                  formDataToSend.append('availableInRussia', 'true');
+                  } else {
+                    formDataToSend.append('availableInRussia', 'false');
+                }
+                  
+                  if (baliCheckbox && baliCheckbox.checked) {
+                  formDataToSend.append('availableInBali', 'true');
+                  } else {
+                    formDataToSend.append('availableInBali', 'false');
+                }
+                  
+                  console.log('📤 Sending update request for product:', productId);
+                
+                fetch('/admin/products/' + productId + '/update', {
+                  method: 'POST',
+                  body: formDataToSend,
+                  credentials: 'include'
+                })
+                  .then(response => {
+                    if (!response.ok) {
+                      throw new Error('HTTP ' + response.status);
+                    }
+                    return response.json();
+                  })
+                .then(data => {
+                  if (data.success) {
+                      alert('✅ Товар успешно обновлен!');
+                    window.closeEditModal();
+                      setTimeout(() => {
+                        if (typeof window.reloadAdminProductsPreservingState === 'function') {
+                          window.reloadAdminProductsPreservingState({ success: 'product_updated' });
+                        } else {
+                    location.reload();
+                        }
+                      }, 150);
+                  } else {
+                      alert('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                  }
+                })
+                .catch(error => {
+                    console.error('❌ Update error:', error);
+                    alert('❌ Ошибка при обновлении товара: ' + (error instanceof Error ? error.message : String(error)));
+                });
+              };
+                
+                editForm.addEventListener('submit', submitHandler);
+                editForm.setAttribute('data-handler-attached', 'true');
+              }
+            }
+            
+            // Helper function to decode HTML entities safely
+            const decodeHtml = function(html) {
+              if (!html) return '';
+              const txt = document.createElement('textarea');
+              txt.innerHTML = html;
+              return txt.value;
+            };
+            
+            // Fill form fields with decoded values
+            try {
+              const editProductIdEl = document.getElementById('editProductId');
+              const editProductNameEl = document.getElementById('editProductName');
+              const editProductSummaryEl = document.getElementById('editProductSummary');
+              const editProductDescriptionEl = document.getElementById('editProductDescription');
+              const editProductPriceEl = document.getElementById('editProductPrice');
+              const editProductPriceRubEl = document.getElementById('editProductPriceRub');
+              const editProductStockEl = document.getElementById('editProductStock');
+              const editProductStatusEl = document.getElementById('editProductStatus');
+              const editProductRussiaEl = document.getElementById('editProductRussia');
+              const editProductBaliEl = document.getElementById('editProductBali');
+              
+              if (!editProductIdEl || !editProductNameEl || !editProductPriceEl) {
+                console.error('❌ Required form elements not found');
+                alert('Ошибка: форма редактирования не найдена. Пожалуйста, обновите страницу.');
+                return;
+              }
+              
+              editProductIdEl.value = productId || '';
+              if (editProductNameEl) editProductNameEl.value = decodeHtml(title) || '';
+              if (editProductSummaryEl) editProductSummaryEl.value = decodeHtml(summary) || '';
+              if (editProductDescriptionEl) editProductDescriptionEl.value = decodeHtml(description) || '';
+              editProductPriceEl.value = price || '0';
+              if (editProductPriceRubEl) editProductPriceRubEl.value = ((parseFloat(price) || 0) * 100).toFixed(2);
+              if (editProductStockEl) editProductStockEl.value = stock && stock !== 'null' && stock !== 'undefined' ? stock : '999';
+              if (editProductStatusEl) editProductStatusEl.checked = isActive;
+              if (editProductRussiaEl) editProductRussiaEl.checked = availableInRussia;
+              if (editProductBaliEl) editProductBaliEl.checked = availableInBali;
+              
+              console.log('✅ Form fields filled:', {
+                productId,
+                title: title.substring(0, 50),
+                price,
+                isActive,
+                availableInRussia,
+                availableInBali
+              });
+            } catch (error) {
+              console.error('❌ Error filling form fields:', error);
+              alert('Ошибка при загрузке данных товара: ' + (error instanceof Error ? error.message : String(error)));
+              return;
+            }
+            
+            // Load categories
+            fetch('/admin/api/categories', { credentials: 'include' })
+              .then(response => response.json())
+              .then(categories => {
+                const select = document.getElementById('editProductCategory');
+                if (select) {
+                  select.innerHTML = '<option value="">Выберите категорию</option>';
+                  categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    if (category.id === categoryId) {
+                      option.selected = true;
+                    }
+                    select.appendChild(option);
+                  });
+                }
+              })
+              .catch(error => {
+                console.error('Error loading categories:', error);
+              });
+            
+            // Add price conversion
+            const priceInput = document.getElementById('editProductPrice');
+            const priceRubInput = document.getElementById('editProductPriceRub');
+            if (priceInput && priceRubInput) {
+              priceInput.oninput = function() {
+                const pzPrice = parseFloat(this.value) || 0;
+                priceRubInput.value = (pzPrice * 100).toFixed(2);
+              };
+              priceRubInput.oninput = function() {
+                const rubPrice = parseFloat(this.value) || 0;
+                priceInput.value = (rubPrice / 100).toFixed(2);
+              };
+            }
+            
+            // Show modal
+            console.log('✅ Showing edit modal');
+            console.log('✅ Modal element:', modal);
+            console.log('✅ Modal in DOM:', document.body.contains(modal));
+            
+            // Убеждаемся, что модальное окно в DOM
+            if (!document.body.contains(modal)) {
+              console.log('⚠️ Modal not in DOM, appending...');
+              document.body.appendChild(modal);
+            }
+            
+            // Устанавливаем стили для показа
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.background = 'rgba(0,0,0,0.6)';
+            modal.style.zIndex = '10000';
+            
+            console.log('✅ Modal display set to:', modal.style.display);
+            console.log('✅ Modal computed style:', window.getComputedStyle(modal).display);
+            
+            // Убеждаемся, что модальное окно видимо (и не переоткрываем после закрытия)
+            try { modal.dataset.__closing = '0'; } catch (_) {}
+            if (modal.__forceShowTimer) { try { clearTimeout(modal.__forceShowTimer); } catch (_) {} }
+            modal.__forceShowTimer = setTimeout(() => {
+              try {
+                if (modal.dataset && modal.dataset.__closing === '1') return;
+              } catch (_) {}
+              const computedDisplay = window.getComputedStyle(modal).display;
+              if (computedDisplay === 'none') {
+                console.error('❌ Modal still hidden! Forcing display...');
+                modal.style.display = 'flex';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+              } else {
+                console.log('✅ Modal is visible, display:', computedDisplay);
+              }
+            }, 50);
+          };
+          } catch (e) {
+            console.error('❌ CRITICAL ERROR defining window.editProduct:', e);
+            window.editProduct = function() {
+              alert('Ошибка: функция редактирования не загружена. Обновите страницу.');
+            };
+          }
+          
+          window.closeEditModal = function() {
+            const modal = document.getElementById('editProductModal');
+            if (modal) {
+              try { modal.dataset.__closing = '1'; } catch (_) {}
+              if (modal.__forceShowTimer) { try { clearTimeout(modal.__forceShowTimer); } catch (_) {} }
+              // remove to avoid any CSS/display re-open edge cases
+              modal.remove();
+            }
+          };
+          
+          // NOTE: Инструкция удалена из карточек по требованию — не держим лишние обработчики,
+          // чтобы не ломать парсинг JS в HTML-шаблоне.
+          
+          // КРИТИЧНО: Проверяем, что функция определена
+          if (typeof window.editProduct !== 'function') {
+            console.error('❌ CRITICAL: window.editProduct is not a function after definition!');
+            window.editProduct = function() {
+              alert('Ошибка: функция редактирования не загружена. Обновите страницу.');
+            };
+          } else {
+            console.log('✅ window.editProduct successfully defined');
+          }
 
-    // Add price conversion
-    const priceInput = document.getElementById('editProductPrice');
-    const priceRubInput = document.getElementById('editProductPriceRub');
-    if (priceInput && priceRubInput) {
-      priceInput.oninput = function () {
-        const pzPrice = parseFloat(this.value) || 0;
-        priceRubInput.value = (pzPrice * 100).toFixed(2);
-      };
-      priceRubInput.oninput = function () {
-        const rubPrice = parseFloat(this.value) || 0;
-        priceInput.value = (rubPrice / 100).toFixed(2);
-      };
-    }
+          // ===== /admin/products UI state (filter/search/view/sort) =====
+          window.__adminProductsState = window.__adminProductsState || {
+            filter: 'all',
+            q: '',
+            view: 'cards', // cards | table
+            sort: 'title_asc' // title_asc | title_desc | category_asc | category_desc
+          };
 
-    // Show modal
-    console.log('✅ Showing edit modal');
-    console.log('✅ Modal element:', modal);
-    console.log('✅ Modal in DOM:', document.body.contains(modal));
+          function __safeStr(v) { try { return String(v || ''); } catch (_) { return ''; } }
+          function __norm(v) { return __safeStr(v).trim().toLowerCase(); }
 
-    // Убеждаемся, что модальное окно в DOM
-    if (!document.body.contains(modal)) {
-      console.log('⚠️ Modal not in DOM, appending...');
-      document.body.appendChild(modal);
-    }
+          window.__setAdminProductsUrl = function() {
+            try {
+              const st = window.__adminProductsState || {};
+              const url = new URL(window.location.href);
+              url.searchParams.set('filter', __safeStr(st.filter || 'all'));
+              url.searchParams.set('q', __safeStr(st.q || ''));
+              url.searchParams.set('view', __safeStr(st.view || 'cards'));
+              url.searchParams.set('sort', __safeStr(st.sort || 'title_asc'));
+              // не ломаем success/error если они есть
+              window.history.replaceState(null, '', url.toString());
+            } catch (e) {
+              console.warn('Failed to update URL state:', e);
+            }
+          };
 
-    // Устанавливаем стили для показа
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.background = 'rgba(0,0,0,0.6)';
-    modal.style.zIndex = '10000';
+          window.__persistAdminProductsState = function() {
+            try {
+              const st = window.__adminProductsState || {};
+              localStorage.setItem('admin_products_filter', __safeStr(st.filter || 'all'));
+              localStorage.setItem('admin_products_q', __safeStr(st.q || ''));
+              localStorage.setItem('admin_products_view', __safeStr(st.view || 'cards'));
+              localStorage.setItem('admin_products_sort', __safeStr(st.sort || 'title_asc'));
+            } catch (e) {
+              console.warn('Failed to persist admin products state:', e);
+            }
+          };
 
-    console.log('✅ Modal display set to:', modal.style.display);
-    console.log('✅ Modal computed style:', window.getComputedStyle(modal).display);
+          window.__restoreAdminProductsState = function() {
+            try {
+              const st = window.__adminProductsState || {};
+              const url = new URL(window.location.href);
+              const sp = url.searchParams;
+              const urlFilter = sp.get('filter');
+              const urlQ = sp.get('q');
+              const urlView = sp.get('view');
+              const urlSort = sp.get('sort');
 
-    // Убеждаемся, что модальное окно видимо (и не переоткрываем после закрытия)
-    try { modal.dataset.__closing = '0'; } catch (_) { }
-    if (modal.__forceShowTimer) { try { clearTimeout(modal.__forceShowTimer); } catch (_) { } }
-    modal.__forceShowTimer = setTimeout(() => {
-      try {
-        if (modal.dataset && modal.dataset.__closing === '1') return;
-      } catch (_) { }
-      const computedDisplay = window.getComputedStyle(modal).display;
-      if (computedDisplay === 'none') {
-        console.error('❌ Modal still hidden! Forcing display...');
-        modal.style.display = 'flex';
-        modal.style.visibility = 'visible';
-        modal.style.opacity = '1';
-      } else {
-        console.log('✅ Modal is visible, display:', computedDisplay);
-      }
-    }, 50);
-  };
-} catch (e) {
-  console.error('❌ CRITICAL ERROR defining window.editProduct:', e);
-  window.editProduct = function () {
-    alert('Ошибка: функция редактирования не загружена. Обновите страницу.');
-  };
-}
+              const lsFilter = localStorage.getItem('admin_products_filter');
+              const lsQ = localStorage.getItem('admin_products_q');
+              const lsView = localStorage.getItem('admin_products_view');
+              const lsSort = localStorage.getItem('admin_products_sort');
 
-window.closeEditModal = function () {
-  const modal = document.getElementById('editProductModal');
-  if (modal) {
-    try { modal.dataset.__closing = '1'; } catch (_) { }
-    if (modal.__forceShowTimer) { try { clearTimeout(modal.__forceShowTimer); } catch (_) { } }
-    // remove to avoid any CSS/display re-open edge cases
-    modal.remove();
-  }
-};
+              st.filter = (urlFilter !== null ? urlFilter : (lsFilter || st.filter || 'all')) || 'all';
+              st.q = (urlQ !== null ? urlQ : (lsQ || st.q || '')) || '';
+              st.view = (urlView !== null ? urlView : (lsView || st.view || 'cards')) || 'cards';
+              st.sort = (urlSort !== null ? urlSort : (lsSort || st.sort || 'title_asc')) || 'title_asc';
+              window.__adminProductsState = st;
+            } catch (e) {
+              console.warn('Failed to restore admin products state:', e);
+            }
+          };
 
-// NOTE: Инструкция удалена из карточек по требованию — не держим лишние обработчики,
-// чтобы не ломать парсинг JS в HTML-шаблоне.
+          window.__applyAdminProductsView = function() {
+            try {
+              const st = window.__adminProductsState || {};
+              const cardsWrap = document.getElementById('productsCardsContainer');
+              const tableWrap = document.getElementById('productsTableContainer');
+              const sortWrap = document.getElementById('productsSortWrap');
+              if (cardsWrap && tableWrap) {
+                if (st.view === 'table') {
+                  cardsWrap.style.display = 'none';
+                  tableWrap.style.display = 'block';
+                  if (sortWrap) sortWrap.style.display = 'flex';
+              } else {
+                  tableWrap.style.display = 'none';
+                  cardsWrap.style.display = 'block';
+                  if (sortWrap) sortWrap.style.display = 'none';
+                }
+              }
+              const btnCards = document.getElementById('viewCardsBtn');
+              const btnTable = document.getElementById('viewTableBtn');
+              if (btnCards && btnCards.classList && btnTable && btnTable.classList) {
+                btnCards.classList.toggle('active', st.view !== 'table');
+                btnTable.classList.toggle('active', st.view === 'table');
+              }
+            } catch (e) {
+              console.warn('Failed to apply view:', e);
+            }
+          };
 
-// КРИТИЧНО: Проверяем, что функция определена
-if (typeof window.editProduct !== 'function') {
-  console.error('❌ CRITICAL: window.editProduct is not a function after definition!');
-  window.editProduct = function () {
-    alert('Ошибка: функция редактирования не загружена. Обновите страницу.');
-  };
-} else {
-  console.log('✅ window.editProduct successfully defined');
-}
+          window.__sortAdminProductsTable = function() {
+            try {
+              const st = window.__adminProductsState || {};
+              const table = document.getElementById('productsTable');
+              if (!table) return;
+              const tbody = table.querySelector('tbody');
+              if (!tbody) return;
+              const rows = Array.from(tbody.querySelectorAll('tr'));
+              const sort = __safeStr(st.sort || 'title_asc');
+              const by = sort.startsWith('category') ? 'category' : 'title';
+              const dir = sort.endsWith('_desc') ? -1 : 1;
+              rows.sort((a, b) => {
+                const av = __norm(a.getAttribute('data-' + by));
+                const bv = __norm(b.getAttribute('data-' + by));
+                if (av < bv) return -1 * dir;
+                if (av > bv) return 1 * dir;
+                return 0;
+              });
+              rows.forEach(r => tbody.appendChild(r));
+            } catch (e) {
+              console.warn('Failed to sort table:', e);
+            }
+          };
 
-// ===== /admin/products UI state (filter/search/view/sort) =====
-window.__adminProductsState = window.__adminProductsState || {
-  filter: 'all',
-  q: '',
-  view: 'cards', // cards | table
-  sort: 'title_asc' // title_asc | title_desc | category_asc | category_desc
-};
+          window.__applyAdminProductsFilters = function() {
+            try {
+              const st = window.__adminProductsState || {};
+              const filter = __safeStr(st.filter || 'all');
+              const q = __norm(st.q || '');
 
-function __safeStr(v) { try { return String(v || ''); } catch (_) { return ''; } }
-function __norm(v) { return __safeStr(v).trim().toLowerCase(); }
+              const cards = document.querySelectorAll('.product-card');
+              cards.forEach(card => {
+                const catOk = (filter === 'all' || __safeStr(card.dataset.category) === filter);
+                const title = __norm(card.getAttribute('data-title') || '');
+                const sku = __norm(card.getAttribute('data-sku') || '');
+                const qOk = (!q || title.includes(q) || sku.includes(q));
+                card.style.display = (catOk && qOk) ? 'flex' : 'none';
+              });
 
-window.__setAdminProductsUrl = function () {
-  try {
-    const st = window.__adminProductsState || {};
-    const url = new URL(window.location.href);
-    url.searchParams.set('filter', __safeStr(st.filter || 'all'));
-    url.searchParams.set('q', __safeStr(st.q || ''));
-    url.searchParams.set('view', __safeStr(st.view || 'cards'));
-    url.searchParams.set('sort', __safeStr(st.sort || 'title_asc'));
-    // не ломаем success/error если они есть
-    window.history.replaceState(null, '', url.toString());
-  } catch (e) {
-    console.warn('Failed to update URL state:', e);
-  }
-};
+              const rows = document.querySelectorAll('#productsTable tbody tr');
+              rows.forEach(row => {
+                const rowCat = __safeStr(row.getAttribute('data-category-id') || '');
+                const catOk = (filter === 'all' || rowCat === filter);
+                const title = __norm(row.getAttribute('data-title') || '');
+                const sku = __norm(row.getAttribute('data-sku') || '');
+                const qOk = (!q || title.includes(q) || sku.includes(q));
+                row.style.display = (catOk && qOk) ? '' : 'none';
+              });
 
-window.__persistAdminProductsState = function () {
-  try {
-    const st = window.__adminProductsState || {};
-    localStorage.setItem('admin_products_filter', __safeStr(st.filter || 'all'));
-    localStorage.setItem('admin_products_q', __safeStr(st.q || ''));
-    localStorage.setItem('admin_products_view', __safeStr(st.view || 'cards'));
-    localStorage.setItem('admin_products_sort', __safeStr(st.sort || 'title_asc'));
-  } catch (e) {
-    console.warn('Failed to persist admin products state:', e);
-  }
-};
+              // active button
+              const buttons = document.querySelectorAll('.filter-btn');
+              buttons.forEach(btn => btn.classList.remove('active'));
+              const activeBtn = document.querySelector('.filter-btn[data-filter="' + filter.replace(/"/g, '\\"') + '"]');
+              if (activeBtn && activeBtn.classList) activeBtn.classList.add('active');
 
-window.__restoreAdminProductsState = function () {
-  try {
-    const st = window.__adminProductsState || {};
-    const url = new URL(window.location.href);
-    const sp = url.searchParams;
-    const urlFilter = sp.get('filter');
-    const urlQ = sp.get('q');
-    const urlView = sp.get('view');
-    const urlSort = sp.get('sort');
+              window.__applyAdminProductsView();
+              window.__sortAdminProductsTable();
+              window.__persistAdminProductsState();
+              window.__setAdminProductsUrl();
+            } catch (e) {
+              console.error('applyAdminProductsFilters error:', e);
+            }
+          };
 
-    const lsFilter = localStorage.getItem('admin_products_filter');
-    const lsQ = localStorage.getItem('admin_products_q');
-    const lsView = localStorage.getItem('admin_products_view');
-    const lsSort = localStorage.getItem('admin_products_sort');
+          window.setAdminProductsView = function(view) {
+            const st = window.__adminProductsState || {};
+            st.view = (view === 'table') ? 'table' : 'cards';
+            window.__adminProductsState = st;
+            window.__applyAdminProductsFilters();
+          };
 
-    st.filter = (urlFilter !== null ? urlFilter : (lsFilter || st.filter || 'all')) || 'all';
-    st.q = (urlQ !== null ? urlQ : (lsQ || st.q || '')) || '';
-    st.view = (urlView !== null ? urlView : (lsView || st.view || 'cards')) || 'cards';
-    st.sort = (urlSort !== null ? urlSort : (lsSort || st.sort || 'title_asc')) || 'title_asc';
-    window.__adminProductsState = st;
-  } catch (e) {
-    console.warn('Failed to restore admin products state:', e);
-  }
-};
+          window.setAdminProductsSort = function(sort) {
+            const st = window.__adminProductsState || {};
+            st.sort = __safeStr(sort || 'title_asc') || 'title_asc';
+            window.__adminProductsState = st;
+            window.__applyAdminProductsFilters();
+          };
 
-window.__applyAdminProductsView = function () {
-  try {
-    const st = window.__adminProductsState || {};
-    const cardsWrap = document.getElementById('productsCardsContainer');
-    const tableWrap = document.getElementById('productsTableContainer');
-    const sortWrap = document.getElementById('productsSortWrap');
-    if (cardsWrap && tableWrap) {
-      if (st.view === 'table') {
-        cardsWrap.style.display = 'none';
-        tableWrap.style.display = 'block';
-        if (sortWrap) sortWrap.style.display = 'flex';
-      } else {
-        tableWrap.style.display = 'none';
-        cardsWrap.style.display = 'block';
-        if (sortWrap) sortWrap.style.display = 'none';
-      }
-    }
-    const btnCards = document.getElementById('viewCardsBtn');
-    const btnTable = document.getElementById('viewTableBtn');
-    if (btnCards && btnCards.classList && btnTable && btnTable.classList) {
-      btnCards.classList.toggle('active', st.view !== 'table');
-      btnTable.classList.toggle('active', st.view === 'table');
-    }
-  } catch (e) {
-    console.warn('Failed to apply view:', e);
-  }
-};
+          window.setAdminProductsSearch = function(value) {
+            const st = window.__adminProductsState || {};
+            st.q = __safeStr(value || '');
+            window.__adminProductsState = st;
+            window.__applyAdminProductsFilters();
+          };
 
-window.__sortAdminProductsTable = function () {
-  try {
-    const st = window.__adminProductsState || {};
-    const table = document.getElementById('productsTable');
-    if (!table) return;
-    const tbody = table.querySelector('tbody');
-    if (!tbody) return;
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    const sort = __safeStr(st.sort || 'title_asc');
-    const by = sort.startsWith('category') ? 'category' : 'title';
-    const dir = sort.endsWith('_desc') ? -1 : 1;
-    rows.sort((a, b) => {
-      const av = __norm(a.getAttribute('data-' + by));
-      const bv = __norm(b.getAttribute('data-' + by));
-      if (av < bv) return -1 * dir;
-      if (av > bv) return 1 * dir;
-      return 0;
-    });
-    rows.forEach(r => tbody.appendChild(r));
-  } catch (e) {
-    console.warn('Failed to sort table:', e);
-  }
-};
+          // КРИТИЧНО: фильтры категорий должны работать даже если нижний <script> сломается
+          window.filterProducts = function(button) {
+            try {
+              const filter = button && button.dataset ? button.dataset.filter : 'all';
+              const st = window.__adminProductsState || {};
+              st.filter = __safeStr(filter || 'all') || 'all';
+              window.__adminProductsState = st;
+              window.__applyAdminProductsFilters();
+            } catch (e) {
+              console.error('filterProducts error:', e);
+            }
+          };
 
-window.__applyAdminProductsFilters = function () {
-  try {
-    const st = window.__adminProductsState || {};
-    const filter = __safeStr(st.filter || 'all');
-    const q = __norm(st.q || '');
+          window.reloadAdminProductsPreservingState = function(extraParams) {
+            try {
+              const st = window.__adminProductsState || {};
+              const url = new URL(window.location.href);
+              url.searchParams.set('filter', __safeStr(st.filter || 'all'));
+              url.searchParams.set('q', __safeStr(st.q || ''));
+              url.searchParams.set('view', __safeStr(st.view || 'cards'));
+              url.searchParams.set('sort', __safeStr(st.sort || 'title_asc'));
+              if (extraParams && typeof extraParams === 'object') {
+                Object.keys(extraParams).forEach(k => {
+                  if (extraParams[k] === null || typeof extraParams[k] === 'undefined') return;
+                  url.searchParams.set(k, __safeStr(extraParams[k]));
+                });
+              }
+              window.location.href = url.toString();
+            } catch (e) {
+              console.warn('reloadAdminProductsPreservingState failed, fallback reload:', e);
+              window.location.reload();
+            }
+          };
 
-    const cards = document.querySelectorAll('.product-card');
-    cards.forEach(card => {
-      const catOk = (filter === 'all' || __safeStr(card.dataset.category) === filter);
-      const title = __norm(card.getAttribute('data-title') || '');
-      const sku = __norm(card.getAttribute('data-sku') || '');
-      const qOk = (!q || title.includes(q) || sku.includes(q));
-      card.style.display = (catOk && qOk) ? 'flex' : 'none';
-    });
+          // ===== Table thumbnails modal (preview + replace image) =====
+          window.__tableImageModalState = window.__tableImageModalState || { productId: null, title: '' };
 
-    const rows = document.querySelectorAll('#productsTable tbody tr');
-    rows.forEach(row => {
-      const rowCat = __safeStr(row.getAttribute('data-category-id') || '');
-      const catOk = (filter === 'all' || rowCat === filter);
-      const title = __norm(row.getAttribute('data-title') || '');
-      const sku = __norm(row.getAttribute('data-sku') || '');
-      const qOk = (!q || title.includes(q) || sku.includes(q));
-      row.style.display = (catOk && qOk) ? '' : 'none';
-    });
+          window.openTableImageModal = function(productId, imageUrl, title) {
+            try {
+              const modal = document.getElementById('tableImageModal');
+              const img = document.getElementById('tableImageModalImg');
+              const titleEl = document.getElementById('tableImageModalTitle');
+              const empty = document.getElementById('tableImageModalEmpty');
+              const pid = __safeStr(productId);
+              if (!modal || !img || !titleEl || !pid) return;
 
-    // active button
-    const buttons = document.querySelectorAll('.filter-btn');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.querySelector('.filter-btn[data-filter="' + filter.replace(/"/g, '\\"') + '"]');
-    if (activeBtn && activeBtn.classList) activeBtn.classList.add('active');
+              window.__tableImageModalState.productId = pid;
+              window.__tableImageModalState.title = __safeStr(title);
+              titleEl.textContent = __safeStr(title) || 'Фото товара';
 
-    window.__applyAdminProductsView();
-    window.__sortAdminProductsTable();
-    window.__persistAdminProductsState();
-    window.__setAdminProductsUrl();
-  } catch (e) {
-    console.error('applyAdminProductsFilters error:', e);
-  }
-};
+              const src = __safeStr(imageUrl);
+              if (src) {
+                img.src = src;
+                img.style.display = 'block';
+                if (empty) empty.style.display = 'none';
+              } else {
+                img.removeAttribute('src');
+                img.style.display = 'none';
+                if (empty) empty.style.display = 'block';
+              }
 
-window.setAdminProductsView = function (view) {
-  const st = window.__adminProductsState || {};
-  st.view = (view === 'table') ? 'table' : 'cards';
-  window.__adminProductsState = st;
-  window.__applyAdminProductsFilters();
-};
+              modal.style.display = 'flex';
+              modal.onclick = function(e) { if (e && e.target === modal) window.closeTableImageModal(); };
+            } catch (e) {
+              console.error('openTableImageModal error:', e);
+            }
+          };
 
-window.setAdminProductsSort = function (sort) {
-  const st = window.__adminProductsState || {};
-  st.sort = __safeStr(sort || 'title_asc') || 'title_asc';
-  window.__adminProductsState = st;
-  window.__applyAdminProductsFilters();
-};
+          window.closeTableImageModal = function() {
+            try {
+              const modal = document.getElementById('tableImageModal');
+              const input = document.getElementById('tableImageFileInput');
+              const img = document.getElementById('tableImageModalImg');
+              const empty = document.getElementById('tableImageModalEmpty');
+              if (modal) modal.style.display = 'none';
+              if (input) input.value = '';
+              if (img) { img.removeAttribute('src'); img.style.display = 'none'; }
+              if (empty) empty.style.display = 'block';
+              window.__tableImageModalState.productId = null;
+              window.__tableImageModalState.title = '';
+            } catch (_) {}
+          };
 
-window.setAdminProductsSearch = function (value) {
-  const st = window.__adminProductsState || {};
-  st.q = __safeStr(value || '');
-  window.__adminProductsState = st;
-  window.__applyAdminProductsFilters();
-};
+          window.triggerTableImageReplace = function() {
+            try {
+              const input = document.getElementById('tableImageFileInput');
+              if (input) input.click();
+            } catch (_) {}
+          };
 
-// КРИТИЧНО: фильтры категорий должны работать даже если нижний <script> сломается
-window.filterProducts = function (button) {
-  try {
-    const filter = button && button.dataset ? button.dataset.filter : 'all';
-    const st = window.__adminProductsState || {};
-    st.filter = __safeStr(filter || 'all') || 'all';
-    window.__adminProductsState = st;
-    window.__applyAdminProductsFilters();
-  } catch (e) {
-    console.error('filterProducts error:', e);
-  }
-};
+          window.handleTableImageFileSelected = async function(inputEl) {
+            try {
+              const pid = window.__tableImageModalState && window.__tableImageModalState.productId;
+              if (!pid) return;
+              if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
 
-window.reloadAdminProductsPreservingState = function (extraParams) {
-  try {
-    const st = window.__adminProductsState || {};
-    const url = new URL(window.location.href);
-    url.searchParams.set('filter', __safeStr(st.filter || 'all'));
-    url.searchParams.set('q', __safeStr(st.q || ''));
-    url.searchParams.set('view', __safeStr(st.view || 'cards'));
-    url.searchParams.set('sort', __safeStr(st.sort || 'title_asc'));
-    if (extraParams && typeof extraParams === 'object') {
-      Object.keys(extraParams).forEach(k => {
-        if (extraParams[k] === null || typeof extraParams[k] === 'undefined') return;
-        url.searchParams.set(k, __safeStr(extraParams[k]));
-      });
-    }
-    window.location.href = url.toString();
-  } catch (e) {
-    console.warn('reloadAdminProductsPreservingState failed, fallback reload:', e);
-    window.location.reload();
-  }
-};
+              const btn = document.getElementById('tableImageReplaceBtn');
+              const oldText = btn ? btn.textContent : '';
+              if (btn) { btn.disabled = true; btn.textContent = 'Загрузка...'; }
 
-// ===== Table thumbnails modal (preview + replace image) =====
-window.__tableImageModalState = window.__tableImageModalState || { productId: null, title: '' };
+              const formData = new FormData();
+              formData.append('image', inputEl.files[0]);
 
-window.openTableImageModal = function (productId, imageUrl, title) {
-  try {
-    const modal = document.getElementById('tableImageModal');
-    const img = document.getElementById('tableImageModalImg');
-    const titleEl = document.getElementById('tableImageModalTitle');
-    const empty = document.getElementById('tableImageModalEmpty');
-    const pid = __safeStr(productId);
-    if (!modal || !img || !titleEl || !pid) return;
+              const resp = await fetch('/admin/products/' + encodeURIComponent(pid) + '/upload-image', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+              });
 
-    window.__tableImageModalState.productId = pid;
-    window.__tableImageModalState.title = __safeStr(title);
-    titleEl.textContent = __safeStr(title) || 'Фото товара';
+              if (resp && resp.ok) {
+                window.closeTableImageModal();
+                if (typeof window.reloadAdminProductsPreservingState === 'function') {
+                  window.reloadAdminProductsPreservingState({ success: 'image_updated', view: 'table' });
+                } else {
+                  location.reload();
+                }
+              } else {
+                alert('❌ Ошибка загрузки фото (HTTP ' + (resp ? resp.status : '0') + ')');
+              }
 
-    const src = __safeStr(imageUrl);
-    if (src) {
-      img.src = src;
-      img.style.display = 'block';
-      if (empty) empty.style.display = 'none';
-    } else {
-      img.removeAttribute('src');
-      img.style.display = 'none';
-      if (empty) empty.style.display = 'block';
-    }
+              if (btn) { btn.disabled = false; btn.textContent = oldText || 'Заменить фото'; }
+            } catch (e) {
+              console.error('handleTableImageFileSelected error:', e);
+              alert('❌ Ошибка: ' + (e && e.message ? e.message : String(e)));
+              try {
+                const btn = document.getElementById('tableImageReplaceBtn');
+                if (btn) { btn.disabled = false; btn.textContent = 'Заменить фото'; }
+              } catch (_) {}
+            }
+          };
 
-    modal.style.display = 'flex';
-    modal.onclick = function (e) { if (e && e.target === modal) window.closeTableImageModal(); };
-  } catch (e) {
-    console.error('openTableImageModal error:', e);
-  }
-};
+          // КРИТИЧНО: галерея "Выбрать из загруженных" должна работать даже если нижний <script> сломается
+          if (typeof window.closeImageGallery !== 'function') {
+            window.closeImageGallery = function() {
+              const modal = document.getElementById('imageGalleryModal');
+              if (modal) modal.remove();
+              try {
+                const html = document.documentElement;
+                const body = document.body;
+                const prevHtml = html.getAttribute('data-prev-overflow');
+                const prevBody = body.getAttribute('data-prev-overflow');
+                if (prevHtml !== null) html.style.overflow = prevHtml;
+                if (prevBody !== null) body.style.overflow = prevBody;
+                html.removeAttribute('data-prev-overflow');
+                body.removeAttribute('data-prev-overflow');
+              } catch (_) {}
+            };
+          }
 
-window.closeTableImageModal = function () {
-  try {
-    const modal = document.getElementById('tableImageModal');
-    const input = document.getElementById('tableImageFileInput');
-    const img = document.getElementById('tableImageModalImg');
-    const empty = document.getElementById('tableImageModalEmpty');
-    if (modal) modal.style.display = 'none';
-    if (input) input.value = '';
-    if (img) { img.removeAttribute('src'); img.style.display = 'none'; }
-    if (empty) empty.style.display = 'block';
-    window.__tableImageModalState.productId = null;
-    window.__tableImageModalState.title = '';
-  } catch (_) { }
-};
+          if (typeof window.selectGalleryImage !== 'function') {
+            window.selectGalleryImage = async function(imageUrl, productId) {
+              try {
+                if (!imageUrl || !productId) return;
+                const response = await fetch('/admin/api/products/' + encodeURIComponent(productId) + '/select-image', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ imageUrl: String(imageUrl).trim() })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (response.ok && result && result.success) {
+                  window.closeImageGallery();
+                  setTimeout(() => location.reload(), 300);
+                } else {
+                  alert('❌ Ошибка: ' + (result.error || ('HTTP ' + response.status)));
+                }
+              } catch (e) {
+                alert('❌ Ошибка: ' + (e instanceof Error ? e.message : String(e)));
+              }
+            };
+          }
 
-window.triggerTableImageReplace = function () {
-  try {
-    const input = document.getElementById('tableImageFileInput');
-    if (input) input.click();
-  } catch (_) { }
-};
+          if (typeof window.loadGalleryImages !== 'function') {
+            window.loadGalleryImages = async function(productId) {
+              const galleryContent = document.getElementById('galleryContent');
+              if (!galleryContent) return;
+              const previewImg = document.getElementById('galleryPreviewImg');
+              const openBtn = document.getElementById('galleryOpenBtn');
+              const chooseBtn = document.getElementById('galleryChooseBtn');
+              const modal = document.getElementById('imageGalleryModal');
+              try {
+                const response = await fetch('/admin/api/products/images', { credentials: 'include' });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok || !result.success || !Array.isArray(result.images) || result.images.length === 0) {
+                  galleryContent.innerHTML = '<div style="grid-column: span 999; text-align:center; padding:30px; color:#6b7280;">Нет загруженных изображений</div>';
+                  return;
+                }
+                let html = '';
+                result.images.forEach((imageData) => {
+                  const imageUrl = imageData.url || '';
+                  const escapedUrl = encodeURIComponent(String(imageUrl));
+                  html +=
+                    '<button type="button" class="gallery-item" data-image-url="' + escapedUrl + '" data-product-id="' + String(productId) + '" ' +
+                      'style="border:2px solid #e2e8f0; border-radius:14px; overflow:hidden; cursor:pointer; background:#fff; padding:0; width:160px; height:160px; display:flex; align-items:center; justify-content:center;">' +
+                        '<img src="' + String(imageUrl).replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '" style="width:100%; height:100%; object-fit:contain; display:block; background:#ffffff;" alt="img" data-onerror-hide="true" />' +
+                    '</button>';
+                });
+                galleryContent.innerHTML = html;
+                galleryContent.onclick = function(e) {
+                  const target = e.target;
+                  const el = (target && target.nodeType === 1) ? target : (target && target.parentElement ? target.parentElement : null);
+                  if (!el) return;
+                  const item = el.closest('.gallery-item');
+                  if (!item) return;
+                  const encoded = item.getAttribute('data-image-url') || '';
+                  const imageUrl = encoded ? decodeURIComponent(encoded) : '';
+                  const pid = item.getAttribute('data-product-id') || '';
+                  if (modal) modal.setAttribute('data-selected-url', imageUrl);
+                  if (previewImg) previewImg.src = imageUrl;
+                  if (openBtn) openBtn.disabled = !imageUrl;
+                  if (chooseBtn) chooseBtn.disabled = !imageUrl;
+                  // highlight selection
+                  const all = galleryContent.querySelectorAll('.gallery-item');
+                  all.forEach((b) => { b.style.borderColor = '#e2e8f0'; b.style.boxShadow = 'none'; });
+                  item.style.borderColor = '#6366f1';
+                  item.style.boxShadow = '0 8px 18px rgba(99,102,241,0.20)';
+                };
 
-window.handleTableImageFileSelected = async function (inputEl) {
-  try {
-    const pid = window.__tableImageModalState && window.__tableImageModalState.productId;
-    if (!pid) return;
-    if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
+                // preselect first image for better UX
+                const first = galleryContent.querySelector('.gallery-item');
+                if (first && first.getAttribute) {
+                  const firstEncoded = first.getAttribute('data-image-url') || '';
+                  const firstUrl = firstEncoded ? decodeURIComponent(firstEncoded) : '';
+                  if (modal) modal.setAttribute('data-selected-url', firstUrl);
+                  if (previewImg) previewImg.src = firstUrl;
+                  if (openBtn) openBtn.disabled = !firstUrl;
+                  if (chooseBtn) chooseBtn.disabled = !firstUrl;
+                  first.style.borderColor = '#6366f1';
+                  first.style.boxShadow = '0 8px 18px rgba(99,102,241,0.20)';
+                }
+              } catch (e) {
+                galleryContent.innerHTML = '<div style="grid-column: span 999; text-align:center; padding:30px; color:#dc2626;">Ошибка загрузки галереи</div>';
+              }
+            };
+          }
 
-    const btn = document.getElementById('tableImageReplaceBtn');
-    const oldText = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = 'Загрузка...'; }
+          if (typeof window.openImageGallery !== 'function') {
+            window.openImageGallery = function(productId) {
+              try {
+                if (!productId) return;
+                // Lock background scroll (desktop-safe)
+                try {
+                  const html = document.documentElement;
+                  const body = document.body;
+                  if (!html.hasAttribute('data-prev-overflow')) html.setAttribute('data-prev-overflow', html.style.overflow || '');
+                  if (!body.hasAttribute('data-prev-overflow')) body.setAttribute('data-prev-overflow', body.style.overflow || '');
+                  html.style.overflow = 'hidden';
+                  body.style.overflow = 'hidden';
+                } catch (_) {}
+                const existingModal = document.getElementById('imageGalleryModal');
+                if (existingModal) existingModal.remove();
+                const modal = document.createElement('div');
+                modal.id = 'imageGalleryModal';
+                modal.className = 'modal-overlay';
+                modal.style.cssText = 'display:flex; z-index:12000;';
+                modal.innerHTML =
+                  '<div class="modal-content" style="max-width:1100px; width:min(1100px, 96vw); height:92vh;">' +
+                    '<div class="modal-header">' +
+                      '<h2 style="margin:0; font-size:18px;">Выбрать изображение</h2>' +
+                      '<button type="button" id="closeGalleryBtn" class="close-btn">&times;</button>' +
+                    '</div>' +
+                    '<div class="modal-body" style="padding:12px; overflow:hidden; flex:1; min-height:0; display:grid; grid-template-columns: minmax(300px, 420px) 1fr; gap:12px;">' +
+                      '<div style="border:1px solid var(--admin-border); border-radius:14px; overflow:hidden; background:#f8fafc; display:flex; flex-direction:column; min-height:0;">' +
+                        '<div style="padding:10px 12px; border-bottom:1px solid var(--admin-border); display:flex; gap:10px; align-items:center; justify-content:space-between;">' +
+                          '<div style="font-weight:900; font-size:13px; color:var(--admin-text);">Предпросмотр</div>' +
+                          '<button type="button" id="galleryOpenBtn" class="btn" disabled style="height:34px; padding:0 12px; border-radius:12px; font-weight:900;">Увеличить</button>' +
+                        '</div>' +
+                        '<div style="flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:10px;">' +
+                          '<img id="galleryPreviewImg" src="" alt="preview" style="max-width:100%; max-height:100%; object-fit:contain; background:#fff; border-radius:12px; border:1px solid var(--admin-border);" />' +
+                        '</div>' +
+                      '</div>' +
+                      '<div id="galleryContent" style="min-height:0; height:100%; overflow:auto; overscroll-behavior: contain; display:grid; grid-template-columns: repeat(auto-fill, 160px); grid-auto-rows:160px; gap:12px; padding:2px; align-content:start; justify-content:start;">' +
+                        '<div style="grid-column: span 999; text-align:center; padding:30px; color:var(--admin-muted);">Загрузка...</div>' +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="modal-footer" style="display:flex; gap:10px; justify-content:flex-end;">' +
+                      '<button type="button" id="galleryCancelBtn" class="btn">Отмена</button>' +
+                      '<button type="button" id="galleryChooseBtn" class="btn btn-success" disabled>Выбрать</button>' +
+                    '</div>' +
+                  '</div>';
+                const shell = document.querySelector('.admin-shell');
+                (shell || document.body).appendChild(modal);
+                modal.onclick = function(e) { if (e.target === modal) window.closeImageGallery(); };
+                // NOTE: do not block wheel/touch events here.
+                // Background scroll is locked via html/body overflow:hidden, and galleryContent has overflow:auto.
+                const closeBtn = document.getElementById('closeGalleryBtn');
+                if (closeBtn) closeBtn.onclick = function() { window.closeImageGallery(); };
+                const cancelBtn = document.getElementById('galleryCancelBtn');
+                if (cancelBtn) cancelBtn.onclick = function() { window.closeImageGallery(); };
+                const openBtn = document.getElementById('galleryOpenBtn');
+                if (openBtn) openBtn.onclick = function() {
+                  const u = modal.getAttribute('data-selected-url') || '';
+                  if (!u) return;
+                  // Large preview as UI-kit modal (no new tab)
+                  const existing = document.getElementById('galleryFullscreen');
+                  if (existing) existing.remove();
+                  const fs = document.createElement('div');
+                  fs.id = 'galleryFullscreen';
+                  fs.className = 'modal-overlay';
+                  fs.style.cssText = 'display:flex; z-index:12001;';
+                  fs.innerHTML =
+                    '<div class="modal-content" style="max-width: 1100px; width:min(1100px, 96vw); max-height: 90vh;">' +
+                      '<div class="modal-header">' +
+                        '<h2 style="margin:0; font-size:16px;">Предпросмотр</h2>' +
+                        '<button type="button" class="close-btn" id="galleryFsClose">&times;</button>' +
+                      '</div>' +
+                      '<div class="modal-body" style="padding:14px; overflow:hidden; display:flex; align-items:center; justify-content:center; min-height: 60vh;">' +
+                        '<img src="' + String(u).replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '" style="max-width:100%; max-height:78vh; object-fit:contain; background:#fff; border-radius:12px; border:1px solid var(--admin-border);" />' +
+                      '</div>' +
+                    '</div>';
+                  const shell2 = document.querySelector('.admin-shell');
+                  (shell2 || document.body).appendChild(fs);
+                  fs.onclick = function(e2){ if (e2 && e2.target === fs) fs.remove(); };
+                  const c = document.getElementById('galleryFsClose');
+                  if (c) c.onclick = function(){ fs.remove(); };
+                };
+                const chooseBtn = document.getElementById('galleryChooseBtn');
+                if (chooseBtn) chooseBtn.onclick = function() {
+                  const u = modal.getAttribute('data-selected-url') || '';
+                  if (u && typeof window.selectGalleryImage === 'function') window.selectGalleryImage(u, productId);
+                };
+                if (typeof window.loadGalleryImages === 'function') window.loadGalleryImages(productId);
+              } catch (e) {
+                alert('❌ Ошибка галереи: ' + (e instanceof Error ? e.message : String(e)));
+              }
+            };
+          }
 
-    const formData = new FormData();
-    formData.append('image', inputEl.files[0]);
+          // КРИТИЧНО: модалка подтверждения удаления должна работать даже если нижний <script> сломается
+          window.__pendingDeleteForm = null;
+          window.openConfirmDeleteModal = function(deleteForm) {
+            try {
+              const modal = document.getElementById('confirmDeleteModal');
+              const text = document.getElementById('confirmDeleteText');
+              const btn = document.getElementById('confirmDeleteBtn');
+              if (!modal || !text || !btn) {
+                // fallback
+                if (deleteForm && typeof deleteForm.submit === 'function') deleteForm.submit();
+                return;
+              }
 
-    const resp = await fetch('/admin/products/' + encodeURIComponent(pid) + '/upload-image', {
-      method: 'POST',
-      body: formData,
-      credentials: 'include'
-    });
+              const title = (deleteForm && deleteForm.getAttribute && deleteForm.getAttribute('data-product-title')) || '';
+              text.textContent = title
+                ? ('Вы точно хотите удалить товар: ' + title + '? Это действие нельзя отменить.')
+                : 'Вы точно хотите удалить этот товар? Это действие нельзя отменить.';
 
-    if (resp && resp.ok) {
-      window.closeTableImageModal();
-      if (typeof window.reloadAdminProductsPreservingState === 'function') {
-        window.reloadAdminProductsPreservingState({ success: 'image_updated', view: 'table' });
-      } else {
-        location.reload();
-      }
-    } else {
-      alert('❌ Ошибка загрузки фото (HTTP ' + (resp ? resp.status : '0') + ')');
-    }
+              window.__pendingDeleteForm = deleteForm || null;
+              modal.style.display = 'flex';
+              modal.onclick = function(e) {
+                if (e.target === modal) window.closeConfirmDeleteModal();
+              };
+              btn.onclick = function() {
+                const form = window.__pendingDeleteForm;
+                window.closeConfirmDeleteModal();
+                if (form && typeof form.submit === 'function') form.submit();
+              };
+            } catch (e) {
+              console.error('openConfirmDeleteModal error:', e);
+              if (deleteForm && typeof deleteForm.submit === 'function') deleteForm.submit();
+            }
+          };
 
-    if (btn) { btn.disabled = false; btn.textContent = oldText || 'Заменить фото'; }
-  } catch (e) {
-    console.error('handleTableImageFileSelected error:', e);
-    alert('❌ Ошибка: ' + (e && e.message ? e.message : String(e)));
-    try {
-      const btn = document.getElementById('tableImageReplaceBtn');
-      if (btn) { btn.disabled = false; btn.textContent = 'Заменить фото'; }
-    } catch (_) { }
-  }
-};
-
-// КРИТИЧНО: галерея "Выбрать из загруженных" должна работать даже если нижний <script> сломается
-if (typeof window.closeImageGallery !== 'function') {
-  window.closeImageGallery = function () {
-    const modal = document.getElementById('imageGalleryModal');
-    if (modal) modal.remove();
-    try {
-      const html = document.documentElement;
-      const body = document.body;
-      const prevHtml = html.getAttribute('data-prev-overflow');
-      const prevBody = body.getAttribute('data-prev-overflow');
-      if (prevHtml !== null) html.style.overflow = prevHtml;
-      if (prevBody !== null) body.style.overflow = prevBody;
-      html.removeAttribute('data-prev-overflow');
-      body.removeAttribute('data-prev-overflow');
-    } catch (_) { }
-  };
-}
-
-if (typeof window.selectGalleryImage !== 'function') {
-  window.selectGalleryImage = async function (imageUrl, productId) {
-    try {
-      if (!imageUrl || !productId) return;
-      const response = await fetch('/admin/api/products/' + encodeURIComponent(productId) + '/select-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ imageUrl: String(imageUrl).trim() })
-      });
-      const result = await response.json().catch(() => ({}));
-      if (response.ok && result && result.success) {
-        window.closeImageGallery();
-        setTimeout(() => location.reload(), 300);
-      } else {
-        alert('❌ Ошибка: ' + (result.error || ('HTTP ' + response.status)));
-      }
-    } catch (e) {
-      alert('❌ Ошибка: ' + (e instanceof Error ? e.message : String(e)));
-    }
-  };
-}
-
-if (typeof window.loadGalleryImages !== 'function') {
-  window.loadGalleryImages = async function (productId) {
-    const galleryContent = document.getElementById('galleryContent');
-    if (!galleryContent) return;
-    const previewImg = document.getElementById('galleryPreviewImg');
-    const openBtn = document.getElementById('galleryOpenBtn');
-    const chooseBtn = document.getElementById('galleryChooseBtn');
-    const modal = document.getElementById('imageGalleryModal');
-    try {
-      const response = await fetch('/admin/api/products/images', { credentials: 'include' });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.success || !Array.isArray(result.images) || result.images.length === 0) {
-        galleryContent.innerHTML = '<div style="grid-column: span 999; text-align:center; padding:30px; color:#6b7280;">Нет загруженных изображений</div>';
-        return;
-      }
-      let html = '';
-      result.images.forEach((imageData) => {
-        const imageUrl = imageData.url || '';
-        const escapedUrl = encodeURIComponent(String(imageUrl));
-        html +=
-          '<button type="button" class="gallery-item" data-image-url="' + escapedUrl + '" data-product-id="' + String(productId) + '" ' +
-          'style="border:2px solid #e2e8f0; border-radius:14px; overflow:hidden; cursor:pointer; background:#fff; padding:0; width:160px; height:160px; display:flex; align-items:center; justify-content:center;">' +
-          '<img src="' + String(imageUrl).replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '" style="width:100%; height:100%; object-fit:contain; display:block; background:#ffffff;" alt="img" data-onerror-hide="true" />' +
-          '</button>';
-      });
-      galleryContent.innerHTML = html;
-      galleryContent.onclick = function (e) {
-        const target = e.target;
-        const el = (target && target.nodeType === 1) ? target : (target && target.parentElement ? target.parentElement : null);
-        if (!el) return;
-        const item = el.closest('.gallery-item');
-        if (!item) return;
-        const encoded = item.getAttribute('data-image-url') || '';
-        const imageUrl = encoded ? decodeURIComponent(encoded) : '';
-        const pid = item.getAttribute('data-product-id') || '';
-        if (modal) modal.setAttribute('data-selected-url', imageUrl);
-        if (previewImg) previewImg.src = imageUrl;
-        if (openBtn) openBtn.disabled = !imageUrl;
-        if (chooseBtn) chooseBtn.disabled = !imageUrl;
-        // highlight selection
-        const all = galleryContent.querySelectorAll('.gallery-item');
-        all.forEach((b) => { b.style.borderColor = '#e2e8f0'; b.style.boxShadow = 'none'; });
-        item.style.borderColor = '#6366f1';
-        item.style.boxShadow = '0 8px 18px rgba(99,102,241,0.20)';
-      };
-
-      // preselect first image for better UX
-      const first = galleryContent.querySelector('.gallery-item');
-      if (first && first.getAttribute) {
-        const firstEncoded = first.getAttribute('data-image-url') || '';
-        const firstUrl = firstEncoded ? decodeURIComponent(firstEncoded) : '';
-        if (modal) modal.setAttribute('data-selected-url', firstUrl);
-        if (previewImg) previewImg.src = firstUrl;
-        if (openBtn) openBtn.disabled = !firstUrl;
-        if (chooseBtn) chooseBtn.disabled = !firstUrl;
-        first.style.borderColor = '#6366f1';
-        first.style.boxShadow = '0 8px 18px rgba(99,102,241,0.20)';
-      }
-    } catch (e) {
-      galleryContent.innerHTML = '<div style="grid-column: span 999; text-align:center; padding:30px; color:#dc2626;">Ошибка загрузки галереи</div>';
-    }
-  };
-}
-
-if (typeof window.openImageGallery !== 'function') {
-  window.openImageGallery = function (productId) {
-    try {
-      if (!productId) return;
-      // Lock background scroll (desktop-safe)
-      try {
-        const html = document.documentElement;
-        const body = document.body;
-        if (!html.hasAttribute('data-prev-overflow')) html.setAttribute('data-prev-overflow', html.style.overflow || '');
-        if (!body.hasAttribute('data-prev-overflow')) body.setAttribute('data-prev-overflow', body.style.overflow || '');
-        html.style.overflow = 'hidden';
-        body.style.overflow = 'hidden';
-      } catch (_) { }
-      const existingModal = document.getElementById('imageGalleryModal');
-      if (existingModal) existingModal.remove();
-      const modal = document.createElement('div');
-      modal.id = 'imageGalleryModal';
-      modal.className = 'modal-overlay';
-      modal.style.cssText = 'display:flex; z-index:12000;';
-      modal.innerHTML =
-        '<div class="modal-content" style="max-width:1100px; width:min(1100px, 96vw); height:92vh;">' +
-        '<div class="modal-header">' +
-        '<h2 style="margin:0; font-size:18px;">Выбрать изображение</h2>' +
-        '<button type="button" id="closeGalleryBtn" class="close-btn">&times;</button>' +
-        '</div>' +
-        '<div class="modal-body" style="padding:12px; overflow:hidden; flex:1; min-height:0; display:grid; grid-template-columns: minmax(300px, 420px) 1fr; gap:12px;">' +
-        '<div style="border:1px solid var(--admin-border); border-radius:14px; overflow:hidden; background:#f8fafc; display:flex; flex-direction:column; min-height:0;">' +
-        '<div style="padding:10px 12px; border-bottom:1px solid var(--admin-border); display:flex; gap:10px; align-items:center; justify-content:space-between;">' +
-        '<div style="font-weight:900; font-size:13px; color:var(--admin-text);">Предпросмотр</div>' +
-        '<button type="button" id="galleryOpenBtn" class="btn" disabled style="height:34px; padding:0 12px; border-radius:12px; font-weight:900;">Увеличить</button>' +
-        '</div>' +
-        '<div style="flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:10px;">' +
-        '<img id="galleryPreviewImg" src="" alt="preview" style="max-width:100%; max-height:100%; object-fit:contain; background:#fff; border-radius:12px; border:1px solid var(--admin-border);" />' +
-        '</div>' +
-        '</div>' +
-        '<div id="galleryContent" style="min-height:0; height:100%; overflow:auto; overscroll-behavior: contain; display:grid; grid-template-columns: repeat(auto-fill, 160px); grid-auto-rows:160px; gap:12px; padding:2px; align-content:start; justify-content:start;">' +
-        '<div style="grid-column: span 999; text-align:center; padding:30px; color:var(--admin-muted);">Загрузка...</div>' +
-        '</div>' +
-        '</div>' +
-        '<div class="modal-footer" style="display:flex; gap:10px; justify-content:flex-end;">' +
-        '<button type="button" id="galleryCancelBtn" class="btn">Отмена</button>' +
-        '<button type="button" id="galleryChooseBtn" class="btn btn-success" disabled>Выбрать</button>' +
-        '</div>' +
-        '</div>';
-      const shell = document.querySelector('.admin-shell');
-      (shell || document.body).appendChild(modal);
-      modal.onclick = function (e) { if (e.target === modal) window.closeImageGallery(); };
-      // NOTE: do not block wheel/touch events here.
-      // Background scroll is locked via html/body overflow:hidden, and galleryContent has overflow:auto.
-      const closeBtn = document.getElementById('closeGalleryBtn');
-      if (closeBtn) closeBtn.onclick = function () { window.closeImageGallery(); };
-      const cancelBtn = document.getElementById('galleryCancelBtn');
-      if (cancelBtn) cancelBtn.onclick = function () { window.closeImageGallery(); };
-      const openBtn = document.getElementById('galleryOpenBtn');
-      if (openBtn) openBtn.onclick = function () {
-        const u = modal.getAttribute('data-selected-url') || '';
-        if (!u) return;
-        // Large preview as UI-kit modal (no new tab)
-        const existing = document.getElementById('galleryFullscreen');
-        if (existing) existing.remove();
-        const fs = document.createElement('div');
-        fs.id = 'galleryFullscreen';
-        fs.className = 'modal-overlay';
-        fs.style.cssText = 'display:flex; z-index:12001;';
-        fs.innerHTML =
-          '<div class="modal-content" style="max-width: 1100px; width:min(1100px, 96vw); max-height: 90vh;">' +
-          '<div class="modal-header">' +
-          '<h2 style="margin:0; font-size:16px;">Предпросмотр</h2>' +
-          '<button type="button" class="close-btn" id="galleryFsClose">&times;</button>' +
-          '</div>' +
-          '<div class="modal-body" style="padding:14px; overflow:hidden; display:flex; align-items:center; justify-content:center; min-height: 60vh;">' +
-          '<img src="' + String(u).replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '" style="max-width:100%; max-height:78vh; object-fit:contain; background:#fff; border-radius:12px; border:1px solid var(--admin-border);" />' +
-          '</div>' +
-          '</div>';
-        const shell2 = document.querySelector('.admin-shell');
-        (shell2 || document.body).appendChild(fs);
-        fs.onclick = function (e2) { if (e2 && e2.target === fs) fs.remove(); };
-        const c = document.getElementById('galleryFsClose');
-        if (c) c.onclick = function () { fs.remove(); };
-      };
-      const chooseBtn = document.getElementById('galleryChooseBtn');
-      if (chooseBtn) chooseBtn.onclick = function () {
-        const u = modal.getAttribute('data-selected-url') || '';
-        if (u && typeof window.selectGalleryImage === 'function') window.selectGalleryImage(u, productId);
-      };
-      if (typeof window.loadGalleryImages === 'function') window.loadGalleryImages(productId);
-    } catch (e) {
-      alert('❌ Ошибка галереи: ' + (e instanceof Error ? e.message : String(e)));
-    }
-  };
-}
-
-// КРИТИЧНО: модалка подтверждения удаления должна работать даже если нижний <script> сломается
-window.__pendingDeleteForm = null;
-window.openConfirmDeleteModal = function (deleteForm) {
-  try {
-    const modal = document.getElementById('confirmDeleteModal');
-    const text = document.getElementById('confirmDeleteText');
-    const btn = document.getElementById('confirmDeleteBtn');
-    if (!modal || !text || !btn) {
-      // fallback
-      if (deleteForm && typeof deleteForm.submit === 'function') deleteForm.submit();
-      return;
-    }
-
-    const title = (deleteForm && deleteForm.getAttribute && deleteForm.getAttribute('data-product-title')) || '';
-    text.textContent = title
-      ? ('Вы точно хотите удалить товар: ' + title + '? Это действие нельзя отменить.')
-      : 'Вы точно хотите удалить этот товар? Это действие нельзя отменить.';
-
-    window.__pendingDeleteForm = deleteForm || null;
-    modal.style.display = 'flex';
-    modal.onclick = function (e) {
-      if (e.target === modal) window.closeConfirmDeleteModal();
-    };
-    btn.onclick = function () {
-      const form = window.__pendingDeleteForm;
-      window.closeConfirmDeleteModal();
-      if (form && typeof form.submit === 'function') form.submit();
-    };
-  } catch (e) {
-    console.error('openConfirmDeleteModal error:', e);
-    if (deleteForm && typeof deleteForm.submit === 'function') deleteForm.submit();
-  }
-};
-
-window.closeConfirmDeleteModal = function () {
-  const modal = document.getElementById('confirmDeleteModal');
-  if (modal) modal.style.display = 'none';
-  window.__pendingDeleteForm = null;
-};
-</script>
-  </head>
-  <body>
+          window.closeConfirmDeleteModal = function() {
+            const modal = document.getElementById('confirmDeleteModal');
+            if (modal) modal.style.display = 'none';
+            window.__pendingDeleteForm = null;
+          };
+        </script>
+      </head>
+      <body>
         ${renderAdminShellStart({ title: 'Товары', activePath: '/admin/products', buildMarker })}
-<div class="admin-page-row" >
-  <button type="button" class="btn" onclick = "try{ if(typeof window.openAddProductModal==='function'){ window.openAddProductModal(); } else { window.location.href='/admin/products?openAdd=1'; } }catch(e){}" > Добавить товар </button>
-    < button type = "button" class="btn" onclick = "scrapeAllImages()" > Собрать фото </button>
-      < button type = "button" class="btn" onclick = "moveAllToCosmetics()" > Переместить в «Косметика»</button>
+        <div class="admin-page-row">
+          <button type="button" class="btn" onclick="try{ if(typeof window.openAddProductModal==='function'){ window.openAddProductModal(); } else { window.location.href='/admin/products?openAdd=1'; } }catch(e){}">Добавить товар</button>
+          <button type="button" class="btn" onclick="scrapeAllImages()">Собрать фото</button>
+          <button type="button" class="btn" onclick="moveAllToCosmetics()">Переместить в «Косметика»</button>
         </div>
         
         ${req.query.success === 'image_updated' ? '<div class="alert alert-success">✅ Фото успешно обновлено!</div>' : ''}
@@ -7610,94 +7611,70 @@ window.closeConfirmDeleteModal = function () {
         ${req.query.error === 'cloudinary_not_configured' ? '<div class="alert alert-error">❌ Загрузка фото недоступна: Cloudinary не настроен (нужны CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET на Railway).</div>' : ''}
         ${req.query.error === 'product_not_found' ? '<div class="alert alert-error">❌ Товар не найден</div>' : ''}
         ${req.query.success === 'images_scraped' ? '<div class="alert alert-success">✅ Фото успешно собраны! Проверьте результаты ниже.</div>' : ''}
+        
+        <div id="scraping-status" style="display: none; margin: 20px 0; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+          <h3 style="margin: 0 0 10px 0; color: #1976d2;">📸 Сбор фотографий...</h3>
+          <div id="scraping-progress" style="color: #666; font-size: 14px;">Инициализация...</div>
+        </div>
 
-<div id="scraping-status" style = "display: none; margin: 20px 0; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;" >
-  <h3 style="margin: 0 0 10px 0; color: #1976d2;" >📸 Сбор фотографий...</h3>
-    < div id = "scraping-progress" style = "color: #666; font-size: 14px;" > Инициализация...</div>
-      </div>
-
-      < div class="filters" style = "gap: 10px;" >
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; width:100%; margin-bottom:10px;" >
-          <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:260px;" >
-            <input id="adminProductsSearch" type = "search" placeholder = "Поиск по названию или SKU..." autocomplete = "off"
-style = "flex:1; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font-size:14px;"
-oninput = "if(typeof window.setAdminProductsSearch==='function'){window.setAdminProductsSearch(this.value);}" >
-  <button type="button" class="filter-btn" style = "min-width:120px;"
-id = "viewCardsBtn"
-onclick = "if(typeof window.setAdminProductsView==='function'){window.setAdminProductsView('cards');}return false;" > Карточки </button>
-  < button type = "button" class="filter-btn" style = "min-width:120px;"
-id = "viewTableBtn"
-onclick = "if(typeof window.setAdminProductsView==='function'){window.setAdminProductsView('table');}return false;" > Таблица </button>
-  </div>
-  < div id = "productsSortWrap" style = "display:none; gap:8px; align-items:center;" >
-    <span style="color:#6b7280; font-size:13px;" > Сортировка: </span>
-      < select id = "adminProductsSort" style = "padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font-size:14px;"
-onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminProductsSort(this.value);}" >
-  <option value="title_asc" > Название(А - Я) </option>
-    < option value = "title_desc" > Название(Я - А) </option>
-      < option value = "category_asc" > Категория(А - Я) </option>
-        < option value = "category_desc" > Категория(Я - А) </option>
-          </select>
+        <div class="filters" style="gap: 10px;">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; width:100%; margin-bottom:10px;">
+            <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:260px;">
+              <input id="adminProductsSearch" type="search" placeholder="Поиск по названию или SKU..." autocomplete="off"
+                style="flex:1; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font-size:14px;"
+                oninput="if(typeof window.setAdminProductsSearch==='function'){window.setAdminProductsSearch(this.value);}">
+              <button type="button" class="filter-btn" style="min-width:120px;"
+                id="viewCardsBtn"
+                onclick="if(typeof window.setAdminProductsView==='function'){window.setAdminProductsView('cards');}return false;">Карточки</button>
+              <button type="button" class="filter-btn" style="min-width:120px;"
+                id="viewTableBtn"
+                onclick="if(typeof window.setAdminProductsView==='function'){window.setAdminProductsView('table');}return false;">Таблица</button>
+            </div>
+            <div id="productsSortWrap" style="display:none; gap:8px; align-items:center;">
+              <span style="color:#6b7280; font-size:13px;">Сортировка:</span>
+              <select id="adminProductsSort" style="padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font-size:14px;"
+                onchange="if(typeof window.setAdminProductsSort==='function'){window.setAdminProductsSort(this.value);}">
+                <option value="title_asc">Название (А-Я)</option>
+                <option value="title_desc">Название (Я-А)</option>
+                <option value="category_asc">Категория (А-Я)</option>
+                <option value="category_desc">Категория (Я-А)</option>
+              </select>
+            </div>
           </div>
-          </div>
-          < button type = "button" class="filter-btn active" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="all" > Все категории(${allProducts.length}) </button>
-            `;
+          <button type="button" class="filter-btn active" onclick="if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data-filter="all">Все категории (${allProducts.length})</button>
+    `;
 
     categories.forEach((category) => {
       html += `
-            < button type = "button" class="filter-btn" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="${category.id}" > ${category.name} (${category.products.length})</button>
-              `;
+          <button type="button" class="filter-btn" onclick="if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data-filter="${category.id}">${category.name} (${category.products.length})</button>
+      `;
     });
 
     html += `
-              < button type = "button" class="filter-btn add-category-btn" onclick = "openAddCategoryModal()" style = "background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none;" >
+          <button type="button" class="filter-btn add-category-btn" onclick="openAddCategoryModal()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none;">
             ➕ Категорию
-  </button>
-  < button type = "button" class="filter-btn add-subcategory-btn" onclick = "openAddSubcategoryModal()" style = "background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border: none;" >
+          </button>
+          <button type="button" class="filter-btn add-subcategory-btn" onclick="openAddSubcategoryModal()" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border: none;">
             ➕ Подкатегорию
-  </button>
-  </div>
+          </button>
+        </div>
 
-  < div id = "productsCardsContainer" >
-    <div class="product-grid" >
-      `;
+        <div id="productsCardsContainer">
+        <div class="product-grid">
+    `;
 
     if (allProducts.length === 0) {
       html += `
-      < div class="empty-state" >
-        <h3>Пока нет добавленных товаров </h3>
-          < p > Используйте форму на главной странице админки, чтобы добавить первый товар.</p>
-            </div>
-            </div>
-            </body>
-            </html>
-              `;
+          <div class="empty-state">
+            <h3>Пока нет добавленных товаров</h3>
+            <p>Используйте форму на главной странице админки, чтобы добавить первый товар.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+      `;
       return res.send(html);
     }
-
-    // Format description with line breaks and URL links (matches mini-app behavior)
-    const formatDescription = (text: string | null | undefined): string => {
-      if (!text) return '';
-      // 1. Escape HTML
-      let safeText = String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-      // 2. Linkify URLs
-      safeText = safeText.replace(
-        /((https?:\/\/)|(www\.))[^\s]+/gi,
-        (url) => {
-          let href = url;
-          if (!href.startsWith('http')) href = 'http://' + href;
-          return `< a href = "${href}" target = "_blank" style = "text-decoration:underline; color:#1976d2;" > ${url} </a>`;
-        }
-      );
-      // 3. Newlines to <br>
-      return safeText.replace(/\n/g, '<br>');
-    };
-
     // Helper function to escape HTML attributes safely
     // Улучшенная функция экранирования для HTML атрибутов
     const escapeAttr = (str: string | null | undefined): string => {
@@ -7807,7 +7784,7 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
               ${(product as any).availableInRussia ? '<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🇷🇺 Россия</span>' : ''}
               ${(product as any).availableInBali ? '<span style="background: #f3e5f5; color: #7b1fa2; padding: 2px 6px; border-radius: 4px; font-size: 11px;">🇮🇩 Бали</span>' : ''}
             </div>
-            <p class="product-summary">${formatDescription(product.summary)}</p>
+            <p class="product-summary">${escapeHtml(product.summary)}</p>
             <div class="product-price">${priceFormatted}</div>
             <div class="product-meta">
               <span>Создан: ${createdAt}</span>
