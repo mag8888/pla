@@ -2697,7 +2697,11 @@ async function showPartnerDashboard() {
                                 text-align: center;
                                 box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
                         <div style="font-weight: 600; margin-bottom: 8px;">⚠️ Партнёрская программа не активна</div>
-                        <div style="font-size: 14px; opacity: 0.95;">Совершите покупки на сумму от 12,000 ₽ для активации</div>
+                        <div style="font-size: 14px; opacity: 0.95; margin-bottom: 4px;">Совершите покупки на сумму от 12,000 ₽ для активации</div>
+                        <div style="font-size: 12px; opacity: 0.85; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px;">
+                            ℹ️ Партнерка действует 1 месяц.<br>
+                            После окончания срока есть 10 дней для продления.
+                        </div>
                     </div>
                 `;
             }

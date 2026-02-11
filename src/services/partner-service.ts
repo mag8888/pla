@@ -63,6 +63,13 @@ export async function checkPartnerActivation(userId: string): Promise<boolean> {
   // Проверяем, активен ли профиль и не истек ли срок
   if (!profile.isActive) return false;
 
+  // КРИТИЧНО: Если активация от админа, не проверяем и не деактивируем по истечению срока
+  // Админ имеет полный контроль через галочку в админ-панели
+  if (profile.activationType === 'ADMIN') {
+    return true;
+  }
+
+  // Для активаций через покупку проверяем срок действия
   if (profile.expiresAt && new Date() > profile.expiresAt) {
     // Автоматически деактивируем истекший профиль
     await prisma.partnerProfile.update({
