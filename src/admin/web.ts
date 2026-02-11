@@ -2848,6 +2848,67 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 // Detailed users management with sorting and filtering
+// Export users to CSV
+router.get('/users/export', requireAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      include: {
+        partner: true,
+        orders: true,
+        reviews: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // CSV Header
+    let csv = 'ID;Username;Имя;Телефон;Роль;Баланс;Бонус;Партнер (статус);Партнеров (всего);Партнеров (1 ур);Заказов;Сумма заказов;Дата регистрации\\n';
+
+    // CSV Rows
+    for (const u of users) {
+      const user = u as any;
+      const partner = user.partner;
+
+      // Calculate total paid orders
+      const paidOrders = user.orders.filter(o => o.status === 'COMPLETED');
+      const totalSpent = paidOrders.reduce((sum, o) => {
+        try {
+          const items = typeof o.itemsJson === 'string' ? JSON.parse(o.itemsJson) : (o.itemsJson || []);
+          // @ts-ignore
+          return sum + items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0);
+        } catch { return sum; }
+      }, 0);
+
+      const row = [
+        user.id,
+        user.username || '',
+        user.firstName || '',
+        user.phone || '',
+        user.role,
+        user.balance || 0,
+        partner?.bonus || 0,
+        partner ? (partner.isActive ? 'Активен' : 'Не активен') : 'Нет',
+        partner?.totalPartners || 0,
+        partner?.directPartners || 0,
+        user.orders.length,
+        totalSpent,
+        user.createdAt.toISOString()
+      ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(';');
+
+      csv += row + '\\n';
+    }
+
+    // Send file
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="users_export_' + new Date().toISOString().slice(0, 10) + '.csv"');
+    res.send('\ufeff' + csv); // Add BOM for Excel
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).send('Ошибка экспорта');
+  }
+});
+// Detailed users management with sorting and filtering
 router.get('/users-detailed', requireAdmin, async (req, res) => {
   try {
     const sortBy = req.query.sort as string || 'orders';
@@ -3448,11 +3509,16 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           
           <div class="controls">
             <div class="sort-controls">
-              <div class="sort-group" style="position: relative;">
-                <label>Найти по юзернейм:</label>
-                <input type="text" id="searchUsername" placeholder="@username" autocomplete="off" />
-                <button type="button" class="btn" onclick="searchByUsername()">Найти</button>
-                <div id="searchSuggestions" style="position:absolute; top:36px; left:0; background:#fff; border:1px solid #e5e7eb; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.1); width:260px; max-height:220px; overflow:auto; display:none; z-index:5"></div>
+              <div class="sort-group" style="position: relative; flex-grow: 1; min-width: 300px;">
+                <label>Поиск (юзернейм или телефон):</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="searchUsername" placeholder="@username или 79..." autocomplete="off" style="flex-grow: 1;" />
+                  <button type="button" class="btn" onclick="searchByUsername()">Найти</button>
+                  <a href="/admin/users/export" class="btn" style="background-color: #198754; color: white; display: flex; align-items: center; gap: 6px; text-decoration: none; padding: 0 12px;" title="Скачать список в Excel">
+                    <span>📥</span> Excel
+                  </a>
+                </div>
+                <div id="searchSuggestions" style="position:absolute; top:68px; left:0; background:#fff; border:1px solid #e5e7eb; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.1); width:100%; max-height:220px; overflow:auto; display:none; z-index:5"></div>
               </div>
               <div class="sort-group">
                 <label>Сортировать по:</label>
@@ -11125,44 +11191,81 @@ router.get('/orders', requireAdmin, async (req, res) => {
     `;
 
     orders.forEach(order => {
+      const items = typeof order.itemsJson === 'string'
+        ? JSON.parse(order.itemsJson || '[]')
+        : (order.itemsJson || []);
+
+      // Handler for older format where items was array directly, or new format { items: [], total: 0 }
+      const orderItems = Array.isArray(items) ? items : (items.items || []);
+      const orderTotal = Array.isArray(items)
+        ? items.reduce((sum: number, i: any) => sum + (i.price || 0) * (i.quantity || 1), 0)
+        : (items.total || 0);
+
+      const itemsHtml = orderItems.map((i: any) =>
+        `<div>• ${escapeHtml(i.productTitle || i.productName || 'Товар')} x${i.quantity}</div>`
+      ).join('');
+
+      const user = order.user;
+      const userHtml = user
+        ? `<div>
+             <a href="#" onclick="showUserDetails('${user.id}'); return false;" style="font-weight:600; text-decoration:none;">${escapeHtml(user.firstName || 'User')}</a>
+             <div style="font-size:11px; color:#666;">@${escapeHtml(user.username || '')}</div>
+             <div style="font-size:11px; color:#666;">${escapeHtml(user.phone || '')}</div>
+           </div>`
+        : `<div>${escapeHtml(order.contact || 'Не указан')}</div>`;
+
+      const statusColors: Record<string, string> = {
+        'NEW': '#007bff',
+        'PROCESSING': '#fd7e14',
+        'COMPLETED': '#28a745',
+        'CANCELLED': '#dc3545'
+      };
+
+      const statusLabels: Record<string, string> = {
+        'NEW': 'Новый',
+        'PROCESSING': 'В работе',
+        'COMPLETED': 'Выполнен',
+        'CANCELLED': 'Отменен'
+      };
+
       html += `
-        <tr>
-          <td>${order.id.substring(0, 8)}...</td>
-          <td>${order.user?.firstName || 'Не указан'}</td>
-          <td>
-            <div style="display: flex; align-items: center; gap: 5px;">
-              <span style="font-weight: bold; color: ${(order.user as any)?.balance > 0 ? '#28a745' : '#dc3545'};">${((order.user as any)?.balance || 0).toFixed(2)} PZ</span>
-              <form method="post" action="/admin/users/${order.user?.id}/add-balance" style="display: inline;">
-                <input type="number" name="amount" placeholder="Сумма" style="width: 60px; padding: 2px; font-size: 10px;" step="0.01" min="0.01" required>
-                <button type="submit" style="background: #28a745; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 10px;">+</button>
-              </form>
-            </div>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px; font-size: 13px;">
+            <div style="font-family:monospace; font-weight:bold;">#${order.id.slice(-6)}</div>
+            <div style="font-size:11px; color:#999;">${new Date(order.createdAt).toLocaleDateString()}</div>
+            <div style="font-size:11px; color:#999;">${new Date(order.createdAt).toLocaleTimeString().slice(0, 5)}</div>
           </td>
-          <td>
-            <span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span>
+          <td style="padding: 12px;">${userHtml}</td>
+          <td style="padding: 12px;">
+            <div style="font-size:13px; margin-bottom:4px;">${itemsHtml || '<span style="color:#999">Нет товаров</span>'}</div>
+            ${orderTotal > 0 ? `<div style="font-weight:bold; margin-top:4px;">Итого: ${orderTotal.toLocaleString('ru-RU')} ₽</div>` : ''}
+            ${order.message ? `<div style="font-size:11px; color:#666; margin-top:4px; font-style:italic; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(order.message)}">📝 ${escapeHtml(order.message)}</div>` : ''}
           </td>
-          <td>${order.contact || 'Не указан'}</td>
-          <td>${order.message.substring(0, 50)}${order.message.length > 50 ? '...' : ''}</td>
-          <td>${new Date(order.createdAt).toLocaleDateString()}</td>
-          <td>
-            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-              <form method="post" action="/admin/orders/${order.id}/update-status" style="display: inline;">
-                <select name="status" style="padding: 4px; font-size: 11px;">
+          <td style="padding: 12px;">
+             <span style="display:inline-block; padding:4px 8px; border-radius:4px; color:white; font-size:11px; font-weight:bold; background:${statusColors[order.status] || '#6c757d'}">
+               ${statusLabels[order.status] || order.status}
+             </span>
+          </td>
+          <td style="padding: 12px;">
+            <div style="display: flex; gap: 5px; flex-direction: column;">
+              <form method="post" action="/admin/orders/${order.id}/update-status" style="display: flex; gap: 4px;">
+                <select name="status" style="padding: 2px; font-size: 11px; border:1px solid #ddd; border-radius:4px;">
                   <option value="NEW" ${order.status === 'NEW' ? 'selected' : ''}>Новый</option>
-                  <option value="PROCESSING" ${order.status === 'PROCESSING' ? 'selected' : ''}>В обработке</option>
+                  <option value="PROCESSING" ${order.status === 'PROCESSING' ? 'selected' : ''}>В работе</option>
                   <option value="COMPLETED" ${order.status === 'COMPLETED' ? 'selected' : ''}>Выполнен</option>
                   <option value="CANCELLED" ${order.status === 'CANCELLED' ? 'selected' : ''}>Отменен</option>
                 </select>
-                <button type="submit" style="background: #007bff; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; margin-left: 2px;">Обновить</button>
+                <button type="submit" style="background: #e9ecef; color: #333; border: 1px solid #ced4da; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px;" title="Обновить статус">💾</button>
               </form>
-              <form method="post" action="/admin/orders/${order.id}/pay" style="display: inline;">
+              
+              ${(order.user as any)?.balance > 0 && order.status !== 'COMPLETED' ? `
+              <form method="post" action="/admin/orders/${order.id}/pay">
                 <button type="submit" 
-                        style="background: ${(order.user as any)?.balance > 0 ? '#28a745' : '#6c757d'}; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; ${(order.user as any)?.balance <= 0 ? 'opacity: 0.5;' : ''}" 
-                        ${(order.user as any)?.balance <= 0 ? 'disabled' : ''}
+                        style="width:100%; background: #28a745; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;" 
                         onclick="return confirm('Списать ${((order.user as any)?.balance || 0).toFixed(2)} PZ с баланса пользователя?')">
-                  💳 Заказ оплачен
+                  💳 Оплатить (${((order.user as any)?.balance || 0).toFixed(2)} PZ)
                 </button>
-              </form>
+              </form>` : ''}
             </div>
           </td>
         </tr>
@@ -18250,14 +18353,156 @@ router.post('/regions/:id/toggle-active', requireAdmin, async (req, res) => {
   }
 });
 
+router.get('/stats', requireAdmin, async (req, res) => {
+  try {
+    const buildMarker = String(process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || '').slice(0, 8) || 'local';
+
+    // Fetch all completed orders for stats
+    const orders = await prisma.orderRequest.findMany({
+      where: { status: 'COMPLETED' },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Calculate basic stats
+    const totalOrders = orders.length;
+    let totalRevenue = 0;
+
+    // Stats by day (last 30 days)
+    const salesByDay: Record<string, number> = {};
+    const today = new Date().toISOString().slice(0, 10);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Product stats
+    const productStats: Record<string, { quantity: number, revenue: number }> = {};
+
+    for (const order of orders) {
+      // Parse items
+      const items = typeof order.itemsJson === 'string'
+        ? JSON.parse(order.itemsJson || '[]')
+        : (order.itemsJson || []);
+
+      const orderItems = Array.isArray(items) ? items : (items.items || []);
+      const orderTotal = Array.isArray(items)
+        ? items.reduce((sum: number, i: any) => sum + (i.price || 0) * (i.quantity || 1), 0)
+        : (items.total || 0);
+
+      totalRevenue += orderTotal;
+
+      // By Day
+      const date = order.createdAt.toISOString().slice(0, 10);
+      if (new Date(date) >= thirtyDaysAgo) {
+        salesByDay[date] = (salesByDay[date] || 0) + orderTotal;
+      }
+
+      // Products
+      for (const item of orderItems) {
+        const name = item.productTitle || item.productName || 'Unknown';
+        if (!productStats[name]) productStats[name] = { quantity: 0, revenue: 0 };
+        productStats[name].quantity += (item.quantity || 0);
+        productStats[name].revenue += (item.price || 0) * (item.quantity || 1);
+      }
+    }
+
+    const revenueToday = salesByDay[today] || 0;
+
+    // Sort products by revenue
+    const topProducts = Object.entries(productStats)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Prepare chart data (last 30 days filled)
+    const chartLabels: string[] = [];
+    const chartData: number[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      chartLabels.push(dateStr.slice(5)); // MM-DD
+      chartData.push(salesByDay[dateStr] || 0);
+    }
+
+    res.send(`
+      ${renderAdminShellStart({ title: 'Статистика продаж', activePath: '/admin/stats', buildMarker })}
+        
+        <div class="section-header">
+           <h2 class="section-title">📊 Статистика продаж</h2>
+        </div>
+
+        <div class="stats-bar" style="margin-bottom: 30px;">
+          <div class="stat-item">
+            <div class="stat-number" style="color: #28a745;">${totalRevenue.toLocaleString('ru-RU')} ₽</div>
+            <div class="stat-label">Выручка (всего)</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">${revenueToday.toLocaleString('ru-RU')} ₽</div>
+            <div class="stat-label">Выручка (сегодня)</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">${totalOrders}</div>
+            <div class="stat-label">Заказов выполнено</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">${(totalRevenue / (totalOrders || 1)).toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽</div>
+            <div class="stat-label">Средний чек</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+          
+          <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h3 style="margin-top:0;">Продажи за 30 дней</h3>
+            <div style="height: 200px; display: flex; align-items: flex-end; gap: 10px; padding-top: 20px;">
+              ${chartData.map((val, idx) => {
+      const max = Math.max(...chartData, 1);
+      const height = (val / max) * 100;
+      return `
+                  <div style="flex: 1; display: flex; flex-direction: column; align-items: center; group;">
+                    <div style="width: 100%; background: #e9ecef; border-radius: 4px; position: relative; height: 100%;">
+                      <div style="position: absolute; bottom: 0; width: 100%; background: #007bff; height: ${height}%; border-radius: 4px; transition: height 0.3s;" title="${chartLabels[idx]}: ${val} ₽"></div>
+                    </div>
+                    <div style="font-size: 10px; color: #6c757d; margin-top: 5px; transform: rotate(-45deg); white-space: nowrap;">${chartLabels[idx]}</div>
+                  </div>
+                `;
+    }).join('')}
+            </div>
+          </div>
+
+          <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h3 style="margin-top:0;">Топ товаров</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              ${topProducts.map((p, i) => `
+                <tr style="border-bottom: 1px solid #f1f3f4;">
+                  <td style="padding: 10px 0; width: 20px; color: #adb5bd; font-size: 12px;">${i + 1}</td>
+                  <td style="padding: 10px 0; font-size: 14px;">
+                    <div>${escapeHtml(p.name)}</div>
+                    <div style="font-size: 11px; color: #6c757d;">${p.quantity} шт.</div>
+                  </td>
+                  <td style="padding: 10px 0; text-align: right; font-weight: 600;">${p.revenue.toLocaleString('ru-RU')} ₽</td>
+                </tr>
+              `).join('')}
+            </table>
+          </div>
+
+        </div>
+        
+    </main></div></div></body></html>
+    `);
+  } catch (error) {
+    console.error('Stats page error:', error);
+    res.status(500).send('Ошибка загрузки статистики');
+  }
+});
 router.post('/regions/:id/delete', requireAdmin, async (req, res) => {
   try {
+    const p: any = prisma;
     const { id } = req.params;
-    const region = await prisma.region.findUnique({ where: { id } });
+    const region = await p.region.findUnique({ where: { id } });
     if (!region) return res.redirect('/admin/regions?error=not_found');
     if (region.isDefault) return res.redirect('/admin/regions?error=default_region');
 
-    await prisma.region.delete({ where: { id } });
+    await p.region.delete({ where: { id } });
     res.redirect('/admin/regions?success=deleted');
   } catch (error) {
     console.error('Error deleting region:', error);
