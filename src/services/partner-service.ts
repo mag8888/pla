@@ -497,11 +497,10 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
     let description = '';
 
     if (referral.level === 1) {
-      // Прямой реферал: всегда 10% для неактивных, 25% для активных
+      // Прямой реферал: 0% для неактивных (только уведомление), 25% для активных
       if (!isActive) {
-        // Базовый бонус 10% для неактивных партнеров
-        bonusAmount = orderAmount * 0.10;
-        description = `Базовый бонус за заказ прямого реферала (${orderAmount} PZ) - 10%`;
+        // Не начисляем бонус, но отправим уведомление ниже
+        bonusAmount = 0;
       } else {
         // Для активных партнеров - 25%
         bonusAmount = orderAmount * 0.25;
@@ -560,15 +559,31 @@ export async function calculateDualSystemBonuses(orderUserId: string, orderAmoun
         if (isPartnerActive) {
           // Если партнерка активна - показываем 25%
           notificationMessage = `🎉 Ваш счет пополнен на сумму ${bonusAmount.toFixed(2)} PZ (25%) от покупки вашего реферала!`;
-        } else {
-          // Если партнерка не активна - показываем 10% и предлагаем активацию
-          notificationMessage = `🎉 Ваш счет пополнен на сумму ${bonusAmount.toFixed(2)} PZ (10%) от покупки вашего реферала!\n\n💡 Если вы желаете получать повышенный % (25%), вам нужно активировать партнерку на 12000 ₽ товарооборота.`;
+          await bot.telegram.sendMessage(partnerProfile.user.telegramId, notificationMessage);
+          console.log(`📱 Notification sent to partner ${partnerProfile.userId} about ${bonusAmount.toFixed(2)} PZ bonus`);
         }
-
-        await bot.telegram.sendMessage(partnerProfile.user.telegramId, notificationMessage);
-        console.log(`📱 Notification sent to partner ${partnerProfile.userId} about ${bonusAmount.toFixed(2)} PZ bonus`);
       } catch (error) {
         console.warn(`⚠️ Failed to send notification to partner ${partnerProfile.userId}:`, error);
+      }
+    } else if (!isActive && referral.level === 1) {
+      // INACTIVE PARTNER NOTIFICATION
+      try {
+        const { getBotInstance } = await import('../lib/bot-instance.js');
+        const bot = await getBotInstance();
+
+        // Calculate potential missed bonus (25%)
+        const potentialBonus = orderAmount * 0.25;
+
+        // "для получения бонуса от ваших партнеров вы можете в течении суток сделать заказ на 12 000р"
+        // "(при активной партнерской программе ваш сегодняшний бонус мог бы быть и пишем сумму)"
+        const msg = `⚠️ Вы пропустили бонус от заказа вашего партнера, так как ваша партнерская программа не активна.\n\n` +
+          `💡 Для получения бонусов от ваших партнеров вы можете в течение суток сделать заказ на 12 000 ₽.\n\n` +
+          `(При активной партнерской программе ваш сегодняшний бонус мог бы быть ${potentialBonus.toLocaleString('ru-RU')} PZ)`;
+
+        await bot.telegram.sendMessage(partnerProfile.user.telegramId, msg);
+        console.log(`📱 Sent MISSED bonus notification to ${partnerProfile.userId} (potential: ${potentialBonus} PZ)`);
+      } catch (e) {
+        console.error('Failed to send missed bonus notification', e);
       }
     }
   }

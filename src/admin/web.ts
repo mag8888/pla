@@ -3618,12 +3618,11 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       <input type="checkbox" class="user-checkbox" value="${user.id}" data-user-id="${user.id}" style="margin-right: 5px;">
                     </td>
                     <td class="compact-cell cell-tooltip" data-tooltip="Партнерская программа: ${isPartnerActive ? 'Активирована' : 'Не активирована'}">
-                      <input type="checkbox" 
-                             class="partner-program-checkbox" 
-                             ${isPartnerActive ? 'checked' : ''} 
-                             onchange="togglePartnerProgram('${user.id}', this.checked, this)"
-                             style="cursor: pointer; width: 18px; height: 18px;"
-                             title="${isPartnerActive ? 'Партнерская программа активирована' : 'Партнерская программа не активирована'}">
+<div style="cursor:pointer;" onclick="openPartnerManager('${user.id}', ${isPartnerActive}, '${user.partner?.expiresAt || ''}')">
+                             <span style="font-weight:bold; color:${isPartnerActive ? '#28a745' : '#dc3545'};">${isPartnerActive ? 'Активен' : 'Неактивен'}</span>
+                             <span style="font-size:12px; margin-left:4px;">⚙️</span>
+                             ${user.partner?.expiresAt ? `<div style="font-size:10px; color:#666;">до ${new Date(user.partner.expiresAt).toLocaleDateString()}</div>` : ''}
+                           </div>
                     </td>
                     <td class="compact-cell cell-tooltip" data-tooltip="Баланс: ${user.balance.toFixed(2)} PZ${user.bonus > 0 ? ', Бонусы: ' + user.bonus.toFixed(2) + ' PZ' : ''}">
                       <div class="balance ${user.balance > 0 ? 'positive' : 'zero'}">
@@ -3764,57 +3763,152 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             }
           };
           
-          // Функция для переключения статуса партнерской программы
-          window.togglePartnerProgram = async function(userId, isActive, checkboxElement) {
-            const checkbox = checkboxElement || (window.event && window.event.target);
-            const originalChecked = !isActive; // Сохраняем исходное состояние
+          // Partner Program Manager
+          window.openPartnerManager = function(userId, isActive, expiresAtStr) {
+            const existingModal = document.getElementById('partnerManagerModal');
+            if (existingModal) existingModal.remove();
+
+            const expiresAt = expiresAtStr ? new Date(expiresAtStr) : null;
+            const formattedExpires = expiresAt ? expiresAt.toLocaleDateString() : 'Не установлено';
+
+            const modal = document.createElement('div');
+            modal.id = 'partnerManagerModal';
+            modal.innerHTML = \`
+              <div class="modal-overlay" onclick="closePartnerManager()">
+                <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+                  <div class="modal-header">
+                    <h2>⚙️ Управление партнеркой</h2>
+                    <span class="modal-close" onclick="closePartnerManager()">&times;</span>
+                  </div>
+                  <div class="modal-body">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                      <label style="font-weight:bold; display:block; margin-bottom:8px;">Статус</label>
+                      <label class="switch">
+                        <input type="checkbox" id="partnerActiveSwitch" \${isActive ? 'checked' : ''}>
+                        <span class="slider round"></span>
+                      </label>
+                      <span id="partnerStatusLabel" style="margin-left: 10px; font-weight:bold; color:\${isActive ? '#28a745' : '#6c757d'}">
+                        \${isActive ? 'Активен' : 'Неактивен'}
+                      </span>
+                    </div>
+
+                    <div id="partnerDurationSection" style="display: \${isActive ? 'block' : 'none'}; opacity: \${isActive ? '1' : '0.5'}; transition: opacity 0.3s;">
+                      <div class="form-group">
+                        <label style="font-weight:bold; display:block; margin-bottom:8px;">Текущий срок действия:</label>
+                        <div style="padding: 10px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
+                          \${formattedExpires}
+                        </div>
+                      </div>
+
+                      <div class="form-group" style="margin-top: 15px;">
+                        <label style="font-weight:bold; display:block; margin-bottom:8px;">Продлить/Установить срок:</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                          <button type="button" class="btn-duration" onclick="selectDuration(1)" style="padding: 6px 12px; border: 1px solid #ced4da; background: white; border-radius: 4px; cursor: pointer;">1 Месяц</button>
+                          <button type="button" class="btn-duration" onclick="selectDuration(3)" style="padding: 6px 12px; border: 1px solid #ced4da; background: white; border-radius: 4px; cursor: pointer;">3 Месяца</button>
+                          <button type="button" class="btn-duration" onclick="selectDuration(6)" style="padding: 6px 12px; border: 1px solid #ced4da; background: white; border-radius: 4px; cursor: pointer;">6 Месяцев</button>
+                          <button type="button" class="btn-duration" onclick="selectDuration(12)" style="padding: 6px 12px; border: 1px solid #ced4da; background: white; border-radius: 4px; cursor: pointer;">1 Год</button>
+                        </div>
+                        
+                        <div style="margin-top: 10px;">
+                          <label style="display:block; font-size: 13px; color: #666; margin-bottom: 4px;">Или укажите дату окончания:</label>
+                          <input type="date" id="partnerCustomDate" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; width: 100%;">
+                        </div>
+
+                        <input type="hidden" id="selectedMonths" value="">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button onclick="closePartnerManager()" style="padding: 8px 16px; border: 1px solid #ced4da; background: white; border-radius: 4px; cursor: pointer;">Отмена</button>
+                    <button onclick="savePartnerProgram('\${userId}')" style="padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">Сохранить</button>
+                  </div>
+                </div>
+              </div>
+            \`;
             
-            try {
-              const response = await fetch('/admin/users/' + userId + '/toggle-partner-program', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({ isActive: isActive })
+            document.body.appendChild(modal);
+
+            // Event listeners
+            const switchEl = document.getElementById('partnerActiveSwitch');
+            const sectionEl = document.getElementById('partnerDurationSection');
+            const statusLabel = document.getElementById('partnerStatusLabel');
+            
+            if (switchEl) {
+              switchEl.addEventListener('change', function() {
+                const isActive = this.checked;
+                sectionEl.style.display = 'block';
+                sectionEl.style.opacity = isActive ? '1' : '0.5';
+                statusLabel.textContent = isActive ? 'Активен' : 'Неактивен';
+                statusLabel.style.color = isActive ? '#28a745' : '#6c757d';
               });
-              
-              if (!response.ok) {
-                throw new Error('Ошибка обновления статуса партнерской программы');
+            }
+
+            // Duration selection helper
+            window.selectDuration = function(months) {
+              const buttons = document.querySelectorAll('.btn-duration');
+              for(let i=0; i<buttons.length; i++) {
+                  buttons[i].style.background = 'white';
+                  buttons[i].style.color = 'black';
+                  buttons[i].style.borderColor = '#ced4da';
               }
               
-              const result = await response.json();
+              const target = event.target;
+              target.style.background = '#007bff';
+              target.style.color = 'white';
+              target.style.borderColor = '#007bff';
               
+              document.getElementById('selectedMonths').value = months;
+              document.getElementById('partnerCustomDate').value = ''; 
+            };
+
+            const dateInput = document.getElementById('partnerCustomDate');
+            if (dateInput) {
+              dateInput.addEventListener('change', function() {
+                 document.getElementById('selectedMonths').value = '';
+                 const buttons = document.querySelectorAll('.btn-duration');
+                 for(let i=0; i<buttons.length; i++) {
+                    buttons[i].style.background = 'white';
+                    buttons[i].style.color = 'black';
+                    buttons[i].style.borderColor = '#ced4da';
+                 }
+              });
+            }
+          };
+
+          window.closePartnerManager = function() {
+            const modal = document.getElementById('partnerManagerModal');
+            if (modal) modal.remove();
+          };
+
+          window.savePartnerProgram = async function(userId) {
+            const isActive = document.getElementById('partnerActiveSwitch').checked;
+            const months = document.getElementById('selectedMonths').value;
+            const date = document.getElementById('partnerCustomDate').value;
+
+            try {
+              const response = await fetch('/admin/users/' + userId + '/update-partner-program', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isActive, months, date })
+              });
+
+              const result = await response.json();
               if (result.success) {
-                // Обновляем tooltip
-                if (checkbox) {
-                  const cell = checkbox.closest('td');
-                  if (cell) {
-                    cell.setAttribute('data-tooltip', 'Партнерская программа: ' + (isActive ? 'Активирована' : 'Не активирована'));
-                    checkbox.setAttribute('title', isActive ? 'Партнерская программа активирована' : 'Партнерская программа не активирована');
-                  }
-                }
-                
-                // Показываем уведомление
                 const notification = document.createElement('div');
                 notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #28a745; color: white; padding: 12px 20px; border-radius: 4px; z-index: 10000; box-shadow: 0 2px 8px rgba(0,0,0,0.2);';
-                notification.textContent = isActive ? '✅ Партнерская программа активирована' : '❌ Партнерская программа деактивирована';
+                notification.textContent = '✅ Партнерская программа обновлена';
                 document.body.appendChild(notification);
                 
                 setTimeout(() => {
-                  notification.remove();
-                }, 3000);
+                  window.location.reload(); 
+                }, 1000);
+                closePartnerManager();
               } else {
-                throw new Error(result.error || 'Ошибка обновления статуса');
+                alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
               }
-            } catch (error) {
-              console.error('Error toggling partner program:', error);
-              alert('Ошибка обновления статуса партнерской программы: ' + error.message);
-              
-              // Откатываем изменение чекбокса
-              if (checkbox) {
-                checkbox.checked = originalChecked;
-              }
+            } catch (e) {
+              console.error(e);
+              alert('Ошибка сохранения: ' + e.message);
             }
           };
           
@@ -6716,6 +6810,7 @@ router.get('/products', requireAdmin, async (req, res) => {
             background: #5a6268;
           }
         </style>
+<script>
 // КРИТИЧНО: Определяем функции глобально ДО загрузки HTML, чтобы они были доступны для onclick обработчиков
 // Защита от ошибок выполнения - оборачиваем в try-catch
 try {
@@ -6777,319 +6872,319 @@ try {
       content.style.cssText = 'background: white; border-radius: 12px; padding: 0; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
       content.addEventListener('click', function (e) { e.stopPropagation(); });
       // Разбиваем длинную innerHTML строку на части для предотвращения SyntaxError
-      content.innerHTML =
-        '<div class="modal-header">' +
-        '<h2>Редактировать товар</h2>' +
-        '<button type="button" class="close-btn" onclick="window.closeEditModal()">&times;</button>' +
-        '</div>' +
-        '<form id="editProductForm" enctype="multipart/form-data" class="modal-form">' +
-        '<input type="hidden" id="editProductId" name="productId" value="">' +
-        '<div class="form-section">' +
-        '<div class="form-section-title">Основная информация</div>' +
-        '<div class="form-grid single">' +
-        '<div class="form-group">' +
-        '<label for="editProductName">Название товара</label>' +
-        '<input type="text" id="editProductName" name="title" required placeholder="Введите название товара">' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-grid">' +
-        '<div class="form-group">' +
-        '<label for="editProductPrice">Цена в PZ</label>' +
-        '<div class="price-input">' +
-        '<input type="number" id="editProductPrice" name="price" step="0.01" required placeholder="0.00">' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-group">' +
-        '<label for="editProductPriceRub">Цена в RUB</label>' +
-        '<div class="price-input rub">' +
-        '<input type="number" id="editProductPriceRub" name="priceRub" step="0.01" readonly placeholder="0.00">' +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-grid">' +
-        '<div class="form-group">' +
-        '<label for="editProductStock">Остаток на складе</label>' +
-        '<input type="number" id="editProductStock" name="stock" value="999" required placeholder="999">' +
-        '</div>' +
-        '<div class="form-group">' +
-        '<label for="editProductCategory">Категория</label>' +
-        '<select id="editProductCategory" name="categoryId" required>' +
-        '<option value="">Загрузка категорий...</option>' +
-        '</select>' +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-        '<div class="form-section-title">Описание товара</div>' +
-        '<div class="form-group">' +
-        '<label for="editProductSummary">Краткое описание</label>' +
-        '<textarea id="editProductSummary" name="summary" rows="3" placeholder="Краткое описание для карточки товара"></textarea>' +
-        '</div>' +
-        '<div class="form-group">' +
-        '<label for="editProductDescription">Полное описание</label>' +
-        '<textarea id="editProductDescription" name="description" rows="5" class="large" placeholder="Подробное описание товара, применение, состав и т.д."></textarea>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-        '<div class="form-section-title">Настройки доставки</div>' +
-        '<div class="form-group">' +
-        '<label>Регионы доставки</label>' +
-        '<div class="regions-grid">' +
-        '<label class="switch-row">' +
-        '<input type="checkbox" id="editProductRussia" name="availableInRussia">' +
-        '<span class="switch-slider"></span>' +
-        '<span class="switch-label">Россия</span>' +
-        '</label>' +
-        '<label class="switch-row">' +
-        '<input type="checkbox" id="editProductBali" name="availableInBali">' +
-        '<span class="switch-slider"></span>' +
-        '<span class="switch-label">Бали</span>' +
-        '</label>' +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-section">' +
-        '<div class="form-section-title">Статус публикации</div>' +
-        '<div class="status-section">' +
-        '<label class="status-row">' +
-        '<input type="checkbox" id="editProductStatus" name="isActive">' +
-        '<span class="switch-slider"></span>' +
-        '<span class="status-label">Товар активен и доступен для покупки</span>' +
-        '</label>' +
-        '</div>' +
-        '</div>' +
-        '<div class="form-actions">' +
-        '<button type="button" onclick="window.closeEditModal()">Отмена</button>' +
-        '<button type="submit">Обновить товар</button>' +
-        '</div>' +
-        '</form>';
-      modal.appendChild(content);
-      document.body.appendChild(modal);
+content.innerHTML =
+    '<div class="modal-header">' +
+    '<h2>Редактировать товар</h2>' +
+    '<button type="button" class="close-btn" onclick="window.closeEditModal()">&times;</button>' +
+    '</div>' +
+    '<form id="editProductForm" enctype="multipart/form-data" class="modal-form">' +
+    '<input type="hidden" id="editProductId" name="productId" value="">' +
+    '<div class="form-section">' +
+    '<div class="form-section-title">Основная информация</div>' +
+    '<div class="form-grid single">' +
+    '<div class="form-group">' +
+    '<label for="editProductName">Название товара</label>' +
+    '<input type="text" id="editProductName" name="title" required placeholder="Введите название товара">' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-grid">' +
+    '<div class="form-group">' +
+    '<label for="editProductPrice">Цена в PZ</label>' +
+    '<div class="price-input">' +
+    '<input type="number" id="editProductPrice" name="price" step="0.01" required placeholder="0.00">' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label for="editProductPriceRub">Цена в RUB</label>' +
+    '<div class="price-input rub">' +
+    '<input type="number" id="editProductPriceRub" name="priceRub" step="0.01" readonly placeholder="0.00">' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-grid">' +
+    '<div class="form-group">' +
+    '<label for="editProductStock">Остаток на складе</label>' +
+    '<input type="number" id="editProductStock" name="stock" value="999" required placeholder="999">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label for="editProductCategory">Категория</label>' +
+    '<select id="editProductCategory" name="categoryId" required>' +
+    '<option value="">Загрузка категорий...</option>' +
+    '</select>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-section">' +
+    '<div class="form-section-title">Описание товара</div>' +
+    '<div class="form-group">' +
+    '<label for="editProductSummary">Краткое описание</label>' +
+    '<textarea id="editProductSummary" name="summary" rows="3" placeholder="Краткое описание для карточки товара"></textarea>' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label for="editProductDescription">Полное описание</label>' +
+    '<textarea id="editProductDescription" name="description" rows="5" class="large" placeholder="Подробное описание товара, применение, состав и т.д."></textarea>' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-section">' +
+    '<div class="form-section-title">Настройки доставки</div>' +
+    '<div class="form-group">' +
+    '<label>Регионы доставки</label>' +
+    '<div class="regions-grid">' +
+    '<label class="switch-row">' +
+    '<input type="checkbox" id="editProductRussia" name="availableInRussia">' +
+    '<span class="switch-slider"></span>' +
+    '<span class="switch-label">Россия</span>' +
+    '</label>' +
+    '<label class="switch-row">' +
+    '<input type="checkbox" id="editProductBali" name="availableInBali">' +
+    '<span class="switch-slider"></span>' +
+    '<span class="switch-label">Бали</span>' +
+    '</label>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-section">' +
+    '<div class="form-section-title">Статус публикации</div>' +
+    '<div class="status-section">' +
+    '<label class="status-row">' +
+    '<input type="checkbox" id="editProductStatus" name="isActive">' +
+    '<span class="switch-slider"></span>' +
+    '<span class="status-label">Товар активен и доступен для покупки</span>' +
+    '</label>' +
+    '</div>' +
+    '</div>' +
+    '<div class="form-actions">' +
+    '<button type="button" onclick="window.closeEditModal()">Отмена</button>' +
+    '<button type="submit">Обновить товар</button>' +
+    '</div>' +
+    '</form>';
+modal.appendChild(content);
+document.body.appendChild(modal);
 
-      // Setup form submission handler - удаляем старый обработчик если есть
-      const editForm = document.getElementById('editProductForm');
-      if (editForm) {
-        // Удаляем старый обработчик если есть
-        const oldHandler = editForm.getAttribute('data-handler-attached');
-        if (oldHandler) {
-          editForm.removeEventListener('submit', oldHandler);
-        }
+// Setup form submission handler - удаляем старый обработчик если есть
+const editForm = document.getElementById('editProductForm');
+if (editForm) {
+  // Удаляем старый обработчик если есть
+  const oldHandler = editForm.getAttribute('data-handler-attached');
+  if (oldHandler) {
+    editForm.removeEventListener('submit', oldHandler);
+  }
 
-        // Создаем новый обработчик
-        const submitHandler = function (e) {
-          e.preventDefault();
-          e.stopPropagation();
+  // Создаем новый обработчик
+  const submitHandler = function (e) {
+    e.preventDefault();
+    e.stopPropagation();
 
-          const form = e.target;
-          const formData = new FormData(form);
-          const productId = formData.get('productId');
+    const form = e.target;
+    const formData = new FormData(form);
+    const productId = formData.get('productId');
 
-          if (!productId) {
-            alert('Ошибка: ID товара не найден');
-            return;
-          }
-
-          const formDataToSend = new FormData();
-          formDataToSend.append('productId', String(productId));
-          formDataToSend.append('title', String(formData.get('title') || ''));
-          formDataToSend.append('price', String(formData.get('price') || '0'));
-          formDataToSend.append('summary', String(formData.get('summary') || ''));
-          formDataToSend.append('description', String(formData.get('description') || ''));
-          formDataToSend.append('categoryId', String(formData.get('categoryId') || ''));
-          formDataToSend.append('stock', String(formData.get('stock') || '999'));
-
-          const statusCheckbox = document.getElementById('editProductStatus');
-          const russiaCheckbox = document.getElementById('editProductRussia');
-          const baliCheckbox = document.getElementById('editProductBali');
-
-          if (statusCheckbox && statusCheckbox.checked) {
-            formDataToSend.append('isActive', 'true');
-          } else {
-            formDataToSend.append('isActive', 'false');
-          }
-
-          if (russiaCheckbox && russiaCheckbox.checked) {
-            formDataToSend.append('availableInRussia', 'true');
-          } else {
-            formDataToSend.append('availableInRussia', 'false');
-          }
-
-          if (baliCheckbox && baliCheckbox.checked) {
-            formDataToSend.append('availableInBali', 'true');
-          } else {
-            formDataToSend.append('availableInBali', 'false');
-          }
-
-          console.log('📤 Sending update request for product:', productId);
-
-          fetch('/admin/products/' + productId + '/update', {
-            method: 'POST',
-            body: formDataToSend,
-            credentials: 'include'
-          })
-            .then(response => {
-              if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-              }
-              return response.json();
-            })
-            .then(data => {
-              if (data.success) {
-                alert('✅ Товар успешно обновлен!');
-                window.closeEditModal();
-                setTimeout(() => {
-                  if (typeof window.reloadAdminProductsPreservingState === 'function') {
-                    window.reloadAdminProductsPreservingState({ success: 'product_updated' });
-                  } else {
-                    location.reload();
-                  }
-                }, 150);
-              } else {
-                alert('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-              }
-            })
-            .catch(error => {
-              console.error('❌ Update error:', error);
-              alert('❌ Ошибка при обновлении товара: ' + (error instanceof Error ? error.message : String(error)));
-            });
-        };
-
-        editForm.addEventListener('submit', submitHandler);
-        editForm.setAttribute('data-handler-attached', 'true');
-      }
-    }
-
-    // Helper function to decode HTML entities safely
-    const decodeHtml = function (html) {
-      if (!html) return '';
-      const txt = document.createElement('textarea');
-      txt.innerHTML = html;
-      return txt.value;
-    };
-
-    // Fill form fields with decoded values
-    try {
-      const editProductIdEl = document.getElementById('editProductId');
-      const editProductNameEl = document.getElementById('editProductName');
-      const editProductSummaryEl = document.getElementById('editProductSummary');
-      const editProductDescriptionEl = document.getElementById('editProductDescription');
-      const editProductPriceEl = document.getElementById('editProductPrice');
-      const editProductPriceRubEl = document.getElementById('editProductPriceRub');
-      const editProductStockEl = document.getElementById('editProductStock');
-      const editProductStatusEl = document.getElementById('editProductStatus');
-      const editProductRussiaEl = document.getElementById('editProductRussia');
-      const editProductBaliEl = document.getElementById('editProductBali');
-
-      if (!editProductIdEl || !editProductNameEl || !editProductPriceEl) {
-        console.error('❌ Required form elements not found');
-        alert('Ошибка: форма редактирования не найдена. Пожалуйста, обновите страницу.');
-        return;
-      }
-
-      editProductIdEl.value = productId || '';
-      if (editProductNameEl) editProductNameEl.value = decodeHtml(title) || '';
-      if (editProductSummaryEl) editProductSummaryEl.value = decodeHtml(summary) || '';
-      if (editProductDescriptionEl) editProductDescriptionEl.value = decodeHtml(description) || '';
-      editProductPriceEl.value = price || '0';
-      if (editProductPriceRubEl) editProductPriceRubEl.value = ((parseFloat(price) || 0) * 100).toFixed(2);
-      if (editProductStockEl) editProductStockEl.value = stock && stock !== 'null' && stock !== 'undefined' ? stock : '999';
-      if (editProductStatusEl) editProductStatusEl.checked = isActive;
-      if (editProductRussiaEl) editProductRussiaEl.checked = availableInRussia;
-      if (editProductBaliEl) editProductBaliEl.checked = availableInBali;
-
-      console.log('✅ Form fields filled:', {
-        productId,
-        title: title.substring(0, 50),
-        price,
-        isActive,
-        availableInRussia,
-        availableInBali
-      });
-    } catch (error) {
-      console.error('❌ Error filling form fields:', error);
-      alert('Ошибка при загрузке данных товара: ' + (error instanceof Error ? error.message : String(error)));
+    if (!productId) {
+      alert('Ошибка: ID товара не найден');
       return;
     }
 
-    // Load categories
-    fetch('/admin/api/categories', { credentials: 'include' })
-      .then(response => response.json())
-      .then(categories => {
-        const select = document.getElementById('editProductCategory');
-        if (select) {
-          select.innerHTML = '<option value="">Выберите категорию</option>';
-          categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.id;
-            option.textContent = category.name;
-            if (category.id === categoryId) {
-              option.selected = true;
+    const formDataToSend = new FormData();
+    formDataToSend.append('productId', String(productId));
+    formDataToSend.append('title', String(formData.get('title') || ''));
+    formDataToSend.append('price', String(formData.get('price') || '0'));
+    formDataToSend.append('summary', String(formData.get('summary') || ''));
+    formDataToSend.append('description', String(formData.get('description') || ''));
+    formDataToSend.append('categoryId', String(formData.get('categoryId') || ''));
+    formDataToSend.append('stock', String(formData.get('stock') || '999'));
+
+    const statusCheckbox = document.getElementById('editProductStatus');
+    const russiaCheckbox = document.getElementById('editProductRussia');
+    const baliCheckbox = document.getElementById('editProductBali');
+
+    if (statusCheckbox && statusCheckbox.checked) {
+      formDataToSend.append('isActive', 'true');
+    } else {
+      formDataToSend.append('isActive', 'false');
+    }
+
+    if (russiaCheckbox && russiaCheckbox.checked) {
+      formDataToSend.append('availableInRussia', 'true');
+    } else {
+      formDataToSend.append('availableInRussia', 'false');
+    }
+
+    if (baliCheckbox && baliCheckbox.checked) {
+      formDataToSend.append('availableInBali', 'true');
+    } else {
+      formDataToSend.append('availableInBali', 'false');
+    }
+
+    console.log('📤 Sending update request for product:', productId);
+
+    fetch('/admin/products/' + productId + '/update', {
+      method: 'POST',
+      body: formDataToSend,
+      credentials: 'include'
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          alert('✅ Товар успешно обновлен!');
+          window.closeEditModal();
+          setTimeout(() => {
+            if (typeof window.reloadAdminProductsPreservingState === 'function') {
+              window.reloadAdminProductsPreservingState({ success: 'product_updated' });
+            } else {
+              location.reload();
             }
-            select.appendChild(option);
-          });
+          }, 150);
+        } else {
+          alert('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'));
         }
       })
       .catch(error => {
-        console.error('Error loading categories:', error);
+        console.error('❌ Update error:', error);
+        alert('❌ Ошибка при обновлении товара: ' + (error instanceof Error ? error.message : String(error)));
       });
+  };
 
-    // Add price conversion
-    const priceInput = document.getElementById('editProductPrice');
-    const priceRubInput = document.getElementById('editProductPriceRub');
-    if (priceInput && priceRubInput) {
-      priceInput.oninput = function () {
-        const pzPrice = parseFloat(this.value) || 0;
-        priceRubInput.value = (pzPrice * 100).toFixed(2);
-      };
-      priceRubInput.oninput = function () {
-        const rubPrice = parseFloat(this.value) || 0;
-        priceInput.value = (rubPrice / 100).toFixed(2);
-      };
+  editForm.addEventListener('submit', submitHandler);
+  editForm.setAttribute('data-handler-attached', 'true');
+}
     }
 
-    // Show modal
-    console.log('✅ Showing edit modal');
-    console.log('✅ Modal element:', modal);
-    console.log('✅ Modal in DOM:', document.body.contains(modal));
+// Helper function to decode HTML entities safely
+const decodeHtml = function (html) {
+  if (!html) return '';
+  const txt = document.createElement('textarea');
+  txt.innerHTML = html;
+  return txt.value;
+};
 
-    // Убеждаемся, что модальное окно в DOM
-    if (!document.body.contains(modal)) {
-      console.log('⚠️ Modal not in DOM, appending...');
-      document.body.appendChild(modal);
+// Fill form fields with decoded values
+try {
+  const editProductIdEl = document.getElementById('editProductId');
+  const editProductNameEl = document.getElementById('editProductName');
+  const editProductSummaryEl = document.getElementById('editProductSummary');
+  const editProductDescriptionEl = document.getElementById('editProductDescription');
+  const editProductPriceEl = document.getElementById('editProductPrice');
+  const editProductPriceRubEl = document.getElementById('editProductPriceRub');
+  const editProductStockEl = document.getElementById('editProductStock');
+  const editProductStatusEl = document.getElementById('editProductStatus');
+  const editProductRussiaEl = document.getElementById('editProductRussia');
+  const editProductBaliEl = document.getElementById('editProductBali');
+
+  if (!editProductIdEl || !editProductNameEl || !editProductPriceEl) {
+    console.error('❌ Required form elements not found');
+    alert('Ошибка: форма редактирования не найдена. Пожалуйста, обновите страницу.');
+    return;
+  }
+
+  editProductIdEl.value = productId || '';
+  if (editProductNameEl) editProductNameEl.value = decodeHtml(title) || '';
+  if (editProductSummaryEl) editProductSummaryEl.value = decodeHtml(summary) || '';
+  if (editProductDescriptionEl) editProductDescriptionEl.value = decodeHtml(description) || '';
+  editProductPriceEl.value = price || '0';
+  if (editProductPriceRubEl) editProductPriceRubEl.value = ((parseFloat(price) || 0) * 100).toFixed(2);
+  if (editProductStockEl) editProductStockEl.value = stock && stock !== 'null' && stock !== 'undefined' ? stock : '999';
+  if (editProductStatusEl) editProductStatusEl.checked = isActive;
+  if (editProductRussiaEl) editProductRussiaEl.checked = availableInRussia;
+  if (editProductBaliEl) editProductBaliEl.checked = availableInBali;
+
+  console.log('✅ Form fields filled:', {
+    productId,
+    title: title.substring(0, 50),
+    price,
+    isActive,
+    availableInRussia,
+    availableInBali
+  });
+} catch (error) {
+  console.error('❌ Error filling form fields:', error);
+  alert('Ошибка при загрузке данных товара: ' + (error instanceof Error ? error.message : String(error)));
+  return;
+}
+
+// Load categories
+fetch('/admin/api/categories', { credentials: 'include' })
+  .then(response => response.json())
+  .then(categories => {
+    const select = document.getElementById('editProductCategory');
+    if (select) {
+      select.innerHTML = '<option value="">Выберите категорию</option>';
+      categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = category.name;
+        if (category.id === categoryId) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
     }
+  })
+  .catch(error => {
+    console.error('Error loading categories:', error);
+  });
 
-    // Устанавливаем стили для показа
+// Add price conversion
+const priceInput = document.getElementById('editProductPrice');
+const priceRubInput = document.getElementById('editProductPriceRub');
+if (priceInput && priceRubInput) {
+  priceInput.oninput = function () {
+    const pzPrice = parseFloat(this.value) || 0;
+    priceRubInput.value = (pzPrice * 100).toFixed(2);
+  };
+  priceRubInput.oninput = function () {
+    const rubPrice = parseFloat(this.value) || 0;
+    priceInput.value = (rubPrice / 100).toFixed(2);
+  };
+}
+
+// Show modal
+console.log('✅ Showing edit modal');
+console.log('✅ Modal element:', modal);
+console.log('✅ Modal in DOM:', document.body.contains(modal));
+
+// Убеждаемся, что модальное окно в DOM
+if (!document.body.contains(modal)) {
+  console.log('⚠️ Modal not in DOM, appending...');
+  document.body.appendChild(modal);
+}
+
+// Устанавливаем стили для показа
+modal.style.display = 'flex';
+modal.style.alignItems = 'center';
+modal.style.justifyContent = 'center';
+modal.style.position = 'fixed';
+modal.style.top = '0';
+modal.style.left = '0';
+modal.style.width = '100%';
+modal.style.height = '100%';
+modal.style.background = 'rgba(0,0,0,0.6)';
+modal.style.zIndex = '10000';
+
+console.log('✅ Modal display set to:', modal.style.display);
+console.log('✅ Modal computed style:', window.getComputedStyle(modal).display);
+
+// Убеждаемся, что модальное окно видимо (и не переоткрываем после закрытия)
+try { modal.dataset.__closing = '0'; } catch (_) { }
+if (modal.__forceShowTimer) { try { clearTimeout(modal.__forceShowTimer); } catch (_) { } }
+modal.__forceShowTimer = setTimeout(() => {
+  try {
+    if (modal.dataset && modal.dataset.__closing === '1') return;
+  } catch (_) { }
+  const computedDisplay = window.getComputedStyle(modal).display;
+  if (computedDisplay === 'none') {
+    console.error('❌ Modal still hidden! Forcing display...');
     modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.background = 'rgba(0,0,0,0.6)';
-    modal.style.zIndex = '10000';
-
-    console.log('✅ Modal display set to:', modal.style.display);
-    console.log('✅ Modal computed style:', window.getComputedStyle(modal).display);
-
-    // Убеждаемся, что модальное окно видимо (и не переоткрываем после закрытия)
-    try { modal.dataset.__closing = '0'; } catch (_) { }
-    if (modal.__forceShowTimer) { try { clearTimeout(modal.__forceShowTimer); } catch (_) { } }
-    modal.__forceShowTimer = setTimeout(() => {
-      try {
-        if (modal.dataset && modal.dataset.__closing === '1') return;
-      } catch (_) { }
-      const computedDisplay = window.getComputedStyle(modal).display;
-      if (computedDisplay === 'none') {
-        console.error('❌ Modal still hidden! Forcing display...');
-        modal.style.display = 'flex';
-        modal.style.visibility = 'visible';
-        modal.style.opacity = '1';
-      } else {
-        console.log('✅ Modal is visible, display:', computedDisplay);
-      }
-    }, 50);
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+  } else {
+    console.log('✅ Modal is visible, display:', computedDisplay);
+  }
+}, 50);
   };
 } catch (e) {
   console.error('❌ CRITICAL ERROR defining window.editProduct:', e);
@@ -7667,19 +7762,19 @@ window.closeConfirmDeleteModal = function () {
 </script>
   </head>
   <body>
-        ${renderAdminShellStart({ title: 'Товары', activePath: '/admin/products', buildMarker })}
+        ${ renderAdminShellStart({ title: 'Товары', activePath: '/admin/products', buildMarker }) }
 <div class="admin-page-row" >
   <button type="button" class="btn" onclick = "try{ if(typeof window.openAddProductModal==='function'){ window.openAddProductModal(); } else { window.location.href='/admin/products?openAdd=1'; } }catch(e){}" > Добавить товар </button>
     < button type = "button" class="btn" onclick = "scrapeAllImages()" > Собрать фото </button>
       < button type = "button" class="btn" onclick = "moveAllToCosmetics()" > Переместить в «Косметика»</button>
         </div>
         
-        ${req.query.success === 'image_updated' ? '<div class="alert alert-success">✅ Фото успешно обновлено!</div>' : ''}
-        ${req.query.error === 'no_image' ? '<div class="alert alert-error">❌ Файл не выбран</div>' : ''}
-        ${req.query.error === 'image_upload' ? '<div class="alert alert-error">❌ Ошибка загрузки фото</div>' : ''}
-        ${req.query.error === 'cloudinary_not_configured' ? '<div class="alert alert-error">❌ Загрузка фото недоступна: Cloudinary не настроен (нужны CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET на Railway).</div>' : ''}
-        ${req.query.error === 'product_not_found' ? '<div class="alert alert-error">❌ Товар не найден</div>' : ''}
-        ${req.query.success === 'images_scraped' ? '<div class="alert alert-success">✅ Фото успешно собраны! Проверьте результаты ниже.</div>' : ''}
+        ${ req.query.success === 'image_updated' ? '<div class="alert alert-success">✅ Фото успешно обновлено!</div>' : '' }
+        ${ req.query.error === 'no_image' ? '<div class="alert alert-error">❌ Файл не выбран</div>' : '' }
+        ${ req.query.error === 'image_upload' ? '<div class="alert alert-error">❌ Ошибка загрузки фото</div>' : '' }
+        ${ req.query.error === 'cloudinary_not_configured' ? '<div class="alert alert-error">❌ Загрузка фото недоступна: Cloudinary не настроен (нужны CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET на Railway).</div>' : '' }
+        ${ req.query.error === 'product_not_found' ? '<div class="alert alert-error">❌ Товар не найден</div>' : '' }
+        ${ req.query.success === 'images_scraped' ? '<div class="alert alert-success">✅ Фото успешно собраны! Проверьте результаты ниже.</div>' : '' }
 
 <div id="scraping-status" style = "display: none; margin: 20px 0; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;" >
   <h3 style="margin: 0 0 10px 0; color: #1976d2;" >📸 Сбор фотографий...</h3>
@@ -7710,12 +7805,12 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
           </select>
           </div>
           </div>
-          < button type = "button" class="filter-btn active" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="all" > Все категории(${allProducts.length}) </button>
+          < button type = "button" class="filter-btn active" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="all" > Все категории(${ allProducts.length }) </button>
             `;
 
     categories.forEach((category) => {
       html += `
-            < button type = "button" class="filter-btn" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="${category.id}" > ${category.name} (${category.products.length})</button>
+            < button type = "button" class="filter-btn" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="${category.id}" > ${ category.name } (${ category.products.length })</button>
               `;
     });
 
@@ -7761,86 +7856,86 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
         (url) => {
           let href = url;
           if (!href.startsWith('http')) href = 'http://' + href;
-          return `< a href = "${href}" target = "_blank" style = "text-decoration:underline; color:#1976d2;" > ${url} </a>`;
+          return `< a href = "${href}" target = "_blank" style = "text-decoration:underline; color:#1976d2;" > ${ url } </a>`;
         }
       );
-      // 3. Newlines to <br>
-      return safeText.replace(/\n/g, '<br>');
+// 3. Newlines to <br>
+return safeText.replace(/\n/g, '<br>');
     };
 
-    // Helper function to escape HTML attributes safely
-    // Улучшенная функция экранирования для HTML атрибутов
-    const escapeAttr = (str: string | null | undefined): string => {
-      if (!str) return '';
-      try {
-        // Сначала нормализуем и очищаем строку
-        let result = String(str)
-          .trim()
-          // Удаляем все управляющие символы и null байты
-          .replace(/[\x00-\x1F\x7F-\u009F]/g, '')
-          // Удаляем специальные разделители строк
-          .replace(/\u2028/g, ' ')
-          .replace(/\u2029/g, ' ')
-          // Заменяем все виды переносов строк на пробелы
-          .replace(/[\r\n]+/g, ' ')
-          .replace(/\r/g, ' ')
-          .replace(/\n/g, ' ')
-          // Заменяем табуляцию и множественные пробелы
-          .replace(/\t/g, ' ')
-          .replace(/\s+/g, ' ')
-          // Удаляем потенциально проблемные символы Unicode
-          .replace(/[\u200B-\u200D\uFEFF]/g, '');
+// Helper function to escape HTML attributes safely
+// Улучшенная функция экранирования для HTML атрибутов
+const escapeAttr = (str: string | null | undefined): string => {
+  if (!str) return '';
+  try {
+    // Сначала нормализуем и очищаем строку
+    let result = String(str)
+      .trim()
+      // Удаляем все управляющие символы и null байты
+      .replace(/[\x00-\x1F\x7F-\u009F]/g, '')
+      // Удаляем специальные разделители строк
+      .replace(/\u2028/g, ' ')
+      .replace(/\u2029/g, ' ')
+      // Заменяем все виды переносов строк на пробелы
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/\r/g, ' ')
+      .replace(/\n/g, ' ')
+      // Заменяем табуляцию и множественные пробелы
+      .replace(/\t/g, ' ')
+      .replace(/\s+/g, ' ')
+      // Удаляем потенциально проблемные символы Unicode
+      .replace(/[\u200B-\u200D\uFEFF]/g, '');
 
-        // Затем экранируем специальные символы HTML в правильном порядке
-        result = result
-          .replace(/&/g, '&amp;') // Must be first
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;') // Двойные кавычки
-          .replace(/'/g, '&#39;') // Одинарные кавычки
-          .replace(/`/g, '&#96;'); // Обратные кавычки
+    // Затем экранируем специальные символы HTML в правильном порядке
+    result = result
+      .replace(/&/g, '&amp;') // Must be first
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;') // Двойные кавычки
+      .replace(/'/g, '&#39;') // Одинарные кавычки
+      .replace(/`/g, '&#96;'); // Обратные кавычки
 
-        // Ограничиваем длину для предотвращения очень длинных атрибутов
-        if (result.length > 10000) {
-          result = result.substring(0, 10000) + '...';
-        }
+    // Ограничиваем длину для предотвращения очень длинных атрибутов
+    if (result.length > 10000) {
+      result = result.substring(0, 10000) + '...';
+    }
 
-        return result;
-      } catch (error) {
-        console.error('Error in escapeAttr:', error);
-        return ''; // В случае ошибки возвращаем пустую строку
-      }
-    };
+    return result;
+  } catch (error) {
+    console.error('Error in escapeAttr:', error);
+    return ''; // В случае ошибки возвращаем пустую строку
+  }
+};
 
-    // Helper function to escape HTML content safely
-    const escapeHtml = (str: string | null | undefined): string => {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
+// Helper function to escape HTML content safely
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+};
 
-    allProducts.forEach((product) => {
-      const rubPrice = (product.price * 100).toFixed(2);
-      const priceFormatted = `${rubPrice} руб. / ${product.price.toFixed(2)} PZ`;
-      const createdAt = new Date(product.createdAt).toLocaleDateString();
-      const imageId = `product-img-${product.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
-      const placeholderId = `product-placeholder-${product.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
+allProducts.forEach((product) => {
+  const rubPrice = (product.price * 100).toFixed(2);
+  const priceFormatted = `${rubPrice} руб. / ${product.price.toFixed(2)} PZ`;
+  const createdAt = new Date(product.createdAt).toLocaleDateString();
+  const imageId = `product-img-${product.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
+  const placeholderId = `product-placeholder-${product.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
-      const innerImageSection = product.imageUrl
-        ? `<img id="${imageId}" src="${escapeAttr(product.imageUrl)}" alt="${escapeAttr(product.title)}" class="product-image" loading="lazy" data-onerror-img="${imageId}" data-onerror-placeholder="${placeholderId}">
+  const innerImageSection = product.imageUrl
+    ? `<img id="${imageId}" src="${escapeAttr(product.imageUrl)}" alt="${escapeAttr(product.title)}" class="product-image" loading="lazy" data-onerror-img="${imageId}" data-onerror-placeholder="${placeholderId}">
            <div id="${placeholderId}" class="product-image-placeholder" style="display: none;">
              <span class="placeholder-icon">📷</span>
              <span class="placeholder-text">Нет фото</span>
            </div>`
-        : `<div class="product-image-placeholder">
+    : `<div class="product-image-placeholder">
              <span class="placeholder-icon">📷</span>
              <span class="placeholder-text">Нет фото</span>
            </div>`;
 
-      const imageSection = `
+  const imageSection = `
             <button type="button" class="product-image-btn"
               data-product-id="${escapeAttr(product.id)}"
               data-title="${escapeAttr(product.title)}"
@@ -7850,7 +7945,7 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
             </button>
       `;
 
-      html += `
+  html += `
           <div class="product-card"
                data-category="${escapeAttr(product.categoryId)}"
                data-id="${escapeAttr(product.id)}"
@@ -7906,8 +8001,8 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
             </div>
           </div>
       `;
-    });
-    html += `
+});
+html += `
           </div>
         </div>
 
@@ -7927,63 +8022,63 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
               </thead>
               <tbody>
                 ${allProducts.map((p) => {
-      const rubPrice = (p.price * 100).toFixed(2);
-      const priceFormatted = rubPrice + ' руб. / ' + p.price.toFixed(2) + ' PZ';
-      const sku = String((p as any).sku || '').trim();
-      const imgUrl = String((p as any).imageUrl || '').trim();
-      return (
-        '<tr ' +
-        'data-id="' + escapeAttr(p.id) + '" ' +
-        'data-category-id="' + escapeAttr(p.categoryId) + '" ' +
-        'data-category="' + escapeAttr(p.categoryName) + '" ' +
-        'data-title="' + escapeAttr(p.title) + '" ' +
-        'data-sku="' + escapeAttr(sku) + '">' +
-        '<td style="padding:10px 12px; border-bottom:1px solid #f1f5f9;">' +
-        '<button type="button" class="table-thumb" ' +
-        'data-product-id="' + escapeAttr(p.id) + '" ' +
-        'data-title="' + escapeAttr(p.title) + '" ' +
-        'data-image="' + escapeAttr(imgUrl) + '" ' +
-        'style="width:48px; height:48px; border-radius:10px; overflow:hidden; border:1px solid #e5e7eb; background:#f9fafb; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center;"' +
-        '>' +
-        (imgUrl
-          ? ('<img src="' + escapeAttr(imgUrl) + '" alt="" style="width:100%; height:100%; object-fit:cover; display:block;" loading="lazy">')
-          : ('<span style="font-size:16px; color:#9ca3af;">📷</span>')
-        ) +
-        '</button>' +
-        '</td>' +
-        '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + escapeHtml(p.title) + '</td>' +
-        '<td style="padding:12px; border-bottom:1px solid #f1f5f9; color:#6b7280;">' + (sku ? escapeHtml(sku) : '-') + '</td>' +
-        '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + escapeHtml(p.categoryName) + '</td>' +
-        '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + (p.isActive ? '✅ Активен' : '❌ Неактивен') + '</td>' +
-        '<td style="padding:12px; border-bottom:1px solid #f1f5f9; white-space:nowrap;">' + priceFormatted + '</td>' +
-        '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' +
-        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
-        '<button type="button" class="btn-action btn-compact btn-solid-black edit-btn" ' +
-        'data-id="' + escapeAttr(p.id) + '" ' +
-        'data-title="' + escapeAttr(p.title) + '" ' +
-        'data-summary="' + escapeAttr(p.summary) + '" ' +
-        'data-description="' + escapeAttr((p.description || '').substring(0, 5000)) + '" ' +
-        'data-instruction="' + escapeAttr((((p as any).instruction || '') as string).substring(0, 5000)) + '" ' +
-        'data-price="' + (p.price as any) + '" ' +
-        'data-category-id="' + escapeAttr(p.categoryId) + '" ' +
-        'data-active="' + (p.isActive ? 'true' : 'false') + '" ' +
-        'data-russia="' + ((p as any).availableInRussia ? 'true' : 'false') + '" ' +
-        'data-bali="' + ((p as any).availableInBali ? 'true' : 'false') + '" ' +
-        'data-image="' + escapeAttr(p.imageUrl) + '" ' +
-        'data-stock="' + (p.stock !== undefined && p.stock !== null ? p.stock : 999) + '" ' +
-        'onclick="if(typeof window.editProduct===\'function\'){window.editProduct(this);}else{alert(\'Ошибка: функция редактирования не загружена.\');} return false;"' +
-        '><span class="btn-ico">' + ICONS.pencil + '</span><span>Редактировать</span></button>' +
-        '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/toggle-active" style="display:inline;">' +
-        '<button type="submit" class="btn-action btn-compact btn-outline toggle-btn"><span class="btn-ico">' + ICONS.power + '</span><span>' + (p.isActive ? 'Отключить' : 'Включить') + '</span></button>' +
-        '</form>' +
-        '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/delete" class="delete-product-form" data-product-id="' + escapeAttr(p.id) + '" data-product-title="' + escapeAttr(p.title) + '" style="display:inline;">' +
-        '<button type="button" class="btn-action btn-compact btn-solid-danger delete-btn"><span class="btn-ico">' + ICONS.trash + '</span><span>Удалить</span></button>' +
-        '</form>' +
-        '</div>' +
-        '</td>' +
-        '</tr>'
-      );
-    }).join('')}
+  const rubPrice = (p.price * 100).toFixed(2);
+  const priceFormatted = rubPrice + ' руб. / ' + p.price.toFixed(2) + ' PZ';
+  const sku = String((p as any).sku || '').trim();
+  const imgUrl = String((p as any).imageUrl || '').trim();
+  return (
+    '<tr ' +
+    'data-id="' + escapeAttr(p.id) + '" ' +
+    'data-category-id="' + escapeAttr(p.categoryId) + '" ' +
+    'data-category="' + escapeAttr(p.categoryName) + '" ' +
+    'data-title="' + escapeAttr(p.title) + '" ' +
+    'data-sku="' + escapeAttr(sku) + '">' +
+    '<td style="padding:10px 12px; border-bottom:1px solid #f1f5f9;">' +
+    '<button type="button" class="table-thumb" ' +
+    'data-product-id="' + escapeAttr(p.id) + '" ' +
+    'data-title="' + escapeAttr(p.title) + '" ' +
+    'data-image="' + escapeAttr(imgUrl) + '" ' +
+    'style="width:48px; height:48px; border-radius:10px; overflow:hidden; border:1px solid #e5e7eb; background:#f9fafb; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center;"' +
+    '>' +
+    (imgUrl
+      ? ('<img src="' + escapeAttr(imgUrl) + '" alt="" style="width:100%; height:100%; object-fit:cover; display:block;" loading="lazy">')
+      : ('<span style="font-size:16px; color:#9ca3af;">📷</span>')
+    ) +
+    '</button>' +
+    '</td>' +
+    '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + escapeHtml(p.title) + '</td>' +
+    '<td style="padding:12px; border-bottom:1px solid #f1f5f9; color:#6b7280;">' + (sku ? escapeHtml(sku) : '-') + '</td>' +
+    '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + escapeHtml(p.categoryName) + '</td>' +
+    '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' + (p.isActive ? '✅ Активен' : '❌ Неактивен') + '</td>' +
+    '<td style="padding:12px; border-bottom:1px solid #f1f5f9; white-space:nowrap;">' + priceFormatted + '</td>' +
+    '<td style="padding:12px; border-bottom:1px solid #f1f5f9;">' +
+    '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+    '<button type="button" class="btn-action btn-compact btn-solid-black edit-btn" ' +
+    'data-id="' + escapeAttr(p.id) + '" ' +
+    'data-title="' + escapeAttr(p.title) + '" ' +
+    'data-summary="' + escapeAttr(p.summary) + '" ' +
+    'data-description="' + escapeAttr((p.description || '').substring(0, 5000)) + '" ' +
+    'data-instruction="' + escapeAttr((((p as any).instruction || '') as string).substring(0, 5000)) + '" ' +
+    'data-price="' + (p.price as any) + '" ' +
+    'data-category-id="' + escapeAttr(p.categoryId) + '" ' +
+    'data-active="' + (p.isActive ? 'true' : 'false') + '" ' +
+    'data-russia="' + ((p as any).availableInRussia ? 'true' : 'false') + '" ' +
+    'data-bali="' + ((p as any).availableInBali ? 'true' : 'false') + '" ' +
+    'data-image="' + escapeAttr(p.imageUrl) + '" ' +
+    'data-stock="' + (p.stock !== undefined && p.stock !== null ? p.stock : 999) + '" ' +
+    'onclick="if(typeof window.editProduct===\'function\'){window.editProduct(this);}else{alert(\'Ошибка: функция редактирования не загружена.\');} return false;"' +
+    '><span class="btn-ico">' + ICONS.pencil + '</span><span>Редактировать</span></button>' +
+    '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/toggle-active" style="display:inline;">' +
+    '<button type="submit" class="btn-action btn-compact btn-outline toggle-btn"><span class="btn-ico">' + ICONS.power + '</span><span>' + (p.isActive ? 'Отключить' : 'Включить') + '</span></button>' +
+    '</form>' +
+    '<form method="post" action="/admin/products/' + escapeAttr(p.id) + '/delete" class="delete-product-form" data-product-id="' + escapeAttr(p.id) + '" data-product-title="' + escapeAttr(p.title) + '" style="display:inline;">' +
+    '<button type="button" class="btn-action btn-compact btn-solid-danger delete-btn"><span class="btn-ico">' + ICONS.trash + '</span><span>Удалить</span></button>' +
+    '</form>' +
+    '</div>' +
+    '</td>' +
+    '</tr>'
+  );
+}).join('')}
               </tbody>
             </table>
           </div>
@@ -9140,11 +9235,11 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
       </html>
     `;
 
-    res.send(html);
+res.send(html);
   } catch (error) {
-    console.error('Products page error:', error);
-    res.status(500).send('Ошибка загрузки товаров');
-  }
+  console.error('Products page error:', error);
+  res.status(500).send('Ошибка загрузки товаров');
+}
 });
 
 // Product2 module - управление товарами через веб-интерфейс
@@ -13419,12 +13514,13 @@ router.post('/users/:userId/delivery-address', requireAdmin, async (req, res) =>
 });
 
 // Update user balance
-router.post('/users/:userId/toggle-partner-program', requireAdmin, async (req, res) => {
+// Update partner program status and duration
+router.post('/users/:userId/update-partner-program', requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
-    const { isActive } = req.body;
+    const { isActive, months, date } = req.body;
 
-    console.log('🔄 Toggle partner program request:', { userId, isActive });
+    console.log('🔄 Update partner program request:', { userId, isActive, months, date });
 
     if (typeof isActive !== 'boolean') {
       return res.json({ success: false, error: 'Неверный параметр isActive' });
@@ -13440,53 +13536,70 @@ router.post('/users/:userId/toggle-partner-program', requireAdmin, async (req, r
       return res.json({ success: false, error: 'Пользователь не найден' });
     }
 
-    // Если у пользователя нет партнерского профиля, создаем его
+    let expiresAt: Date | null | undefined = user.partner?.expiresAt;
+
+    // Calculate new expiration date if activating
+    if (isActive) {
+      if (months) {
+        const d = new Date();
+        d.setDate(d.getDate() + (parseInt(months) * 30));
+        expiresAt = d;
+      } else if (date) {
+        expiresAt = new Date(date);
+        // Set to end of day
+        expiresAt.setHours(23, 59, 59, 999);
+      } else if (!user.partner?.isActive) {
+        // Default to 30 days if activating for the first time without params
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        expiresAt = d;
+      }
+    }
+
+    // Create or Update
     if (!user.partner) {
-      // Генерируем уникальный referral code
+      // Generate referral code
       let referralCode = '';
       let isUnique = false;
       while (!isUnique) {
         referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-        const existing = await prisma.partnerProfile.findUnique({
-          where: { referralCode }
-        });
-        if (!existing) {
-          isUnique = true;
-        }
+        const existing = await prisma.partnerProfile.findUnique({ where: { referralCode } });
+        if (!existing) isUnique = true;
       }
 
       await prisma.partnerProfile.create({
         data: {
           userId: user.id,
-          isActive: isActive,
+          isActive,
+          expiresAt: expiresAt || null,
           activatedAt: isActive ? new Date() : null,
           activationType: 'ADMIN',
-          referralCode: referralCode,
+          referralCode,
           programType: 'DIRECT'
         }
       });
-
-      console.log(`✅ Partner profile created and ${isActive ? 'activated' : 'deactivated'}: ${userId}`);
     } else {
-      // Обновляем существующий профиль
       await prisma.partnerProfile.update({
         where: { userId: user.id },
         data: {
-          isActive: isActive,
-          activatedAt: isActive && !user.partner.activatedAt ? new Date() : user.partner.activatedAt,
+          isActive,
+          expiresAt: expiresAt || null,
+          activatedAt: isActive && !user.partner.isActive ? new Date() : user.partner.activatedAt,
           activationType: 'ADMIN'
         }
       });
-
-      console.log(`✅ Partner program ${isActive ? 'activated' : 'deactivated'}: ${userId}`);
     }
 
-    return res.json({ success: true, isActive: isActive });
-  } catch (error: any) {
-    console.error('❌ Error toggling partner program:', error);
-    return res.json({ success: false, error: error.message || 'Ошибка обновления статуса партнерской программы' });
+    console.log(`✅ Partner program updated for ${userId}: active=${isActive}, expires=${expiresAt}`);
+    res.json({ success: true, expiresAt });
+
+  } catch (error) {
+    console.error('Error updating partner program:', error);
+    res.status(500).json({ error: 'Ошибка обновления статуса' });
   }
 });
+
+
 
 router.post('/users/:userId/update-balance', requireAdmin, async (req, res) => {
   try {

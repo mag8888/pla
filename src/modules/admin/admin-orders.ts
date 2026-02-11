@@ -246,33 +246,20 @@ async function processOrder(order: ParsedOrder, finalAmount: number) {
  * Process partner bonuses and subscription extension
  */
 async function processPartnerBonuses(userId: string, orderAmount: number) {
-    // Find user's referrer (who invited them)
+    // Find user's referrer (who invited them) for subscription check
     const referral = await prisma.partnerReferral.findFirst({
         where: { referredId: userId, level: 1 },
         include: { profile: { include: { user: true } } }
     });
 
+    // Use unified bonus calculation system (handles inactive partner notifications)
+    const { calculateDualSystemBonuses } = await import('../../services/partner-service.js');
+    await calculateDualSystemBonuses(userId, orderAmount);
+
     if (!referral) return;
 
     const referrerProfile = referral.profile;
 
-    // Get buyer's username for transaction description
-    const buyer = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { username: true }
-    });
-
-    // Calculate bonus (10% of order amount)
-    const bonusAmount = orderAmount * 0.1;
-
-    // Credit bonus to referrer
-    const { recordPartnerTransaction } = await import('../../services/partner-service.js');
-    await recordPartnerTransaction(
-        referrerProfile.id,
-        bonusAmount,
-        `Бонус с заказа ${orderAmount.toLocaleString('ru-RU')} ₽ от ${buyer?.username || 'пользователя'}`,
-        'CREDIT'
-    );
 
     // Extend subscription if order >= 12,000₽ and activation is from purchase
     if (orderAmount >= 12000 && referrerProfile.activationType === 'PURCHASE') {
