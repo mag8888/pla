@@ -7870,34 +7870,34 @@ window.closeConfirmDeleteModal = function () {
   </head>
   <body>
         ${renderAdminShellStart({ title: 'Товары', activePath: '/admin/products', buildMarker })}
-<div class="admin-page-row" >
-  <button type="button" class="btn" onclick = "try{ if(typeof window.openAddProductModal==='function'){ window.openAddProductModal(); } else { window.location.href='/admin/products?openAdd=1'; } }catch(e){}" > Добавить товар </button>
-    < button type = "button" class="btn" onclick = "scrapeAllImages()" > Собрать фото </button>
-      < button type = "button" class="btn" onclick = "moveAllToCosmetics()" > Переместить в «Косметика»</button>
-        </div>
+<div class="admin-page-row" style="margin-bottom: 20px;">
+  <button type="button" class="btn" onclick="try{ if(typeof window.openAddProductModal==='function'){ window.openAddProductModal(); } else { window.location.href='/admin/products?openAdd=1'; } }catch(e){}">Добавить товар</button>
+  <button type="button" class="btn" onclick="scrapeAllImages()">Собрать фото</button>
+  <button type="button" class="btn" onclick="moveAllToCosmetics()">Переместить в «Косметика»</button>
+</div>
         
-        ${req.query.success === 'image_updated' ? '<div class="alert alert-success">✅ Фото успешно обновлено!</div>' : ''}
-        ${req.query.error === 'no_image' ? '<div class="alert alert-error">❌ Файл не выбран</div>' : ''}
-        ${req.query.error === 'image_upload' ? '<div class="alert alert-error">❌ Ошибка загрузки фото</div>' : ''}
-        ${req.query.error === 'cloudinary_not_configured' ? '<div class="alert alert-error">❌ Загрузка фото недоступна: Cloudinary не настроен (нужны CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET на Railway).</div>' : ''}
-        ${req.query.error === 'product_not_found' ? '<div class="alert alert-error">❌ Товар не найден</div>' : ''}
-        ${req.query.success === 'images_scraped' ? '<div class="alert alert-success">✅ Фото успешно собраны! Проверьте результаты ниже.</div>' : ''}
+${req.query.success === 'image_updated' ? '<div class="alert alert-success">✅ Фото успешно обновлено!</div>' : ''}
+${req.query.error === 'no_image' ? '<div class="alert alert-error">❌ Файл не выбран</div>' : ''}
+${req.query.error === 'image_upload' ? '<div class="alert alert-error">❌ Ошибка загрузки фото</div>' : ''}
+${req.query.error === 'cloudinary_not_configured' ? '<div class="alert alert-error">❌ Загрузка фото недоступна: Cloudinary не настроен (нужны CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET на Railway).</div>' : ''}
+${req.query.error === 'product_not_found' ? '<div class="alert alert-error">❌ Товар не найден</div>' : ''}
+${req.query.success === 'images_scraped' ? '<div class="alert alert-success">✅ Фото успешно собраны! Проверьте результаты ниже.</div>' : ''}
 
-<div id="scraping-status" style = "display: none; margin: 20px 0; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;" >
-  <h3 style="margin: 0 0 10px 0; color: #1976d2;" >📸 Сбор фотографий...</h3>
-    < div id = "scraping-progress" style = "color: #666; font-size: 14px;" > Инициализация...</div>
-      </div>
+<div id="scraping-status" style="display: none; margin: 20px 0; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+  <h3 style="margin: 0 0 10px 0; color: #1976d2;">📸 Сбор фотографий...</h3>
+  <div id="scraping-progress" style="color: #666; font-size: 14px;">Инициализация...</div>
+</div>
 
-      < div class="filters" style = "gap: 10px;" >
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; width:100%; margin-bottom:10px;" >
-          <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:260px;" >
-            <input id="adminProductsSearch" type = "search" placeholder = "Поиск по названию или SKU..." autocomplete = "off"
-style = "flex:1; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font-size:14px;"
-oninput = "if(typeof window.setAdminProductsSearch==='function'){window.setAdminProductsSearch(this.value);}" >
-  <button type="button" class="filter-btn" style = "min-width:120px;"
-id = "viewCardsBtn"
-onclick = "if(typeof window.setAdminProductsView==='function'){window.setAdminProductsView('cards');}return false;" > Карточки </button>
-  < button type = "button" class="filter-btn" style = "min-width:120px;"
+<div class="filters" style="gap: 10px;">
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; width:100%; margin-bottom:10px;">
+    <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:260px;">
+      <input id="adminProductsSearch" type="search" placeholder="Поиск по названию или SKU..." autocomplete="off"
+style="flex:1; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font-size:14px;"
+oninput="if(typeof window.setAdminProductsSearch==='function'){window.setAdminProductsSearch(this.value);}">
+  <button type="button" class="filter-btn" style="min-width:120px;"
+id="viewCardsBtn"
+onclick="if(typeof window.setAdminProductsView==='function'){window.setAdminProductsView('cards');}return false;">Карточки</button>
+  <button type="button" class="filter-btn" style="min-width:120px;"
 id = "viewTableBtn"
 onclick = "if(typeof window.setAdminProductsView==='function'){window.setAdminProductsView('table');}return false;" > Таблица </button>
   </div>
