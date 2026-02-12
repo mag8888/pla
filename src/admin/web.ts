@@ -415,10 +415,6 @@ function renderAdminShellStart(opts: { title: string; activePath: string; buildM
 
         <div class="admin-nav-group">Контент</div>
         <nav class="admin-nav">
-import { promotionsRouter } from './promotions.js';
-router.use('/promotions', requireAdmin, promotionsRouter); // Register before other routes if possible, or just add it
-
-// ... (in renderAdminShellStart)
           <a class="admin-nav-item ${isActive('/admin/products')}" href="/admin/products"><span class="admin-ico">${adminIcon('box')}</span><span>Товары</span></a>
           <a class="admin-nav-item ${isActive('/admin/promotions')}" href="/admin/promotions"><span class="admin-ico">${adminIcon('star')}</span><span>Акции</span></a>
           <a class="admin-nav-item ${isActive('/admin/categories')}" href="/admin/categories"><span class="admin-ico">${adminIcon('tag')}</span><span>Категории</span></a>
@@ -7897,49 +7893,49 @@ onclick="if(typeof window.setAdminProductsView==='function'){window.setAdminProd
 id = "viewTableBtn"
 onclick = "if(typeof window.setAdminProductsView==='function'){window.setAdminProductsView('table');}return false;" > Таблица </button>
   </div>
-  < div id = "productsSortWrap" style = "display:none; gap:8px; align-items:center;" >
-    <span style="color:#6b7280; font-size:13px;" > Сортировка: </span>
-      < select id = "adminProductsSort" style = "padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font-size:14px;"
-onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminProductsSort(this.value);}" >
-  <option value="title_asc" > Название(А - Я) </option>
-    < option value = "title_desc" > Название(Я - А) </option>
-      < option value = "category_asc" > Категория(А - Я) </option>
-        < option value = "category_desc" > Категория(Я - А) </option>
-          </select>
-          </div>
-          </div>
-          < button type = "button" class="filter-btn active" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="all" > Все категории(${allProducts.length}) </button>
-            `;
+  <div id="productsSortWrap" style="display:none; gap:8px; align-items:center;">
+    <span style="color:#6b7280; font-size:13px;">Сортировка:</span>
+    <select id="adminProductsSort" style="padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; font-size:14px;"
+onchange="if(typeof window.setAdminProductsSort==='function'){window.setAdminProductsSort(this.value);}">
+      <option value="title_asc">Название (А-Я)</option>
+      <option value="title_desc">Название (Я-А)</option>
+      <option value="category_asc">Категория (А-Я)</option>
+      <option value="category_desc">Категория (Я-А)</option>
+    </select>
+  </div>
+</div>
+<button type="button" class="filter-btn active" onclick="if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data-filter="all">Все категории (${allProducts.length})</button>
+  `;
 
     categories.forEach((category) => {
       html += `
-            < button type = "button" class="filter-btn" onclick = "if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data - filter="${category.id}" > ${category.name} (${category.products.length})</button>
-              `;
+<button type="button" class="filter-btn" onclick="if(typeof window.filterProducts==='function'){window.filterProducts(this);}return false;" data-filter="${category.id}">${category.name} (${category.products.length})</button>
+    `;
     });
 
     html += `
-              < button type = "button" class="filter-btn add-category-btn" onclick = "openAddCategoryModal()" style = "background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none;" >
-            ➕ Категорию
-  </button>
-  < button type = "button" class="filter-btn add-subcategory-btn" onclick = "openAddSubcategoryModal()" style = "background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border: none;" >
-            ➕ Подкатегорию
-  </button>
-  </div>
+<button type="button" class="filter-btn add-category-btn" onclick="openAddCategoryModal()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none;">
+  ➕ Категорию
+</button>
+<button type="button" class="filter-btn add-subcategory-btn" onclick="openAddSubcategoryModal()" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border: none;">
+  ➕ Подкатегорию
+</button>
+</div>
 
-  < div id = "productsCardsContainer" >
-    <div class="product-grid" >
-      `;
+<div id="productsCardsContainer">
+  <div class="product-grid">
+    `;
 
     if (allProducts.length === 0) {
       html += `
-      < div class="empty-state" >
-        <h3>Пока нет добавленных товаров </h3>
-          < p > Используйте форму на главной странице админки, чтобы добавить первый товар.</p>
-            </div>
-            </div>
-            </body>
-            </html>
-              `;
+    <div class="empty-state">
+      <h3>Пока нет добавленных товаров</h3>
+      <p>Используйте форму на главной странице админки, чтобы добавить первый товар.</p>
+    </div>
+  </div>
+</body>
+</html>
+      `;
       return res.send(html);
     }
 
@@ -7959,7 +7955,7 @@ onchange = "if(typeof window.setAdminProductsSort==='function'){window.setAdminP
         (url) => {
           let href = url;
           if (!href.startsWith('http')) href = 'http://' + href;
-          return `< a href = "${href}" target = "_blank" style = "text-decoration:underline; color:#1976d2;" > ${url} </a>`;
+          return `<a href="${href}" target="_blank" style="text-decoration:underline; color:#1976d2;">${url}</a>`;
         }
       );
       // 3. Newlines to <br>
