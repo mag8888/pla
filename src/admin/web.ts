@@ -1646,7 +1646,7 @@ router.get('/', requireAdmin, async (req, res) => {
                   <span class="product-section-title">Основные параметры</span>
                   <span class="product-section-subtitle">Название, стоимость и наличие товара</span>
                 </div>
-                <div class="product-grid three-columns">
+                <div class="product-grid" style="grid-template-columns: 2fr 1fr 1fr; gap: 15px;">
                   <div class="form-group">
                     <label>Название товара *</label>
                     <div style="display: flex; gap: 8px;">
@@ -1667,7 +1667,7 @@ router.get('/', requireAdmin, async (req, res) => {
                   <div class="form-group">
                     <label>Категория *</label>
                     <div class="category-picker">
-                      <select id="productCategory" required>
+                      <select id="productCategory" required style="appearance: none; -webkit-appearance: none; background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e'); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; padding-right: 2.5rem;">
                         <option value="">Выберите категорию</option>
                       </select>
                       <button type="button" class="btn" onclick="openAddCategoryModal()" style="background: #17a2b8;">+</button>
@@ -1676,6 +1676,12 @@ router.get('/', requireAdmin, async (req, res) => {
                   <div class="form-group">
                     <label>Количество на складе</label>
                     <input type="number" id="productStock" min="0" placeholder="0">
+                  </div>
+                  <div class="form-group">
+                    <label>Активен</label>
+                    <div style="height: 42px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--admin-border-strong); border-radius: 10px; background: #fff;">
+                      <input type="checkbox" id="productActive" style="width: 20px; height: 20px; margin: 0;">
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1730,17 +1736,7 @@ router.get('/', requireAdmin, async (req, res) => {
                 </div>
               </div>
 
-              <div class="product-section">
-                <div class="product-section-header">
-                  <span class="product-section-title">Публикация</span>
-                  <span class="product-section-subtitle">Управляйте доступностью товара</span>
-                </div>
-                <div class="form-group">
-                  <label class="status-toggle">
-                    <input type="checkbox" id="productActive"> Товар активен (доступен для покупки)
-                  </label>
-                </div>
-              </div>
+              <!-- Publication section removed (merged into main) -->
 
               <div class="modal-footer">
                 <button type="button" class="btn" onclick="closeAddProductModal()">Отмена</button>
