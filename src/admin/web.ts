@@ -710,10 +710,11 @@ router.get('/', requireAdmin, async (req, res) => {
               <div class="sort-controls">
                 <label>Сортировать по:</label>
                 <select id="sortBy" onchange="applySorting()">
+                  <option value="createdAt" selected>Дата регистрации</option>
                   <option value="name">Имени</option>
                   <option value="balance">Балансу</option>
                   <option value="partners">Партнёрам</option>
-                  <option value="orders" selected>Заказам</option>
+                  <option value="orders">Заказам</option>
                   <option value="activity">Активности</option>
                 </select>
                 <select id="sortOrder" onchange="applySorting()">
@@ -3774,11 +3775,11 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
             const modal = document.createElement('div');
             modal.id = 'partnerManagerModal';
             modal.innerHTML = \`
-              <div class="modal-overlay" onclick="closePartnerManager()">
+              <div class="modal-overlay" onclick="closePartnerManager()" style="display: flex;">
                 <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
                   <div class="modal-header">
                     <h2>⚙️ Управление партнеркой</h2>
-                    <span class="modal-close" onclick="closePartnerManager()">&times;</span>
+                    <span class="close" onclick="closePartnerManager()">&times;</span>
                   </div>
                   <div class="modal-body">
                     <div class="form-group" style="margin-bottom: 20px;">
@@ -3826,7 +3827,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
               </div>
             \`;
             
-            document.body.appendChild(modal);
+            document.querySelector('.admin-shell').appendChild(modal);
 
             // Event listeners
             const switchEl = document.getElementById('partnerActiveSwitch');
