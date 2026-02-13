@@ -5497,6 +5497,9 @@ router.get('/categories', requireAdmin, async (req, res) => {
 router.get('/partners', requireAdmin, async (req, res) => {
   try {
     const partners = await prisma.partnerProfile.findMany({
+      where: {
+        isActive: true
+      },
       include: {
         user: true,
         referrals: {
@@ -5747,11 +5750,14 @@ router.get('/partners', requireAdmin, async (req, res) => {
 
     partnersWithInviters.forEach(partner => {
       html += `
-        <tr>
+        <tr style="${!partner.isActive ? 'background: #fff5f5; color: #999;' : ''}">
           <td style="text-align: center;">
             <input type="checkbox" class="partner-checkbox" value="${partner.user.id}" onclick="updateBulkActionsState()">
           </td>
-          <td>${partner.user.firstName || 'Не указан'}</td>
+          <td>
+            ${partner.user.firstName || 'Не указан'}
+            ${!partner.isActive ? '<span style="display:inline-block; margin-left:6px; padding:2px 6px; background:#fee2e2; color:#991b1b; border-radius:4px; font-size:10px; font-weight:bold;">DEACTIVATED</span>' : ''}
+          </td>
           <td>${partner.programType === 'DIRECT' ? 'Прямая (25%)' : 'Многоуровневая (15%+5%+5%)'}</td>
 
           <td>${partner.balance} PZ</td>
