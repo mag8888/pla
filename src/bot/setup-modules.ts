@@ -11,6 +11,7 @@ import { adminOrderModule } from '../modules/admin/admin-orders.js';
 import { cartModule } from '../modules/cart/index.js';
 import { audioModule } from '../modules/audio/index.js';
 import { balanceModule } from '../modules/balance/index.js';
+import { adminTopupsModule } from './admin-topups.js';
 
 const modules: BotModule[] = [
   shopModule,        // Register shop module first to handle shop button
@@ -23,6 +24,7 @@ const modules: BotModule[] = [
   aboutModule,
   adminModule,
   adminOrderModule,  // Admin order processing
+  adminTopupsModule, // Admin topup confirmations
 ];
 
 export async function applyBotModules(bot: Telegraf<Context>) {

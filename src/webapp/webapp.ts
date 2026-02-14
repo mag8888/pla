@@ -1979,7 +1979,7 @@ router.post('/api/balance/topup-receipt', upload.single('receipt'), async (req, 
       return res.status(500).json({ success: false, error: 'Не удалось сохранить чек' });
     }
 
-    await (prisma as any).balanceTopUpRequest.create({
+    const topupRequest = await (prisma as any).balanceTopUpRequest.create({
       data: {
         userId: user.id,
         amountRub: Math.round(amountRub),
@@ -1987,6 +1987,42 @@ router.post('/api/balance/topup-receipt', upload.single('receipt'), async (req, 
         status: 'PENDING'
       }
     });
+
+
+
+    // Notify Admins
+    try {
+      const { getAdminChatIds } = await import('../config/env.js');
+      const { getBotInstance } = await import('../lib/bot-instance.js');
+      const bot = await getBotInstance();
+      const adminIds = getAdminChatIds();
+
+      const message =
+        `💰 <b>Заявка на пополнение баланса</b>\n` +
+        `👤 Пользователь: ${user.firstName || ''} ${user.lastName || ''} (@${user.username || 'не указан'})\n` +
+        `🆔 ID: <code>${user.telegramId}</code>\n` +
+        `💵 Сумма: <b>${amountRub} ₽</b>`;
+
+      for (const adminId of adminIds) {
+        try {
+          await bot.telegram.sendPhoto(adminId, receiptUrl, {
+            caption: message,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [[{
+                text: '✅ Подтвердить пополнение',
+                callback_data: `admin_topup_confirm:${topupRequest.id}`
+              }]]
+            }
+          });
+        } catch (e) {
+          console.error(`Failed to send topup notification to admin ${adminId}:`, e);
+        }
+      }
+    } catch (notifyError) {
+      console.error('Failed to notify admins about topup:', notifyError);
+      // Don't fail the request if notification fails
+    }
 
     res.json({ success: true });
   } catch (error: any) {
