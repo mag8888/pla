@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { prisma } from '../lib/prisma.js';
-import { requireAdmin, renderAdminShellStart, renderAdminShellEnd } from './ui-shared.js';
+import { requireAdmin, renderFullAdminPage } from './ui-shared.js';
 import { broadcastService } from '../services/broadcast-service.js';
 
 // Setup Multer for file uploads
