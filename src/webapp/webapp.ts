@@ -181,6 +181,8 @@ router.get('/api/user/profile', async (req, res) => {
             username: telegramUser.username,
           }
         });
+        // Normalize type to include partner (as null)
+        user = { ...newUser, partner: null };
       } catch (error: any) {
         if (error?.code === 'P2031' || error?.message?.includes('replica set')) {
           console.warn('⚠️  MongoDB replica set not configured - user creation skipped');
@@ -192,17 +194,17 @@ router.get('/api/user/profile', async (req, res) => {
       }
     }
 
-    const isPartner = user.partner?.isActive || false;
+    const isPartner = user?.partner?.isActive || false;
 
     res.json({
-      id: user.id,
-      telegramId: user.telegramId,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      username: user.username,
-      phone: user.phone,
-      deliveryAddress: user.deliveryAddress,
-      selectedRegion: user.selectedRegion,
+      id: user!.id,
+      telegramId: user!.telegramId,
+      firstName: user!.firstName,
+      lastName: user!.lastName,
+      username: user!.username,
+      phone: user!.phone,
+      deliveryAddress: user!.deliveryAddress,
+      selectedRegion: user!.selectedRegion,
       balance: (user as any).balance || 0,
       isPartner,
       botUsername: (await import('../config/env.js')).env.botUsername
@@ -1096,7 +1098,7 @@ router.post('/api/orders/create', async (req, res) => {
       console.log('❌ User not found for telegramId:', telegramUser.id, '- creating user');
       try {
         // Create user if not exists
-        user = await prisma.user.create({
+        const newUser = await prisma.user.create({
           data: {
             telegramId: telegramUser.id.toString(),
             firstName: telegramUser.first_name,
@@ -1124,14 +1126,15 @@ router.post('/api/orders/create', async (req, res) => {
         if (deliveryAddress) updateData.deliveryAddress = deliveryAddress;
 
         user = await prisma.user.update({
-          where: { id: user.id },
-          data: updateData
+          where: { id: user!.id },
+          data: updateData,
+          include: { partner: true }
         });
         console.log('✅ User updated with contact info');
       }
     }
 
-    console.log('✅ User found:', user.id);
+    console.log('✅ User found:', user!.id);
 
     // Calculate order total in PZ (client prices are in PZ)
     const orderItemsForTotal = Array.isArray(items) ? items : [];
@@ -1142,7 +1145,7 @@ router.post('/api/orders/create', async (req, res) => {
     }, 0);
 
     // Apply Partner Discount (10%)
-    const isPartner = !!(user.partner?.isActive);
+    const isPartner = !!(user!.partner?.isActive);
     let discountPz = 0;
     if (isPartner) {
       discountPz = totalPz * 0.1;
@@ -1175,7 +1178,7 @@ router.post('/api/orders/create', async (req, res) => {
       const updated = await prisma.giftCertificate.update({
         where: { id: cert.id },
         data: {
-          userId: cert.userId ? undefined : user.id, // bind on first use
+          userId: cert.userId ? undefined : user!.id, // bind on first use
           remainingPz: nextRemaining,
           status: nextRemaining <= 0 ? 'USED' : 'ACTIVE'
         }
@@ -1220,7 +1223,7 @@ router.post('/api/orders/create', async (req, res) => {
     // Create order
     const order = await prisma.orderRequest.create({
       data: {
-        userId: user.id,
+        userId: user!.id,
         message: fullMessage,
         itemsJson: JSON.stringify(items),
         status: 'NEW',
@@ -1255,21 +1258,21 @@ router.post('/api/orders/create', async (req, res) => {
 
         // Get user contact info
         let contactInfo = '';
-        if (user.phone) {
-          contactInfo += `📱 Телефон: ${user.phone}\n`;
+        if (user!.phone) {
+          contactInfo += `📱 Телефон: ${user!.phone}\n`;
         }
-        if (user.deliveryAddress) {
-          contactInfo += `📍 Адрес доставки: ${user.deliveryAddress}\n`;
+        if (user!.deliveryAddress) {
+          contactInfo += `📍 Адрес доставки: ${user!.deliveryAddress}\n`;
         }
         if (telegramUser.username) {
           contactInfo += `👤 Telegram: @${telegramUser.username}\n`;
         }
-        contactInfo += `🆔 User ID: ${user.id}\n`;
+        contactInfo += `🆔 User ID: ${user!.id}\n`;
         contactInfo += `🆔 Telegram ID: ${telegramUser.id}`;
 
         const orderMessage =
           '🛍️ <b>Новый заказ от пользователя</b>\n\n' +
-          `👤 <b>Пользователь:</b> ${user.firstName || ''} ${user.lastName || ''}\n` +
+          `👤 <b>Пользователь:</b> ${user!.firstName || ''} ${user!.lastName || ''}\n` +
           `${contactInfo}\n\n` +
           `${itemsText}\n` +
           (message ? `💬 <b>Сообщение:</b>\n${message}\n\n` : '') +
