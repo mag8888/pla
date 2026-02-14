@@ -1209,6 +1209,34 @@ router.post('/api/orders/create', async (req, res) => {
         `Итого со скидкой: ${totalAfterDiscountPz.toFixed(2)} PZ`;
     }
 
+    // Calculate remaining amount to pay (in RUB)
+    let remainingRub = 0;
+    if (paidFromBalance) {
+      // partialAmount is in RUB
+      const totalRub = Math.round(totalAfterDiscountPz * 100);
+      remainingRub = Math.max(0, totalRub - (partialAmount || 0));
+    } else {
+      remainingRub = Math.round(totalAfterDiscountPz * 100);
+    }
+
+    // Add payment info to message
+    if (paidFromBalance) {
+      const paidRub = partialAmount || 0;
+      fullMessage += (fullMessage ? '\n\n' : '') +
+        `💳 Оплата с баланса: ${paidRub} ₽\n` +
+        `Остаток к оплате: ${remainingRub} ₽`;
+    }
+
+    // Fetch referrer info
+    const referrerLink = await prisma.partnerReferral.findFirst({
+      where: { referredId: user!.id },
+      include: {
+        profile: {
+          include: { user: true }
+        }
+      }
+    });
+
     if (certCodeUsed) {
       const due = Math.max(0, totalAfterDiscountPz - certAppliedPz);
       const appliedRub = Math.round(certAppliedPz * 100);
@@ -1268,6 +1296,14 @@ router.post('/api/orders/create', async (req, res) => {
         if (telegramUser.username) {
           contactInfo += `👤 Telegram: @${telegramUser.username}\n`;
         }
+
+        if (referrerLink && referrerLink.profile && referrerLink.profile.user) {
+          const refUser = referrerLink.profile.user;
+          const refName = `${refUser.firstName || ''} ${refUser.lastName || ''}`.trim();
+          const refUsername = refUser.username ? `@${refUser.username}` : `ID: ${refUser.telegramId}`;
+          contactInfo += `🤝 Пригласил: ${refName} (${refUsername})\n`;
+        }
+
         contactInfo += `🆔 User ID: ${user!.id}\n`;
         contactInfo += `🆔 Telegram ID: ${telegramUser.id}`;
 
