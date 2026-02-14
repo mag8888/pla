@@ -111,33 +111,71 @@ broadcastRouter.get('/', requireAdmin, async (req, res) => {
   res.send(renderFullAdminPage({ title: 'Рассылки', activePath: '/admin/broadcasts', content }));
 });
 
-// 3. Bulk Insert Targets (Batching 5000 at a time)
-const BATCH_INSERT = 5000;
-const total = users.length;
+// 3. Handle Creation
+broadcastRouter.post('/create', requireAdmin, upload.single('photo'), async (req, res) => {
+  try {
+    const { title, targetType, message, buttonText, buttonUrl } = req.body;
+    let photoUrl = null;
 
-for (let i = 0; i < total; i += BATCH_INSERT) {
-  const batch = users.slice(i, i + BATCH_INSERT);
-  await prisma.broadcastTarget.createMany({
-    data: batch.map((u: any) => ({
-      broadcastId: broadcast.id,
-      userId: u.id,
-      status: 'PENDING'
-    }))
-  });
-}
+    if (req.file) {
+      photoUrl = req.file.path; // e.g. uploads/123-file.jpg
+    }
 
-// Update total count
-await prisma.broadcast.update({
-  where: { id: broadcast.id },
-  data: { totalRecipients: total }
-});
+    // 1. Create Broadcast Record
+    const broadcast = await prisma.broadcast.create({
+      data: {
+        title,
+        message,
+        photoUrl,
+        buttonText,
+        buttonUrl,
+        targetType,
+        status: 'PROCESSING', // Start immediately
+        startedAt: new Date()
+      }
+    });
 
-res.redirect('/admin/broadcasts');
+    // 2. Select Users based on Target
+    let whereClause: any = { isBlocked: false };
+
+    if (targetType === 'BUYERS') {
+      whereClause.orders = { some: { status: 'COMPLETED' } };
+    } else if (targetType === 'NON_BUYERS') {
+      whereClause.orders = { none: { status: 'COMPLETED' } };
+    }
+
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      select: { id: true }
+    });
+
+    // 3. Bulk Insert Targets (Batching 5000 at a time)
+    const BATCH_INSERT = 5000;
+    const total = users.length;
+
+    for (let i = 0; i < total; i += BATCH_INSERT) {
+      const batch = users.slice(i, i + BATCH_INSERT);
+      await prisma.broadcastTarget.createMany({
+        data: batch.map((u: any) => ({
+          broadcastId: broadcast.id,
+          userId: u.id,
+          status: 'PENDING'
+        }))
+      });
+    }
+
+    // Update total count
+    await prisma.broadcast.update({
+      where: { id: broadcast.id },
+      data: { totalRecipients: total }
+    });
+
+    res.redirect('/admin/broadcasts');
 
   } catch (error) {
-  console.error(error);
-  res.status(500).send('Error creating broadcast: ' + error);
-}
+    console.error(error);
+    res.status(500).send('Error creating broadcast: ' + error);
+  }
 });
 
 // 4. Test Broadcast
