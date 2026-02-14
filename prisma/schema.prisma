@@ -57,6 +57,7 @@ enum OrderStatus {
 model User {
   id              String            @id @default(uuid())
   telegramId      String            @unique
+  isBlocked       Boolean           @default(false)
   firstName       String?
   lastName        String?
   username        String?
@@ -75,6 +76,7 @@ model User {
   referrals       PartnerReferral[] @relation("UserReferrals")
   payments        Payment[]
   balanceTopups   BalanceTopUpRequest[]
+  broadcastTargets BroadcastTarget[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -451,4 +453,40 @@ model Promotion {
   updatedAt   DateTime @updatedAt
 
   @@index([isActive, sortOrder])
+}
+
+model Broadcast {
+  id          String    @id @default(uuid())
+  title       String    // Internal title
+  message     String    // Text content
+  photoUrl    String?   // Optional image
+  buttonText  String?   // Optional button
+  buttonUrl   String?
+  targetType  String    // ALL, BUYERS, NON_BUYERS
+  status      String    @default("DRAFT") // DRAFT, PROCESSING, COMPLETED, PAUSED, FAILED
+  
+  totalRecipients Int      @default(0)
+  sentCount       Int      @default(0)
+  failedCount     Int      @default(0)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  targets     BroadcastTarget[]
+}
+
+model BroadcastTarget {
+  id          String    @id @default(uuid())
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  broadcastId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  status      String    @default("PENDING") // PENDING, SENT, FAILED
+  error       String?
+  sentAt      DateTime?
+  
+  @@index([broadcastId, status])
+  @@index([userId])
 }

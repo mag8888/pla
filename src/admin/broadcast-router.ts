@@ -1,0 +1,290 @@
+import { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
+import { prisma } from '../lib/prisma.js';
+import { requireAdmin, renderAdminShellStart, renderAdminShellEnd } from './web.js';
+import { broadcastService } from '../services/broadcast-service.js';
+
+// Setup Multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
+
+export const broadcastRouter = Router();
+
+// Ensure service is running
+console.log('📢 Broadcast Service initialized:', !!broadcastService);
+
+// 1. List Broadcasts
+broadcastRouter.get('/', requireAdmin, async (req, res) => {
+    const broadcasts = await prisma.broadcast.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: { _count: { select: { targets: true } } }
+    });
+
+    const renderStatus = (status: string) => {
+        const colors: any = {
+            'DRAFT': 'bg-gray-100 text-gray-800',
+            'PROCESSING': 'bg-blue-100 text-blue-800',
+            'COMPLETED': 'bg-green-100 text-green-800',
+            'PAUSED': 'bg-yellow-100 text-yellow-800',
+            'FAILED': 'bg-red-100 text-red-800'
+        };
+        return `<span class="px-2 py-1 text-xs font-semibold rounded-full ${colors[status] || 'bg-gray-100'}">${status}</span>`;
+    };
+
+    const content = `
+    <div class="p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">📢 Рассылки</h1>
+        <a href="/admin/broadcasts/create" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Создать рассылку</a>
+      </div>
+
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Заголовок</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Цель</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Прогресс</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            ${broadcasts.map((b: any) => `
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  ${new Date(b.createdAt).toLocaleString('ru-RU')}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-medium text-gray-900">${b.title}</div>
+                  <div class="text-sm text-gray-500 truncate max-w-xs">${b.message}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  ${b.targetType === 'ALL' ? 'Все' : b.targetType === 'BUYERS' ? 'Покупатели' : 'Не покупали'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  ${renderStatus(b.status)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <div>
+                    <span class="font-medium">${b.sentCount}</span> / ${b.totalRecipients}
+                    ${b.failedCount > 0 ? `<span class="text-red-500 ml-1">(${b.failedCount} err)</span>` : ''}
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1 dark:bg-gray-700">
+                    <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${b.totalRecipients > 0 ? (b.sentCount / b.totalRecipients) * 100 : 0}%"></div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <a href="/admin/broadcasts/${b.id}" class="text-blue-600 hover:text-blue-900">Подробнее</a>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ${broadcasts.length === 0 ? '<div class="p-6 text-center text-gray-500">Нет рассылок</div>' : ''}
+      </div>
+    </div>
+  `;
+
+    // Minimal admin layout wrapper (hacky but quick, reusing style from main admin)
+    // Better approach: use a layout function exported from web.ts if possible, but for now just returning partial HTML 
+    // to be rendered inside the admin shell if we were inside web.ts.
+    // Since we are in a separate router, we need to inject the shell. 
+    // Importing `renderAdminShell` from web.ts might be circular or hard if not exported.
+    // Let's assume we can import a layout helper or just duplicate the shell for now.
+    // Inspection showed `renderAdminShell` is a function inside `web.ts`... likely not exported.
+
+    // STRATEGY: Return full HTML page by copying basic admin layout structure or 
+    // requesting `web.ts` to export its layout helpers.
+    // Let's modify `web.ts` to export `renderAdminShell` first.
+
+    res.send(renderAdminShellStart({ title: 'Рассылки', activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+});
+
+// 2. Create Form
+broadcastRouter.get('/create', requireAdmin, (req, res) => {
+    const content = `
+    <div class="p-6 max-w-2xl mx-auto">
+      <h1 class="text-2xl font-bold mb-6">📢 Новая рассылка</h1>
+      
+      <form action="/admin/broadcasts/create" method="POST" enctype="multipart/form-data" class="bg-white p-6 rounded-lg shadow space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Название (для себя)</label>
+          <input type="text" name="title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+        </div>
+
+        <div>
+           <label class="block text-sm font-medium text-gray-700">Аудитория</label>
+           <select name="targetType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+             <option value="ALL">Все пользователи</option>
+             <option value="BUYERS">Только покупатели (оплаченные заказы)</option>
+             <option value="NON_BUYERS">Только те, кто НЕ покупал</option>
+           </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Текст сообщения</label>
+          <textarea name="message" rows="5" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+          <p class="text-xs text-gray-500 mt-1">Поддерживается Markdown (жирный, курсив, ссылки)</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Фото (опционально)</label>
+          <input type="file" name="photo" accept="image/*" class="mt-1 block w-full">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+           <div>
+              <label class="block text-sm font-medium text-gray-700">Текст кнопки (опционально)</label>
+              <input type="text" name="buttonText" placeholder="Например: В магазин" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+           </div>
+           <div>
+              <label class="block text-sm font-medium text-gray-700">Ссылка кнопки</label>
+              <input type="text" name="buttonUrl" placeholder="https://..." class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+           </div>
+        </div>
+
+        <div class="pt-4 flex justify-end space-x-3">
+          <a href="/admin/broadcasts" class="bg-gray-200 text-gray-700 px-4 py-2 rounded">Отмена</a>
+          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Создать и запустить</button>
+        </div>
+      </form>
+    </div>
+  `;
+    res.send(renderAdminShellStart({ title: 'Новая рассылка', activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+});
+
+// 3. Handle Creation
+broadcastRouter.post('/create', requireAdmin, upload.single('photo'), async (req, res) => {
+    try {
+        const { title, targetType, message, buttonText, buttonUrl } = req.body;
+        let photoUrl = null;
+
+        if (req.file) {
+            photoUrl = req.file.path; // e.g. uploads/123-file.jpg
+        }
+
+        // 1. Create Broadcast Record
+        const broadcast = await prisma.broadcast.create({
+            data: {
+                title,
+                message,
+                photoUrl,
+                buttonText,
+                buttonUrl,
+                targetType,
+                status: 'PROCESSING', // Start immediately
+                startedAt: new Date()
+            }
+        });
+
+        // 2. Select Users based on Target
+        // This could be heavy, so we might want to do it in batches or entirely in background?
+        // User asked for "queue to avoid hanging".
+        // Strategy: We select IDs here (it's fast enough for <100k usually) and bulk insert targets.
+        // Optimization: If >10k users, bulk insert might timeout if not batched.
+
+        let whereClause: any = { isBlocked: false }; // Don't target blocked users initially (optimization)
+
+        if (targetType === 'BUYERS') {
+            whereClause.orders = { some: { status: 'COMPLETED' } }; // Simplified logic
+        } else if (targetType === 'NON_BUYERS') {
+            whereClause.orders = { none: { status: 'COMPLETED' } };
+        }
+
+        const users = await prisma.user.findMany({
+            where: whereClause,
+            select: { id: true }
+        });
+
+        // 3. Bulk Insert Targets (Batching 5000 at a time)
+        const BATCH_INSERT = 5000;
+        const total = users.length;
+
+        for (let i = 0; i < total; i += BATCH_INSERT) {
+            const batch = users.slice(i, i + BATCH_INSERT);
+            await prisma.broadcastTarget.createMany({
+                data: batch.map((u: any) => ({
+                    broadcastId: broadcast.id,
+                    userId: u.id,
+                    status: 'PENDING'
+                }))
+            });
+        }
+
+        // Update total count
+        await prisma.broadcast.update({
+            where: { id: broadcast.id },
+            data: { totalRecipients: total }
+        });
+
+        res.redirect('/admin/broadcasts');
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Error creating broadcast: ' + error);
+    }
+});
+
+// 4. View Details
+broadcastRouter.get('/:id', requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const broadcast = await prisma.broadcast.findUnique({
+        where: { id },
+        include: {
+            // _count: { select: { targets: true } } 
+        }
+    });
+
+    if (!broadcast) return res.status(404).send('Not found');
+
+    const content = `
+      <div class="p-6">
+        <div class="mb-4">
+            <a href="/admin/broadcasts" class="text-blue-600 hover:underline">&larr; Назад к списку</a>
+        </div>
+        <h1 class="text-2xl font-bold mb-2">${broadcast.title}</h1>
+        <div class="flex space-x-4 text-sm text-gray-500 mb-6">
+            <span>Статус: <b>${broadcast.status}</b></span>
+            <span>Аудитория: <b>${broadcast.targetType}</b></span>
+            <span>Создано: ${new Date(broadcast.createdAt).toLocaleString()}</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-4 rounded shadow text-center">
+                <div class="text-3xl font-bold text-blue-600">${broadcast.totalRecipients}</div>
+                <div class="text-gray-500">Всего получателей</div>
+            </div>
+            <div class="bg-white p-4 rounded shadow text-center">
+                <div class="text-3xl font-bold text-green-600">${broadcast.sentCount}</div>
+                <div class="text-gray-500">Успешно отправлено</div>
+            </div>
+             <div class="bg-white p-4 rounded shadow text-center">
+                <div class="text-3xl font-bold text-red-600">${broadcast.failedCount}</div>
+                <div class="text-gray-500">Ошибок</div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded shadow mb-6">
+            <h3 class="font-bold mb-4">Предпросмотр сообщения</h3>
+            <div class="border p-4 rounded bg-gray-50 max-w-md">
+                ${broadcast.photoUrl ? `<img src="/${broadcast.photoUrl}" class="w-full h-48 object-cover rounded mb-4"/>` : ''}
+                <div class="whitespace-pre-wrap">${broadcast.message}</div>
+                ${broadcast.buttonText ? `<div class="mt-4 text-center bg-blue-500 text-white py-2 rounded">${broadcast.buttonText}</div>` : ''}
+            </div>
+        </div>
+
+      </div>
+    `;
+    res.send(renderAdminShellStart({ title: broadcast.title, activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+});

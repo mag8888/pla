@@ -12,6 +12,7 @@ import { ensureInitialData } from './lib/bootstrap.js';
 import { adminWebRouter } from './admin/web.js';
 import { webappRouter } from './webapp/webapp.js';
 import { webappV2Router } from './webapp/webapp-v2.js';
+import { broadcastRouter } from './admin/broadcast-router.js';
 import lavaWebhook from './webhooks/lava.js';
 import { externalApiRouter } from './api/external.js';
 // YooKassa intentionally not used (delivery flow работает без онлайн-оплаты)
@@ -22,6 +23,9 @@ async function bootstrap() {
     const app = express();
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
+
+    // Serve static files from uploads directory
+    app.use('/uploads', express.static('uploads'));
 
     const port = Number(process.env.PORT ?? 3000);
 
@@ -155,6 +159,7 @@ async function bootstrap() {
     });
 
     // Web admin panel
+    app.use('/admin/broadcasts', broadcastRouter);
     app.use('/admin', adminWebRouter);
 
     // Initialize bot separately (Moved up for Webhook support)

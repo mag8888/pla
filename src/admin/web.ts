@@ -389,7 +389,7 @@ function adminIcon(name: string): string {
   return icons[name] || icons.dashboard;
 }
 
-function renderAdminShellStart(opts: { title: string; activePath: string; buildMarker?: string }): string {
+export function renderAdminShellStart(opts: { title: string; activePath: string; buildMarker?: string }): string {
   const { title, activePath, buildMarker } = opts;
   const isActive = (href: string, opts?: { also?: string[]; prefixes?: string[] }) => {
     const also = opts?.also || [];
@@ -410,6 +410,7 @@ function renderAdminShellStart(opts: { title: string; activePath: string; buildM
         <nav class="admin-nav">
           <a class="admin-nav-item ${isActive('/admin')}" href="/admin"><span class="admin-ico">${adminIcon('dashboard')}</span><span>Дашборд</span></a>
           <a class="admin-nav-item ${isActive('/admin/users-detailed', { also: ['/admin/users'], prefixes: ['/admin/users/'] })}" href="/admin/users-detailed"><span class="admin-ico">${adminIcon('users')}</span><span>Пользователи</span></a>
+          <a class="admin-nav-item ${isActive('/admin/broadcasts', { prefixes: ['/admin/broadcasts/'] })}" href="/admin/broadcasts"><span class="admin-ico">${adminIcon('chat')}</span><span>Рассылки</span></a>
           <a class="admin-nav-item ${isActive('/admin/partners')}" href="/admin/partners"><span class="admin-ico">${adminIcon('partners')}</span><span>Партнёры</span></a>
         </nav>
 
@@ -451,7 +452,7 @@ function renderAdminShellStart(opts: { title: string; activePath: string; buildM
   `;
 }
 
-function renderAdminShellEnd(): string {
+export function renderAdminShellEnd(): string {
   return `
         </main>
       </div>
@@ -474,7 +475,7 @@ const upload = multer({
 });
 
 // Middleware to check admin access
-const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+export const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const session = req.session as any;
   if (!session.isAdmin) {
     return res.redirect('/admin/login');
