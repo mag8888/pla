@@ -3069,7 +3069,6 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
         lastActivity,
         ordersByStatus,
         priorityStatus,
-        priorityStatus,
         paidOrderSum,
         inviter: inviterMap.get(user.id) || null
       };
