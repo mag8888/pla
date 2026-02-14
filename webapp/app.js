@@ -1092,22 +1092,31 @@ async function processOrderWithBalance(items, total, partialAmount = null, phone
             const orderData = await orderResponse.json().catch(() => ({}));
             const payablePz = Number(orderData?.payablePz);
             const certAppliedPz = Number(orderData?.certificateAppliedPz || 0) || 0;
-            const toDeduct = Number.isFinite(payablePz) ? payablePz : amountToPay;
+            // NOTE: If paying partially, we use explicit partialAmount (calculated on client)
+            // If paying fully, we use payablePz from backend (total - certs)
+
+            let toDeduct = null;
+            if (partialAmount) {
+                // Partial payment logic: we trust the client's calculation of how much they allocated from balance
+                toDeduct = partialAmount;
+            } else {
+                toDeduct = Number.isFinite(payablePz) ? payablePz : amountToPay;
+            }
 
             // Списываем с баланса
-            if (toDeduct > 0.0001) {
+            if (toDeduct && toDeduct > 0.0001) {
                 const balanceResponse = await fetch(`${API_BASE}/user/deduct-balance`, {
                     method: 'POST',
                     headers: getApiHeaders(),
                     body: JSON.stringify({ amount: toDeduct })
                 });
                 if (balanceResponse.ok) {
-                    showSuccess(`Заказ оформлен! Сертификат: −${pzToRub(certAppliedPz)} ₽. С баланса списано ${pzToRub(toDeduct)} ₽.`);
+                    showSuccess(`Заказ оформлен! Списано: ${pzToRub(toDeduct)} ₽.`);
                 } else {
-                    showSuccess('Заказ оформлен! Ожидайте подтверждения.');
+                    showSuccess('Заказ оформлен! Ошибка списания (проверьте историю).');
                 }
             } else {
-                showSuccess(`Заказ оформлен! Сертификат покрыл оплату: −${pzToRub(certAppliedPz)} ₽.`);
+                showSuccess(`Заказ оформлен!`);
             }
 
             closeSection();
@@ -1406,7 +1415,12 @@ function getProductsForShopSelection(categoryId, categories, products) {
     const cat = (categories || []).find(c => String(c?.id || '') === sel);
     if (!cat) return [];
     if (String(cat.name || '') === 'Косметика') {
-        return (products || []).filter(p => p && (p?.category?.name === 'Косметика' || String(p?.category?.name || '').startsWith('Косметика >')));
+        const cosmeticIds = new Set(
+            (categories || [])
+                .filter(c => c.name === 'Косметика' || String(c.name || '').startsWith('Косметика >'))
+                .map(c => String(c.id))
+        );
+        return (products || []).filter(p => p && p.category && cosmeticIds.has(String(p.category.id)));
     }
     return (products || []).filter(p => String(p?.category?.id || '') === sel);
 }
@@ -3817,11 +3831,20 @@ function showDeliveryForm(items, totalRub, userBalance) {
         .then(response => response.ok ? response.json() : {})
         .then(userData => {
             const userBalanceRub = Number(userBalance || 0) * 100;
+            const isPartner = !!userData.isPartner;
+
+            // Расчет скидки
+            let discountRub = 0;
+            if (isPartner) {
+                discountRub = totalRub * 0.1;
+            }
+            const finalTotalRub = totalRub - discountRub;
+
             const dialog = document.createElement('div');
             dialog.className = 'delivery-form-modal';
             dialog.innerHTML = `
                 <div class="delivery-form-overlay" onclick="closeDeliveryForm()"></div>
-                <div class="delivery-form-content" id="delivery-form-root" data-balance-rub="${userBalanceRub}" data-items-rub="${Number(totalRub || 0)}">
+                <div class="delivery-form-content" id="delivery-form-root" data-balance-rub="${userBalanceRub}" data-items-rub="${Number(finalTotalRub || 0)}">
                     <div class="delivery-form-header">
                         <h3>📦 Оформление заказа</h3>
                         <button class="delivery-form-close" onclick="closeDeliveryForm()">×</button>
@@ -3830,15 +3853,25 @@ function showDeliveryForm(items, totalRub, userBalance) {
                         <div style="margin-bottom: 20px; padding: 16px; background: var(--bg-secondary); border-radius: 8px;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                 <span>💰 Ваш баланс:</span>
-                                <strong>${userBalanceRub.toFixed(0)} ₽</strong>
+                                <strong>${Number(userBalance || 0).toFixed(2)} PZ (${userBalanceRub.toFixed(0)} ₽)</strong>
                             </div>
+                            
                             <div style="display: flex; justify-content: space-between;">
                                 <span>📦 Сумма заказа:</span>
-                                <strong id="checkout-items-total">${Number(totalRub || 0).toFixed(0)} ₽</strong>
+                                <strong>${Number(totalRub || 0).toFixed(0)} ₽</strong>
                             </div>
-                            <div style="display: flex; justify-content: space-between; margin-top: 6px;">
-                                <span>Итого:</span>
-                                <strong id="checkout-grand-total">${Number(totalRub || 0).toFixed(0)} ₽</strong>
+                            
+                            ${isPartner ? `
+                            <div style="display: flex; justify-content: space-between; color: var(--success-color);">
+                                <span>🌟 Скидка партнера (-10%):</span>
+                                <strong>-${discountRub.toFixed(0)} ₽</strong>
+                            </div>` : ''}
+
+                            <div style="border-top: 1px solid var(--border-color); margin: 8px 0;"></div>
+
+                            <div style="display: flex; justify-content: space-between; font-size: 16px;">
+                                <span>Итого к оплате:</span>
+                                <strong id="checkout-grand-total">${finalTotalRub.toFixed(0)} ₽</strong>
                             </div>
                         </div>
 
@@ -3867,27 +3900,23 @@ function showDeliveryForm(items, totalRub, userBalance) {
 
                         <div style="margin-bottom: 16px;">
                           <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                              <input type="checkbox" id="pay-from-balance">
+                              <input type="checkbox" id="pay-from-balance" onchange="toggleBalancePayment(this, ${userBalanceRub}, ${finalTotalRub})">
                               <span>Оплатить с баланса</span>
                           </label>
-                          <div id="balance-topup-note" style="display:none;"></div>
-                          <button type="button" class="btn btn-outline" id="topup-btn" onclick="openBalanceFromCheckout()" style="display:none; width:100%; margin-top: 10px;">
-                            Пополнить счёт
-                          </button>
+                          <div id="balance-payment-details" style="display:none; margin-top: 8px; font-size: 13px; color: var(--text-secondary); padding-left: 24px;"></div>
                         </div>
-
 
                         
                         <div style="margin-bottom: 20px;">
                           <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size: 13px; line-height: 1.4; color: var(--text-secondary);">
-                              <input type="checkbox" id="privacy-policy-agree" style="margin-top: 3px;" required>
+                              <input type="checkbox" id="privacy-policy-agree" style="margin-top: 3px;" checked required>
                               <span>
                                   Я согласен с <a href="http://iplazma.com/privacy" target="_blank" onclick="event.stopPropagation()" style="text-decoration: underline; color: var(--text-primary);">Политикой конфиденциальности</a> и <a href="http://iplazma.com/oferta" target="_blank" onclick="event.stopPropagation()" style="text-decoration: underline; color: var(--text-primary);">Офертой</a>
                               </span>
                           </label>
                         </div>
                         
-                        <button class="btn" onclick="submitDeliveryForm(${JSON.stringify(items).replace(/"/g, '&quot;')}, ${Number(totalRub || 0)}, ${Number(userBalance || 0)})" style="width: 100%;">
+                        <button class="btn" onclick="submitDeliveryForm(${JSON.stringify(items).replace(/"/g, '&quot;')}, ${Number(finalTotalRub || 0)}, ${Number(userBalance || 0)})" style="width: 100%;">
                             Оформить заказ
                         </button>
                         <button class="btn btn-secondary" onclick="closeDeliveryForm()" style="width: 100%; margin-top: 12px;">
@@ -3906,13 +3935,44 @@ function showDeliveryForm(items, totalRub, userBalance) {
                 cityInput.addEventListener('blur', () => setTimeout(hideCitySuggestions, 150));
                 cityInput.addEventListener('focus', () => renderCitySuggestions(cityInput));
             }
-            // Инициализируем доступность оплаты с баланса
-            updateBalanceAffordability();
+            // Инициализируем UI баланса
+            const cb = document.getElementById('pay-from-balance');
+            if (cb && userBalanceRub <= 0) {
+                cb.disabled = true;
+                const details = document.getElementById('balance-payment-details');
+                if (details) {
+                    details.style.display = 'block';
+                    details.innerHTML = 'На балансе нет средств для списания.';
+                    details.style.color = 'var(--text-secondary)';
+                }
+            }
         })
         .catch(error => {
             console.error('Error loading user data:', error);
             showError('Ошибка загрузки данных пользователя');
         });
+}
+
+function toggleBalancePayment(checkbox, userBalanceRub, totalRub) {
+    const details = document.getElementById('balance-payment-details');
+    if (!details) return;
+
+    if (checkbox.checked) {
+        const canPay = Math.min(userBalanceRub, totalRub);
+        const remaining = totalRub - canPay;
+
+        details.style.display = 'block';
+        if (remaining > 0) {
+            details.innerHTML = `
+                Будет списано с баланса: <strong>${canPay.toFixed(0)} ₽</strong>.<br>
+                Останется доплатить: <strong>${remaining.toFixed(0)} ₽</strong> (менеджеру).
+            `;
+        } else {
+            details.innerHTML = `Заказ будет полностью оплачен с баланса.`;
+        }
+    } else {
+        details.style.display = 'none';
+    }
 }
 
 function debounce(fn, wait) {
@@ -3938,11 +3998,12 @@ function openBalanceFromCheckout() {
     setTimeout(() => openSection('balance'), 220);
 }
 
-async function submitDeliveryForm(items, totalRub, userBalance) {
+async function submitDeliveryForm(items, finalTotalRub, userBalance) {
     const phone = document.getElementById('delivery-phone')?.value?.trim();
     const city = document.getElementById('delivery-city')?.value?.trim();
     const address = document.getElementById('delivery-address')?.value?.trim();
-    const payFromBalance = document.getElementById('pay-from-balance')?.checked || false;
+    const payFromBalanceCb = document.getElementById('pay-from-balance');
+    const payFromBalance = payFromBalanceCb?.checked || false;
     const certificateCode = null; // Certificate field removed
     const privacyAgreed = document.getElementById('privacy-policy-agree')?.checked;
 
@@ -3977,18 +4038,26 @@ async function submitDeliveryForm(items, totalRub, userBalance) {
         console.error('Error saving user data:', error);
     }
 
-    const grandTotalRub = Number(totalRub || 0);
+    const finalTotalPz = finalTotalRub / 100; // ₽→PZ
     const userBalanceRub = Number(userBalance || 0) * 100;
 
     // Оплата с баланса (если выбрана)
     if (payFromBalance) {
-        if (userBalanceRub < grandTotalRub) {
-            showError('Недостаточно средств на балансе');
+        const canPayRub = Math.min(userBalanceRub, finalTotalRub);
+        const canPayPz = canPayRub / 100;
+
+        if (canPayRub <= 0) {
+            showError('Нет средств на балансе для списания');
             return;
         }
-        const totalPz = grandTotalRub / 100; // ₽→PZ
+
         const deliveryLine = `Город: ${city}\nАдрес: ${address}`;
-        await processOrderWithBalance(items, totalPz, null, phone, deliveryLine, certificateCode);
+        // Передаем частичную сумму, если не хватает на полную
+        // Если хватает - partialAmount будет равен total (или чуть больше, но min обрежет)
+        // Логика processOrderWithBalance должна корректно обработать
+        const isPartial = canPayRub < finalTotalRub;
+
+        await processOrderWithBalance(items, finalTotalPz, canPayPz, phone, deliveryLine, certificateCode);
         closeDeliveryForm();
         return;
     }

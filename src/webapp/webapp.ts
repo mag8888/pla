@@ -167,7 +167,8 @@ router.get('/api/user/profile', async (req, res) => {
     // Find or create user
     const { prisma } = await import('../lib/prisma.js');
     let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
+      where: { telegramId: telegramUser.id.toString() },
+      include: { partner: true }
     });
 
     if (!user) {
@@ -191,6 +192,8 @@ router.get('/api/user/profile', async (req, res) => {
       }
     }
 
+    const isPartner = user.partner?.isActive || false;
+
     res.json({
       id: user.id,
       telegramId: user.telegramId,
@@ -201,6 +204,7 @@ router.get('/api/user/profile', async (req, res) => {
       deliveryAddress: user.deliveryAddress,
       selectedRegion: user.selectedRegion,
       balance: (user as any).balance || 0,
+      isPartner,
       botUsername: (await import('../config/env.js')).env.botUsername
     });
   } catch (error) {
@@ -1072,7 +1076,9 @@ router.post('/api/orders/create', async (req, res) => {
 
     console.log('✅ Telegram user found:', telegramUser.id);
 
-    const { items, message = '', phone, deliveryAddress, certificateCode } = req.body;
+    const { items, message = '', phone, deliveryAddress, certificateCode, paidFromBalance } = req.body;
+    // Map paidFromBalance to partialAmount for internal logic
+    const partialAmount = paidFromBalance ? Number(paidFromBalance) : undefined;
     if (!items || !Array.isArray(items) || items.length === 0) {
       console.log('❌ Invalid items:', items);
       return res.status(400).json({ error: 'Items are required' });
@@ -1082,7 +1088,8 @@ router.post('/api/orders/create', async (req, res) => {
 
     const { prisma } = await import('../lib/prisma.js');
     let user = await prisma.user.findUnique({
-      where: { telegramId: telegramUser.id.toString() }
+      where: { telegramId: telegramUser.id.toString() },
+      include: { partner: true }
     });
 
     if (!user) {
@@ -1134,6 +1141,15 @@ router.post('/api/orders/create', async (req, res) => {
       return sum + (price * qty);
     }, 0);
 
+    // Apply Partner Discount (10%)
+    const isPartner = !!(user.partner?.isActive);
+    let discountPz = 0;
+    if (isPartner) {
+      discountPz = totalPz * 0.1;
+    }
+    // Final total after discount (before certificates)
+    const totalAfterDiscountPz = totalPz - discountPz;
+
     // Apply gift certificate (optional)
     let certAppliedPz = 0;
     let certRemainingPz: number | null = null;
@@ -1152,7 +1168,8 @@ router.post('/api/orders/create', async (req, res) => {
       }
 
       const remaining = Number(cert.remainingPz || 0);
-      const applied = Math.min(Math.max(0, totalPz), Math.max(0, remaining));
+      // Certificates apply to the discounted amount
+      const applied = Math.min(Math.max(0, totalAfterDiscountPz), Math.max(0, remaining));
       const nextRemaining = Math.max(0, remaining - applied);
 
       const updated = await prisma.giftCertificate.update({
@@ -1179,8 +1196,17 @@ router.post('/api/orders/create', async (req, res) => {
     }
 
     let fullMessage = message || '';
+
+    // Add discount info to message if applicable
+    if (discountPz > 0) {
+      fullMessage += (fullMessage ? '\n\n' : '') +
+        `💰 Партнёрская скидка (10%): -${discountPz.toFixed(2)} PZ (-${(discountPz * 100).toFixed(0)} ₽)\n` +
+        `Сумма без скидки: ${totalPz.toFixed(2)} PZ\n` +
+        `Итого со скидкой: ${totalAfterDiscountPz.toFixed(2)} PZ`;
+    }
+
     if (certCodeUsed) {
-      const due = Math.max(0, totalPz - certAppliedPz);
+      const due = Math.max(0, totalAfterDiscountPz - certAppliedPz);
       const appliedRub = Math.round(certAppliedPz * 100);
       const dueRub = Math.round(due * 100);
       const remRub = certRemainingPz === null ? null : Math.round(Number(certRemainingPz) * 100);
@@ -1293,9 +1319,11 @@ router.post('/api/orders/create', async (req, res) => {
       success: true,
       orderId: order.id,
       totalPz,
+      discountPz,
+      totalAfterDiscountPz,
       certificateAppliedPz: certAppliedPz,
       certificateRemainingPz: certRemainingPz,
-      payablePz: Math.max(0, totalPz - certAppliedPz)
+      payablePz: Math.max(0, totalAfterDiscountPz - certAppliedPz)
     });
   } catch (error: any) {
     console.error('❌ Error creating order:', error);
