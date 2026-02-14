@@ -5747,9 +5747,13 @@ router.get('/partners', requireAdmin, async (req, res) => {
           </tr>
     `;
 
-    partnersWithInviters.forEach(partner => {
+    partnersWithInviters.forEach((partner, index) => {
+      const isEven = index % 2 === 0;
+      const rowBg = !partner.isActive ? '#fff5f5' : (isEven ? '#ffffff' : '#f8f9fa');
+      const rowClass = !partner.isActive ? 'text-muted' : '';
+
       html += `
-        <tr style="${!partner.isActive ? 'background: #fff5f5; color: #999;' : ''} border-bottom: none;">
+        <tr style="background: ${rowBg}; border-bottom: none;" class="${rowClass}">
           <td style="text-align: center; vertical-align: middle;">
             <input type="checkbox" class="partner-checkbox" value="${partner.user.id}" onclick="updateBulkActionsState()">
           </td>
@@ -5772,11 +5776,11 @@ router.get('/partners', requireAdmin, async (req, res) => {
           </td>
           <td>${new Date(partner.createdAt).toLocaleDateString()}</td>
         </tr>
-        <tr style="border-bottom: 1px solid #eee;">
-          <td colspan="9" style="padding-top: 0; padding-bottom: 15px;">
+        <tr style="background: ${rowBg}; border-bottom: 1px solid #d1d5db;">
+          <td colspan="9" style="padding-top: 5px; padding-bottom: 20px;">
             <div class="actions" style="display: flex; gap: 15px; flex-wrap: wrap;">
               <form method="post" action="/admin/partners/${partner.id}/change-inviter" style="display: flex; gap: 5px; align-items: center;">
-                <input class="mini-input" type="text" name="newInviterCode" placeholder="${partner.inviterCode || 'Код пригласителя'}" style="width: 140px;" required>
+                <input class="mini-input" type="text" name="newInviterCode" placeholder="${partner.inviterCode || 'Код пригласителя'}" style="width: 140px; background: #fff;" required>
                 <button type="submit" class="btn-mini" onclick="return confirm('Изменить пригласителя для ${partner.user.firstName || 'пользователя'}?')">Сменить</button>
               </form>
               <form method="post" action="/admin/partners/${partner.id}/add-balance" style="display: flex; gap: 5px; align-items: center;">
