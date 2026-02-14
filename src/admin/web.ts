@@ -2920,12 +2920,22 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
         },
         orders: true
       },
-      where: search ? {
-        OR: [
-          { username: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search } }
+      where: {
+        AND: [
+          search ? {
+            OR: [
+              { username: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search } }
+            ]
+          } : {},
+          {
+            OR: [
+              { partner: null },
+              { partner: { isActive: true } }
+            ]
+          }
         ]
-      } : undefined,
+      },
       orderBy: {
         createdAt: sortOrder === 'desc' ? 'desc' : 'asc'
       }
@@ -15964,20 +15974,14 @@ router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     const { level } = req.query;
+    const targetLevel = parseInt(level as string) || 1;
 
-    // Получаем пользователя с его партнерским профилем
+    // 1. Находим профиль партнера
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
+      select: {
         partner: {
-          include: {
-            referrals: {
-              where: { level: parseInt(level as string) || 1 },
-              include: {
-                referred: true // Включаем информацию о приглашенном пользователе
-              }
-            }
-          }
+          select: { id: true }
         }
       }
     });
@@ -15986,13 +15990,26 @@ router.get('/users/:userId/partners', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    let partners: any[] = [];
-    if (user.partner && user.partner.referrals) {
-      // Получаем пользователей, которые были приглашены
-      partners = user.partner.referrals
-        .filter(ref => ref.referred) // Фильтруем только тех, у кого есть referred пользователь
-        .map((ref: any) => ref.referred);
+    if (!user.partner) {
+      return res.json([]);
     }
+
+    // 2. Находим рефералов этого уровня
+    const referrals = await prisma.partnerReferral.findMany({
+      where: {
+        profileId: user.partner.id,
+        level: targetLevel
+      },
+      include: {
+        referred: true // Включаем информацию о приглашенном пользователе
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // 3. Формируем ответ, извлекая пользователей
+    const partners = referrals
+      .filter(ref => ref.referred)
+      .map(ref => ref.referred);
 
     res.json(partners);
 

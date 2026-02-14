@@ -516,12 +516,7 @@ async function loadProductsByCategory(categoryId) {
 
 // Profile functions
 function openProfile() {
-    const overlay = document.getElementById('profile-overlay');
-    overlay.classList.remove('hidden');
-    setTimeout(() => {
-        overlay.classList.add('open');
-        loadProfileContent();
-    }, 10);
+    openSection('balance');
 }
 
 function closeProfile() {
@@ -1727,7 +1722,56 @@ async function loadPlazmaProducts() {
             return;
         }
 
+
+        // Custom sort for Plazma products to match specific order
+        function sortPlazmaProducts(a, b) {
+            const titleA = (a.title || '').toLowerCase();
+            const titleB = (b.title || '').toLowerCase();
+
+            // 1. "Плазменный набор" - всегда первый
+            if (titleA.includes('плазменный набор')) return -1;
+            if (titleB.includes('плазменный набор')) return 1;
+
+            // 2. Определенный порядок для плазмы
+            const order = [
+                'противовирусная',
+                'медная',
+                'углеродная',
+                'цинковая',
+                'магниевая',
+                'железная',
+                'автогармония'
+            ];
+
+            const indexA = order.findIndex(key => titleA.includes(key));
+            const indexB = order.findIndex(key => titleB.includes(key));
+
+            // Если оба товара в списке приоритетов
+            if (indexA !== -1 && indexB !== -1) {
+                return indexA - indexB;
+            }
+
+            // Если только A в списке
+            if (indexA !== -1) return -1;
+            // Если только B в списке
+            if (indexB !== -1) return 1;
+
+            // 3. Артефакты (браслет, кристалл, кулон) - в конец
+            const artifacts = ['браслет', 'кристалл', 'кулон'];
+            const isArtifactA = artifacts.some(key => titleA.includes(key));
+            const isArtifactB = artifacts.some(key => titleB.includes(key));
+
+            if (isArtifactA && !isArtifactB) return 1; // A (артефакт) идет после B (обычного)
+            if (!isArtifactA && isArtifactB) return -1; // B (артефакт) идет после A (обычного)
+
+            // Остальные - по алфавиту или сохраняем порядок
+            return 0;
+        }
+
         if (products && Array.isArray(products) && products.length > 0) {
+            // Сортировка
+            products.sort(sortPlazmaProducts);
+
             let html = '';
             products.forEach((product, index) => {
                 console.log(`📦 Product ${index + 1}:`, {
@@ -3474,25 +3518,30 @@ function loadContactsContent() {
             <h3>📞 Контакты</h3>
             <div class="contacts-list">
                 <div class="contact-item">
-                    <strong>Телефон:</strong>
-                    <a href="tel:+79999999999">+7 (999) 999-99-99</a>
-                </div>
-                <div class="contact-item">
                     <strong>Email:</strong>
-                    <a href="mailto:info@plazma.ru">info@plazma.ru</a>
+                    <a href="mailto:plazmations@gmail.com">plazmations@gmail.com</a>
                 </div>
                 <div class="contact-item">
                     <strong>Telegram:</strong>
-                    <a href="https://t.me/plazma_bot" target="_blank">@plazma_bot</a>
+                    <a href="https://t.me/ivitalbot" target="_blank">@ivitalbot</a>
                 </div>
                 <div class="contact-item">
                     <strong>ВКонтакте:</strong>
-                    <a href="https://vk.com/plazma" target="_blank">vk.com/plazma</a>
+                    <a href="https://vk.com/ivital" target="_blank">vk.com/ivital</a>
+                </div>
+                <div class="contact-item">
+                    <strong>Сертификаты:</strong>
+                    <a href="http://iplazma.com/serfs" target="_blank">iplazma.com/serfs</a>
                 </div>
                 <div class="contact-item">
                     <strong>Instagram:</strong>
-                    <a href="https://www.instagram.com/plazma.water/" target="_blank">@plazma.water</a>
+                    <a href="https://www.instagram.com/ivitalnano/" target="_blank">@ivitalnano</a>
                 </div>
+            </div>
+            
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color); font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                <p>ИП Глухов Дмитрий Валерьевич</p>
+                <p>ИНН 773127019548</p>
             </div>
         </div>
     `;
@@ -3793,6 +3842,11 @@ function showDeliveryForm(items, totalRub, userBalance) {
                             </div>
                         </div>
 
+                        <div style="margin-bottom: 20px; padding: 12px; background: rgba(52, 199, 89, 0.1); border: 1px solid var(--success-color); border-radius: 8px; color: var(--success-color); font-size: 14px; line-height: 1.4; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 18px;">🚚</span>
+                            <b>Бесплатная доставка по России при заказе от 15 000 ₽</b>
+                        </div>
+
                         <div style="margin-bottom: 16px;">
                             <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Город *</label>
                             <div style="position: relative;">
@@ -3822,12 +3876,15 @@ function showDeliveryForm(items, totalRub, userBalance) {
                           </button>
                         </div>
 
-                        <div style="margin-bottom: 16px;">
-                          <label style="display:block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Сертификат (код)</label>
-                          <input type="text" id="certificate-code" class="delivery-input" placeholder="Например: VTL-ABCD-1234" value="" autocomplete="off">
-                          <div style="margin-top:6px; font-size:12px; color: var(--text-secondary); line-height:1.35;">
-                            Если у вас есть подарочный сертификат — введите код, он уменьшит сумму к оплате.
-                          </div>
+
+                        
+                        <div style="margin-bottom: 20px;">
+                          <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size: 13px; line-height: 1.4; color: var(--text-secondary);">
+                              <input type="checkbox" id="privacy-policy-agree" style="margin-top: 3px;" required>
+                              <span>
+                                  Я согласен с <a href="http://iplazma.com/privacy" target="_blank" onclick="event.stopPropagation()" style="text-decoration: underline; color: var(--text-primary);">Политикой конфиденциальности</a> и <a href="http://iplazma.com/oferta" target="_blank" onclick="event.stopPropagation()" style="text-decoration: underline; color: var(--text-primary);">Офертой</a>
+                              </span>
+                          </label>
                         </div>
                         
                         <button class="btn" onclick="submitDeliveryForm(${JSON.stringify(items).replace(/"/g, '&quot;')}, ${Number(totalRub || 0)}, ${Number(userBalance || 0)})" style="width: 100%;">
@@ -3886,7 +3943,13 @@ async function submitDeliveryForm(items, totalRub, userBalance) {
     const city = document.getElementById('delivery-city')?.value?.trim();
     const address = document.getElementById('delivery-address')?.value?.trim();
     const payFromBalance = document.getElementById('pay-from-balance')?.checked || false;
-    const certificateCode = document.getElementById('certificate-code')?.value?.trim();
+    const certificateCode = null; // Certificate field removed
+    const privacyAgreed = document.getElementById('privacy-policy-agree')?.checked;
+
+    if (!privacyAgreed) {
+        showError('Пожалуйста, подтвердите согласие с Политикой конфиденциальности и Офертой');
+        return;
+    }
 
     if (!phone) {
         showError('Укажите номер телефона');
