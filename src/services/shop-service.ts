@@ -46,7 +46,7 @@ export async function getAllActiveProducts() {
     const products = await prisma.product.findMany({
       where: { isActive: true },
       include: { category: true },
-      orderBy: { title: 'asc' },
+      orderBy: { sortOrder: 'asc' },
     });
     console.log(`✅ getAllActiveProducts: Found ${products.length} products`);
     return products;
