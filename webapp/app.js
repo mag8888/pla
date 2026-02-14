@@ -548,7 +548,8 @@ async function loadProfileContent() {
         const telegramUser = getTelegramUserDataSafe(); // Use safe wrapper
 
         // Реферальная ссылка с юзернеймом в конце
-        const botUsername = 'PLAZMA_test8_bot';
+        // Реферальная ссылка с юзернеймом в конце
+        const botUsername = (user.botUsername || 'PLAZMA_test8_bot').replace(/^@/, '');
         let referralLink = `https://t.me/${botUsername}`;
 
         // Получаем username пользователя для реферальной ссылки
