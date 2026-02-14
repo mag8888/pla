@@ -5533,7 +5533,8 @@ router.get('/partners', requireAdmin, async (req, res) => {
 
         return {
           ...partner,
-          inviter: inviterReferral?.profile?.user || null
+          inviter: inviterReferral?.profile?.user || null,
+          inviterCode: inviterReferral?.profile?.referralCode || ''
         };
       })
     );
@@ -5742,18 +5743,18 @@ router.get('/partners', requireAdmin, async (req, res) => {
         <table>
           <tr>
             <th style="width: 40px; text-align: center;"><input type="checkbox" onclick="toggleAllPartners(this)"></th>
-            <th>Пользователь</th><th>Тип программы</th><th>Баланс</th><th>Всего бонусов</th><th>Партнёров</th><th>Код</th><th>Пригласитель</th><th>Создан</th><th>Действия</th>
+            <th>Пользователь</th><th>Тип программы</th><th>Баланс</th><th>Всего бонусов</th><th>Партнёров</th><th>Код</th><th>Пригласитель</th><th>Создан</th>
           </tr>
     `;
 
     partnersWithInviters.forEach(partner => {
       html += `
-        <tr style="${!partner.isActive ? 'background: #fff5f5; color: #999;' : ''}">
-          <td style="text-align: center;">
+        <tr style="${!partner.isActive ? 'background: #fff5f5; color: #999;' : ''} border-bottom: none;">
+          <td style="text-align: center; vertical-align: middle;">
             <input type="checkbox" class="partner-checkbox" value="${partner.user.id}" onclick="updateBulkActionsState()">
           </td>
           <td>
-            ${partner.user.firstName || 'Не указан'}
+            <div style="font-weight: bold;">${partner.user.firstName || 'Не указан'}</div>
             <div style="font-size: 12px; color: #6c757d;">@${partner.user.username || 'без username'}</div>
             ${!partner.isActive ? '<span style="display:inline-block; margin-top:4px; padding:2px 6px; background:#fee2e2; color:#991b1b; border-radius:4px; font-size:10px; font-weight:bold;">DEACTIVATED</span>' : ''}
           </td>
@@ -5770,18 +5771,20 @@ router.get('/partners', requireAdmin, async (req, res) => {
         }
           </td>
           <td>${new Date(partner.createdAt).toLocaleDateString()}</td>
-          <td>
-            <div class="actions">
-              <form method="post" action="/admin/partners/${partner.id}/change-inviter">
-                <input class="mini-input" type="text" name="newInviterCode" placeholder="Код пригласителя" required>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td colspan="9" style="padding-top: 0; padding-bottom: 15px;">
+            <div class="actions" style="display: flex; gap: 15px; flex-wrap: wrap;">
+              <form method="post" action="/admin/partners/${partner.id}/change-inviter" style="display: flex; gap: 5px; align-items: center;">
+                <input class="mini-input" type="text" name="newInviterCode" placeholder="${partner.inviterCode || 'Код пригласителя'}" style="width: 140px;" required>
                 <button type="submit" class="btn-mini" onclick="return confirm('Изменить пригласителя для ${partner.user.firstName || 'пользователя'}?')">Сменить</button>
               </form>
-              <form method="post" action="/admin/partners/${partner.id}/add-balance">
-                <input class="mini-input" type="number" name="amount" placeholder="Сумма" step="0.01" required>
+              <form method="post" action="/admin/partners/${partner.id}/add-balance" style="display: flex; gap: 5px; align-items: center;">
+                <input class="mini-input" type="number" name="amount" placeholder="Сумма" step="0.01" style="width: 80px;" required>
                 <button type="submit" class="btn-mini">+PZ</button>
               </form>
-              <form method="post" action="/admin/partners/${partner.id}/adjust-balance">
-                <input class="mini-input" type="number" name="amount" placeholder="Сумма" step="0.01" required>
+              <form method="post" action="/admin/partners/${partner.id}/adjust-balance" style="display: flex; gap: 5px; align-items: center;">
+                <input class="mini-input" type="number" name="amount" placeholder="Сумма" step="0.01" style="width: 80px;" required>
                 <button type="submit" class="btn-mini" name="op" value="add">+PZ</button>
                 <button type="submit" class="btn-mini danger" name="op" value="sub">-PZ</button>
               </form>
