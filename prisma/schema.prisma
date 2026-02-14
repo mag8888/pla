@@ -64,6 +64,7 @@ model User {
   phone           String?
   photoUrl        String?
   selectedRegion  String?           @default("RUSSIA")
+  city            String?
   deliveryAddress String?
   balance         Float             @default(0)
   cartItems       CartItem[]

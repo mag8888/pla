@@ -3883,7 +3883,7 @@ function showDeliveryForm(items, totalRub, userBalance) {
                         <div style="margin-bottom: 16px;">
                             <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Город *</label>
                             <div style="position: relative;">
-                              <input type="text" id="delivery-city" class="delivery-input" placeholder="Например: Санкт-Петербург" value="" autocomplete="off" required>
+                              <input type="text" id="delivery-city" class="delivery-input" placeholder="Например: Санкт-Петербург" value="${userData.city || ''}" autocomplete="off" required>
                               <div id="delivery-city-suggest" class="city-suggest" style="display:none;"></div>
                             </div>
                         </div>
@@ -4032,7 +4032,7 @@ async function submitDeliveryForm(items, finalTotalRub, userBalance) {
         await fetch(`${API_BASE}/user/profile`, {
             method: 'PUT',
             headers: getApiHeaders(),
-            body: JSON.stringify({ phone, deliveryAddress: address })
+            body: JSON.stringify({ phone, city, deliveryAddress: address })
         });
     } catch (error) {
         console.error('Error saving user data:', error);

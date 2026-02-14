@@ -203,6 +203,7 @@ router.get('/api/user/profile', async (req, res) => {
       lastName: user!.lastName,
       username: user!.username,
       phone: user!.phone,
+      city: user!.city,
       deliveryAddress: user!.deliveryAddress,
       selectedRegion: user!.selectedRegion,
       balance: (user as any).balance || 0,
@@ -223,7 +224,7 @@ router.put('/api/user/profile', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { phone, deliveryAddress, selectedRegion } = req.body;
+    const { phone, city, deliveryAddress, selectedRegion } = req.body;
     const { prisma } = await import('../lib/prisma.js');
 
     let user = await prisma.user.findUnique({
@@ -236,6 +237,7 @@ router.put('/api/user/profile', async (req, res) => {
 
     const updateData: any = {};
     if (phone !== undefined) updateData.phone = phone;
+    if (city !== undefined) updateData.city = city;
     if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
     if (selectedRegion !== undefined) updateData.selectedRegion = selectedRegion;
 
@@ -251,6 +253,7 @@ router.put('/api/user/profile', async (req, res) => {
       lastName: user.lastName,
       username: user.username,
       phone: user.phone,
+      city: user.city,
       deliveryAddress: user.deliveryAddress,
       selectedRegion: user.selectedRegion,
       balance: (user as any).balance || 0
@@ -1078,7 +1081,7 @@ router.post('/api/orders/create', async (req, res) => {
 
     console.log('✅ Telegram user found:', telegramUser.id);
 
-    const { items, message = '', phone, deliveryAddress, certificateCode, paidFromBalance } = req.body;
+    const { items, message = '', phone, city, deliveryAddress, certificateCode, paidFromBalance } = req.body;
     // Map paidFromBalance to partialAmount for internal logic
     const partialAmount = paidFromBalance ? Number(paidFromBalance) : undefined;
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -1105,6 +1108,7 @@ router.post('/api/orders/create', async (req, res) => {
             lastName: telegramUser.last_name,
             username: telegramUser.username,
             phone: phone || null,
+            city: city || null,
             deliveryAddress: deliveryAddress || null,
           }
         });
@@ -1120,10 +1124,11 @@ router.post('/api/orders/create', async (req, res) => {
         throw error;
       }
     } else {
-      // Update user phone and address if provided
-      if (phone || deliveryAddress) {
+      // Update user phone and address and city if provided
+      if (phone || deliveryAddress || city) {
         const updateData: any = {};
         if (phone) updateData.phone = phone;
+        if (city) updateData.city = city;
         if (deliveryAddress) updateData.deliveryAddress = deliveryAddress;
 
         user = await prisma.user.update({
@@ -1289,6 +1294,9 @@ router.post('/api/orders/create', async (req, res) => {
         let contactInfo = '';
         if (user!.phone) {
           contactInfo += `📱 Телефон: ${user!.phone}\n`;
+        }
+        if (user!.city) {
+          contactInfo += `🏙️ Город: ${user!.city}\n`;
         }
         if (user!.deliveryAddress) {
           contactInfo += `📍 Адрес доставки: ${user!.deliveryAddress}\n`;
