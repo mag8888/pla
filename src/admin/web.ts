@@ -3206,10 +3206,10 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
                       <div class="partners-count clickable-partners" style="display: inline-block; cursor: pointer;" onclick="showPartnersList('${user.id}', '${user.firstName || 'Пользователь'}', 1)">${level1Partners}</div>
                     </td>
                     <td class="compact-cell cell-tooltip" data-tooltip="Партнеры 2-го уровня: ${level2Partners}">
-                      <div class="partners-count" style="display: inline-block;">${level2Partners}</div>
+                      <div class="partners-count clickable-partners" style="display: inline-block; cursor: pointer;" onclick="showPartnersList('${user.id}', '${user.firstName || 'Пользователь'}', 2)">${level2Partners}</div>
                     </td>
                     <td class="compact-cell cell-tooltip" data-tooltip="Партнеры 3-го уровня: ${level3Partners}">
-                      <div class="partners-count" style="display: inline-block;">${level3Partners}</div>
+                      <div class="partners-count clickable-partners" style="display: inline-block; cursor: pointer;" onclick="showPartnersList('${user.id}', '${user.firstName || 'Пользователь'}', 3)">${level3Partners}</div>
                     </td>
                     <td class="compact-cell cell-tooltip" data-tooltip="Покупки (сумма): ${user.totalOrderSum.toFixed(2)} PZ">
                       <div class="orders-sum">${user.totalOrderSum.toFixed(2)} PZ</div>
