@@ -105,8 +105,7 @@ async function tryAutoPayPendingOrders(userId: string, telegram: any) {
                 // The schema has OrderStatus: NEW, PROCESSING, COMPLETED, CANCELLED.
                 // Usually NEW means unpaid/unprocessed.
             },
-            orderBy: { createdAt: 'desc' },
-            include: { items: true } // Need total?
+            orderBy: { createdAt: 'desc' }
         });
 
         if (!pendingOrder) return;
