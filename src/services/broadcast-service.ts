@@ -65,8 +65,8 @@ export class BroadcastService {
                     }
 
                     try {
-                        // Prepare keyboard
-                        let extra: any = {};
+
+                        const extra: any = { parse_mode: 'Markdown' };
                         if (broadcast.buttonText && broadcast.buttonUrl) {
                             extra.reply_markup = {
                                 inline_keyboard: [[{ text: broadcast.buttonText, url: broadcast.buttonUrl }]]
@@ -75,14 +75,8 @@ export class BroadcastService {
 
                         // Send message
                         if (broadcast.photoUrl) {
-                            // Determine if photo is local (uploads/) or absolute URL. 
-                            // For local files we need to pass a file path or usage specific logic if hosted elsewhere.
-                            // Assuming 'uploads/' is served statically or available on disk.
-                            // Telegraf input: { source: 'path/to/file' } or url string.
-
                             let photoInput: any = broadcast.photoUrl;
                             if (!broadcast.photoUrl.startsWith('http')) {
-                                // It's a local path relative to project root usually
                                 photoInput = { source: broadcast.photoUrl };
                             }
 
@@ -134,6 +128,31 @@ export class BroadcastService {
             console.error('❌ Broadcast Worker Error:', error);
         } finally {
             this.isProcessing = false;
+        }
+    }
+
+    async sendTestBroadcast(adminTelegramId: string | number, opts: { message: string, photo?: Express.Multer.File, buttonText?: string, buttonUrl?: string }) {
+        const bot = await getBotInstance();
+        const extra: any = { parse_mode: 'Markdown' };
+
+        if (opts.buttonText && opts.buttonUrl) {
+            extra.reply_markup = {
+                inline_keyboard: [[{ text: opts.buttonText, url: opts.buttonUrl }]]
+            };
+        }
+
+        try {
+            if (opts.photo) {
+                await bot.telegram.sendPhoto(adminTelegramId, { source: opts.photo.path }, {
+                    caption: opts.message,
+                    ...extra
+                });
+            } else {
+                await bot.telegram.sendMessage(adminTelegramId, opts.message, extra);
+            }
+        } catch (e) {
+            console.error('Test broadcast failed:', e);
+            throw e;
         }
     }
 }

@@ -111,13 +111,98 @@ broadcastRouter.get('/', requireAdmin, async (req, res) => {
   res.send(renderFullAdminPage({ title: 'Рассылки', activePath: '/admin/broadcasts', content }));
 });
 
-// 2. Create Form
-broadcastRouter.get('/create', requireAdmin, (req, res) => {
+// 3. Bulk Insert Targets (Batching 5000 at a time)
+const BATCH_INSERT = 5000;
+const total = users.length;
+
+for (let i = 0; i < total; i += BATCH_INSERT) {
+  const batch = users.slice(i, i + BATCH_INSERT);
+  await prisma.broadcastTarget.createMany({
+    data: batch.map((u: any) => ({
+      broadcastId: broadcast.id,
+      userId: u.id,
+      status: 'PENDING'
+    }))
+  });
+}
+
+// Update total count
+await prisma.broadcast.update({
+  where: { id: broadcast.id },
+  data: { totalRecipients: total }
+});
+
+res.redirect('/admin/broadcasts');
+
+  } catch (error) {
+  console.error(error);
+  res.status(500).send('Error creating broadcast: ' + error);
+}
+});
+
+// 4. Test Broadcast
+broadcastRouter.post('/test', requireAdmin, upload.single('photo'), async (req, res) => {
+  try {
+    const { message, buttonText, buttonUrl } = req.body;
+    const user = (req as any).session?.user || (req as any).user;
+
+    // Find admin's telegram ID
+    const adminUser = await prisma.user.findUnique({ where: { id: user?.id || '' } });
+    if (!adminUser || !adminUser.telegramId) {
+      return res.status(400).json({ error: 'Admin has no linked Telegram ID' });
+    }
+
+    await broadcastService.sendTestBroadcast(adminUser.telegramId, {
+      message,
+      photo: req.file,
+      buttonText,
+      buttonUrl
+    });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Test broadcast error:', error);
+    res.status(500).json({ error: error.message || 'Failed to send test' });
+  }
+});
+
+// 5. Audience Count/Preview
+broadcastRouter.get('/audience-count', requireAdmin, async (req, res) => {
+  try {
+    const targetType = req.query.type as string;
+    let whereClause: any = { isBlocked: false };
+
+    if (targetType === 'BUYERS') {
+      whereClause.orders = { some: { status: 'COMPLETED' } };
+    } else if (targetType === 'NON_BUYERS') {
+      whereClause.orders = { none: { status: 'COMPLETED' } };
+    }
+
+    const count = await prisma.user.count({ where: whereClause });
+    const previewUsers = await prisma.user.findMany({
+      where: whereClause,
+      take: 5,
+      select: { firstName: true, username: true, telegramId: true }
+    });
+
+    res.json({ count, preview: previewUsers });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to count audience' });
+  }
+});
+
+// 2. Create Form (Updated)
+broadcastRouter.get('/create', requireAdmin, async (req, res) => {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    select: { id: true, title: true, priceRub: true }
+  });
+
   const content = `
     <div class="p-6 max-w-2xl mx-auto">
       <h1 class="text-2xl font-bold mb-6">📢 Новая рассылка</h1>
       
-      <form action="/admin/broadcasts/create" method="POST" enctype="multipart/form-data" class="bg-white p-6 rounded-lg shadow space-y-4">
+      <form id="broadcastForm" action="/admin/broadcasts/create" method="POST" enctype="multipart/form-data" class="bg-white p-6 rounded-lg shadow space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700">Название (для себя)</label>
           <input type="text" name="title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
@@ -125,115 +210,135 @@ broadcastRouter.get('/create', requireAdmin, (req, res) => {
 
         <div>
            <label class="block text-sm font-medium text-gray-700">Аудитория</label>
-           <select name="targetType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-             <option value="ALL">Все пользователи</option>
-             <option value="BUYERS">Только покупатели (оплаченные заказы)</option>
-             <option value="NON_BUYERS">Только те, кто НЕ покупал</option>
-           </select>
+           <div class="flex gap-2">
+               <select name="targetType" id="targetType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                 <option value="ALL">Все пользователи</option>
+                 <option value="BUYERS">Только покупатели (оплаченные заказы)</option>
+                 <option value="NON_BUYERS">Только те, кто НЕ покупал</option>
+               </select>
+               <button type="button" onclick="checkAudience()" class="mt-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50">
+                   Проверить
+               </button>
+           </div>
+           <div id="audienceResult" class="text-sm text-gray-500 mt-1"></div>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700">Текст сообщения</label>
-          <textarea name="message" rows="5" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+          <textarea name="message" id="message" rows="5" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
           <p class="text-xs text-gray-500 mt-1">Поддерживается Markdown (жирный, курсив, ссылки)</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700">Фото (опционально)</label>
-          <input type="file" name="photo" accept="image/*" class="mt-1 block w-full">
+          <input type="file" name="photo" id="photo" accept="image/*" class="mt-1 block w-full">
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-           <div>
-              <label class="block text-sm font-medium text-gray-700">Текст кнопки (опционально)</label>
-              <input type="text" name="buttonText" placeholder="Например: В магазин" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-           </div>
-           <div>
-              <label class="block text-sm font-medium text-gray-700">Ссылка кнопки</label>
-              <input type="text" name="buttonUrl" placeholder="https://..." class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-           </div>
+        <div class="border-t pt-4 mt-4">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-medium text-gray-700">Кнопка</span>
+                <button type="button" onclick="openProductModal()" class="text-sm text-blue-600 hover:underline">+ Выбрать товар</button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+               <div>
+                  <label class="block text-xs text-gray-500">Текст кнопки</label>
+                  <input type="text" name="buttonText" id="buttonText" placeholder="Например: В магазин" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+               </div>
+               <div>
+                  <label class="block text-xs text-gray-500">Ссылка</label>
+                  <input type="text" name="buttonUrl" id="buttonUrl" placeholder="https://..." class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+               </div>
+            </div>
         </div>
 
-        <div class="pt-4 flex justify-end space-x-3">
-          <a href="/admin/broadcasts" class="bg-gray-200 text-gray-700 px-4 py-2 rounded">Отмена</a>
-          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Создать и запустить</button>
+        <div class="pt-6 flex justify-between items-center bg-gray-50 -m-6 p-6 mt-6 rounded-b-lg border-t">
+           <button type="button" onclick="sendTest()" class="text-gray-700 border border-gray-300 px-4 py-2 rounded hover:bg-white text-sm">
+             🧪 Отправить тест мне
+           </button>
+           <div class="flex space-x-3">
+              <a href="/admin/broadcasts" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50">Отмена</a>
+              <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow-sm">🚀 Запустить рассылку</button>
+           </div>
         </div>
       </form>
     </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg w-full max-w-md max-h-[80vh] flex flex-col m-4">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-bold">Выбрать товар</h3>
+                <button onclick="closeProductModal()" class="text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <div class="overflow-y-auto p-2 space-y-1">
+                ${products.map(p => `
+                    <button type="button" onclick="selectProduct('${p.id}', '${p.title.replace(/'/g, "\\'")}')" class="w-full text-left p-3 hover:bg-gray-50 rounded flex justify-between items-center border-b border-gray-100 last:border-0">
+                        <span>${p.title}</span>
+                        <span class="text-sm font-bold">${p.priceRub} ₽</span>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openProductModal() {
+            document.getElementById('productModal').classList.remove('hidden');
+            document.getElementById('productModal').classList.add('flex');
+        }
+        function closeProductModal() {
+            document.getElementById('productModal').classList.add('hidden');
+            document.getElementById('productModal').classList.remove('flex');
+        }
+        function selectProduct(id, title) {
+            document.getElementById('buttonText').value = 'Купить ' + title;
+            document.getElementById('buttonUrl').value = 'https://t.me/${process.env.BOT_USERNAME || 'PlazmaBot'}?start=prod_' + id;
+            closeProductModal();
+        }
+
+        async function checkAudience() {
+            const type = document.getElementById('targetType').value;
+            const res = await fetch('/admin/broadcasts/audience-count?type=' + type);
+            const data = await res.json();
+            const el = document.getElementById('audienceResult');
+            if(data.error) {
+                el.innerHTML = '<span class="text-red-500">Ошибка</span>';
+            } else {
+                const names = data.preview.map(u => u.firstName || u.username || 'User').join(', ');
+                el.innerHTML = 'Найдено: <b>' + data.count + '</b> чел. (Пример: ' + names + '...)';
+            }
+        }
+
+        async function sendTest() {
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = 'Отправка...';
+            btn.disabled = true;
+
+            const form = document.getElementById('broadcastForm');
+            const formData = new FormData(form);
+
+            try {
+                const res = await fetch('/admin/broadcasts/test', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert('✅ Тестовое сообщение отправлено в ваш Telegram!');
+                } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            } catch(e) {
+                alert('Ошибка сети');
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
   `;
   res.send(renderFullAdminPage({ title: 'Новая рассылка', activePath: '/admin/broadcasts', content }));
-});
-
-// 3. Handle Creation
-broadcastRouter.post('/create', requireAdmin, upload.single('photo'), async (req, res) => {
-  try {
-    const { title, targetType, message, buttonText, buttonUrl } = req.body;
-    let photoUrl = null;
-
-    if (req.file) {
-      photoUrl = req.file.path; // e.g. uploads/123-file.jpg
-    }
-
-    // 1. Create Broadcast Record
-    const broadcast = await prisma.broadcast.create({
-      data: {
-        title,
-        message,
-        photoUrl,
-        buttonText,
-        buttonUrl,
-        targetType,
-        status: 'PROCESSING', // Start immediately
-        startedAt: new Date()
-      }
-    });
-
-    // 2. Select Users based on Target
-    // This could be heavy, so we might want to do it in batches or entirely in background?
-    // User asked for "queue to avoid hanging".
-    // Strategy: We select IDs here (it's fast enough for <100k usually) and bulk insert targets.
-    // Optimization: If >10k users, bulk insert might timeout if not batched.
-
-    let whereClause: any = { isBlocked: false }; // Don't target blocked users initially (optimization)
-
-    if (targetType === 'BUYERS') {
-      whereClause.orders = { some: { status: 'COMPLETED' } }; // Simplified logic
-    } else if (targetType === 'NON_BUYERS') {
-      whereClause.orders = { none: { status: 'COMPLETED' } };
-    }
-
-    const users = await prisma.user.findMany({
-      where: whereClause,
-      select: { id: true }
-    });
-
-    // 3. Bulk Insert Targets (Batching 5000 at a time)
-    const BATCH_INSERT = 5000;
-    const total = users.length;
-
-    for (let i = 0; i < total; i += BATCH_INSERT) {
-      const batch = users.slice(i, i + BATCH_INSERT);
-      await prisma.broadcastTarget.createMany({
-        data: batch.map((u: any) => ({
-          broadcastId: broadcast.id,
-          userId: u.id,
-          status: 'PENDING'
-        }))
-      });
-    }
-
-    // Update total count
-    await prisma.broadcast.update({
-      where: { id: broadcast.id },
-      data: { totalRecipients: total }
-    });
-
-    res.redirect('/admin/broadcasts');
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).send('Error creating broadcast: ' + error);
-  }
 });
 
 // 4. View Details
