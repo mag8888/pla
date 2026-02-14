@@ -173,7 +173,7 @@ router.get('/api/user/profile', async (req, res) => {
 
     if (!user) {
       try {
-        user = await prisma.user.create({
+        const createdUser = await prisma.user.create({
           data: {
             telegramId: telegramUser.id.toString(),
             firstName: telegramUser.first_name,
@@ -182,7 +182,7 @@ router.get('/api/user/profile', async (req, res) => {
           }
         });
         // Normalize type to include partner (as null)
-        user = { ...newUser, partner: null };
+        user = { ...createdUser, partner: null };
       } catch (error: any) {
         if (error?.code === 'P2031' || error?.message?.includes('replica set')) {
           console.warn('⚠️  MongoDB replica set not configured - user creation skipped');
