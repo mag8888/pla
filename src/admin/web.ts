@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma.js';
 import { recalculatePartnerBonuses, activatePartnerProfile, checkPartnerActivation, calculateDualSystemBonuses } from '../services/partner-service.js';
 import { ordersModule } from './orders-module.js';
 import { uploadImage, isCloudinaryConfigured } from '../services/cloudinary-service.js';
+import { broadcastRouter } from './broadcast-router.js';
 
 const router = express.Router();
 
@@ -18823,6 +18824,9 @@ router.post('/regions/:id/delete', requireAdmin, async (req, res) => {
     res.redirect('/admin/regions?error=delete_failed');
   }
 });
+
+// Broadcasts
+router.use('/broadcasts', broadcastRouter);
 
 export { router as adminWebRouter };
 
