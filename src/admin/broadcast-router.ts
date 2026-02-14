@@ -108,7 +108,7 @@ broadcastRouter.get('/', requireAdmin, async (req, res) => {
   // requesting `web.ts` to export its layout helpers.
   // Let's modify `web.ts` to export `renderAdminShell` first.
 
-  res.send(renderAdminShellStart({ title: 'Рассылки', activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+  res.send(renderFullAdminPage({ title: 'Рассылки', activePath: '/admin/broadcasts', content }));
 });
 
 // 2. Create Form
@@ -161,7 +161,7 @@ broadcastRouter.get('/create', requireAdmin, (req, res) => {
       </form>
     </div>
   `;
-  res.send(renderAdminShellStart({ title: 'Новая рассылка', activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+  res.send(renderFullAdminPage({ title: 'Новая рассылка', activePath: '/admin/broadcasts', content }));
 });
 
 // 3. Handle Creation
@@ -286,5 +286,5 @@ broadcastRouter.get('/:id', requireAdmin, async (req, res) => {
 
       </div>
     `;
-  res.send(renderAdminShellStart({ title: broadcast.title, activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+  res.send(renderFullAdminPage({ title: broadcast.title, activePath: '/admin/broadcasts', content }));
 });
