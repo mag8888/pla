@@ -233,7 +233,7 @@ broadcastRouter.get('/audience-count', requireAdmin, async (req, res) => {
 broadcastRouter.get('/create', requireAdmin, async (req, res) => {
   const products = await prisma.product.findMany({
     where: { isActive: true },
-    select: { id: true, title: true, priceRub: true }
+    select: { id: true, title: true, price: true }
   });
 
   const content = `
@@ -312,7 +312,7 @@ broadcastRouter.get('/create', requireAdmin, async (req, res) => {
                 ${products.map(p => `
                     <button type="button" onclick="selectProduct('${p.id}', '${p.title.replace(/'/g, "\\'")}')" class="w-full text-left p-3 hover:bg-gray-50 rounded flex justify-between items-center border-b border-gray-100 last:border-0">
                         <span>${p.title}</span>
-                        <span class="text-sm font-bold">${p.priceRub} ₽</span>
+                        <span class="text-sm font-bold">${p.price} ₽</span>
                     </button>
                 `).join('')}
             </div>
