@@ -2766,7 +2766,8 @@ async function showPartnerDashboard() {
             }
 
             // Updated link generation to match bot
-            const botUsername = 'PLAZMA_test8_bot';
+            // FORCED to iplazmabot as per user request
+            const botUsername = 'iplazmabot';
             const referralLink = `https://t.me/${botUsername}?start=ref_direct_${dashboard.profile.referralCode}`;
 
             content += `
