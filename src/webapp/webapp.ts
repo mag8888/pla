@@ -1108,6 +1108,7 @@ router.post('/api/orders/create', async (req, res) => {
             deliveryAddress: deliveryAddress || null,
           }
         });
+        user = { ...newUser, partner: null };
         console.log('✅ User created:', user.id);
       } catch (error: any) {
         if (error?.code === 'P2031' || error?.message?.includes('replica set')) {
