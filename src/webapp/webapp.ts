@@ -206,7 +206,11 @@ router.get('/api/user/profile', async (req, res) => {
       city: user!.city,
       deliveryAddress: user!.deliveryAddress,
       selectedRegion: user!.selectedRegion,
-      balance: (user as any).balance || 0,
+
+      balance: ((user as any).balance || 0) + (isPartner ? ((user as any).partner?.bonus || 0) : 0),
+      // Raw balance for debugging if needed
+      walletBalance: (user as any).balance || 0,
+      partnerBonus: isPartner ? ((user as any).partner?.bonus || 0) : 0,
       isPartner,
       botUsername: (await import('../config/env.js')).env.botUsername
     });
