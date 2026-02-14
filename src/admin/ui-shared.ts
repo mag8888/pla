@@ -352,33 +352,33 @@ export const ADMIN_UI_CSS = `
 `;
 
 export function adminIcon(name: string): string {
-    const icons: Record<string, string> = {
-        dashboard: '<svg viewBox="0 0 24 24"><path d="M3 13h8V3H3z"/><path d="M13 21h8V11h-8z"/><path d="M13 3h8v6h-8z"/><path d="M3 21h8v-6H3z"/></svg>',
-        users: '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-        partners: '<svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 0 1-8 0"/><path d="M12 12v9"/><path d="M7 21h10"/><circle cx="12" cy="7" r="4"/></svg>',
-        box: '<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>',
-        tag: '<svg viewBox="0 0 24 24"><path d="M20.6 13.4 11 23H1V13l9.6-9.6a2 2 0 0 1 2.8 0l7.2 7.2a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
-        cart: '<svg viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.4 12.4a2 2 0 0 0 2 1.6h9.2a2 2 0 0 0 2-1.6L23 6H6"/></svg>',
-        star: '<svg viewBox="0 0 24 24"><path d="M12 17.3 18.2 21l-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7L5.8 21z"/></svg>',
-        chat: '<svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
-        upload: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5"/><path d="M12 5v14"/></svg>',
-        wrench: '<svg viewBox="0 0 24 24"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4l-5.3 5.3a2 2 0 0 0 2.8 2.8l5.3-5.3a5 5 0 0 0 6.4-6.4l-3 3-2-2z"/></svg>',
-        logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
-        globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>',
-    };
-    return icons[name] || icons.dashboard;
+  const icons: Record<string, string> = {
+    dashboard: '<svg viewBox="0 0 24 24"><path d="M3 13h8V3H3z"/><path d="M13 21h8V11h-8z"/><path d="M13 3h8v6h-8z"/><path d="M3 21h8v-6H3z"/></svg>',
+    users: '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    partners: '<svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 0 1-8 0"/><path d="M12 12v9"/><path d="M7 21h10"/><circle cx="12" cy="7" r="4"/></svg>',
+    box: '<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>',
+    tag: '<svg viewBox="0 0 24 24"><path d="M20.6 13.4 11 23H1V13l9.6-9.6a2 2 0 0 1 2.8 0l7.2 7.2a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+    cart: '<svg viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.4 12.4a2 2 0 0 0 2 1.6h9.2a2 2 0 0 0 2-1.6L23 6H6"/></svg>',
+    star: '<svg viewBox="0 0 24 24"><path d="M12 17.3 18.2 21l-1.6-7 5.4-4.7-7.1-.6L12 2 9.1 8.7 2 9.3l5.4 4.7L5.8 21z"/></svg>',
+    chat: '<svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
+    upload: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5"/><path d="M12 5v14"/></svg>',
+    wrench: '<svg viewBox="0 0 24 24"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4l-5.3 5.3a2 2 0 0 0 2.8 2.8l5.3-5.3a5 5 0 0 0 6.4-6.4l-3 3-2-2z"/></svg>',
+    logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  };
+  return icons[name] || icons.dashboard;
 }
 
 export function renderAdminShellStart(opts: { title: string; activePath: string; buildMarker?: string }): string {
-    const { title, activePath, buildMarker } = opts;
-    const isActive = (href: string, opts?: { also?: string[]; prefixes?: string[] }) => {
-        const also = opts?.also || [];
-        const prefixes = opts?.prefixes || [];
-        if ([href, ...also].includes(activePath)) return 'active';
-        if (prefixes.some((p) => activePath.startsWith(p))) return 'active';
-        return '';
-    };
-    return `
+  const { title, activePath, buildMarker } = opts;
+  const isActive = (href: string, opts?: { also?: string[]; prefixes?: string[] }) => {
+    const also = opts?.also || [];
+    const prefixes = opts?.prefixes || [];
+    if ([href, ...also].includes(activePath)) return 'active';
+    if (prefixes.some((p) => activePath.startsWith(p))) return 'active';
+    return '';
+  };
+  return `
     <div class="admin-shell">
       <aside class="admin-sidebar">
         <div class="admin-brand">
@@ -433,7 +433,7 @@ export function renderAdminShellStart(opts: { title: string; activePath: string;
 }
 
 export function renderAdminShellEnd(): string {
-    return `
+  return `
         </main>
       </div>
     </div>
@@ -442,9 +442,30 @@ export function renderAdminShellEnd(): string {
 
 // Middleware to check admin access
 export const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const session = req.session as any;
-    if (!session.isAdmin) {
-        return res.redirect('/admin/login');
-    }
-    next();
+  const session = req.session as any;
+  if (!session.isAdmin) {
+    return res.redirect('/admin/login');
+  }
+  next();
 };
+
+export function renderFullAdminPage(opts: { title: string; activePath: string; content: string; buildMarker?: string }): string {
+  const { title, activePath, content, buildMarker } = opts;
+  return `
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${title} - Plazma Admin</title>
+      <style>${ADMIN_UI_CSS}</style>
+      <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body>
+      ${renderAdminShellStart({ title, activePath, buildMarker })}
+      ${content}
+      ${renderAdminShellEnd()}
+    </body>
+    </html>
+  `;
+}
