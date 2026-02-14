@@ -7,7 +7,7 @@
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
     "dev:refactored": "nodemon --watch src --exec ts-node src/server-refactored.ts",
     "dev:simple": "nodemon --watch src --exec ts-node src/server-simple-refactored.ts",
-    "start": "npx prisma db push --schema=dist/prisma/schema.prisma --accept-data-loss && node dist/server.js",
+    "start": "node dist/server.js",
     "start:refactored": "node dist/server-refactored.js",
     "start:simple": "node dist/server-simple-refactored.js",
     "build": "rm -rf dist && tsc --project tsconfig-original.json && cp -r prisma dist/prisma",

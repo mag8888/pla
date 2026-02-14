@@ -19,6 +19,28 @@ import { setBotInstance } from './lib/bot-instance.js';
 
 async function bootstrap() {
   try {
+    const app = express();
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+
+    const port = Number(process.env.PORT ?? 3000);
+
+    // Health check endpoints (Early init for Railway)
+    app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
+    app.get('/api/health', (_req, res) => res.status(200).json({ status: 'ok', bot: 'active' }));
+    app.get('/', (req, res) => {
+      if (req.headers['user-agent']?.includes('Railway') || req.query.healthcheck) {
+        res.status(200).json({ status: 'ok', service: 'plazma-bot' });
+      } else {
+        res.redirect('/webapp');
+      }
+    });
+
+    // Start server IMMEDIATELY
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`🌐 Server is running on port ${port}`);
+    });
+
     // Try to connect to database with timeout
     let dbConnected = false;
     try {
@@ -59,9 +81,8 @@ async function bootstrap() {
       console.warn('⚠️  Skipping initial data setup - database not connected');
     }
 
-    const app = express();
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true }));
+    // App initialized at top
+
 
     // CORS for webapp
     app.use((req, res, next) => {
@@ -93,29 +114,8 @@ async function bootstrap() {
     }));
     console.warn = originalWarn;
 
-    // Health check endpoints (must be before other routes for Railway)
-    app.get('/health', (_req, res) => {
-      res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-    });
+    // Health checks moved to top
 
-    app.get('/api/health', (_req, res) => {
-      res.status(200).json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0-original',
-        bot: 'active'
-      });
-    });
-
-    // Root - health check for Railway (returns 200, not redirect)
-    app.get('/', (req, res) => {
-      // Railway healthcheck expects 200 OK, not redirect
-      if (req.headers['user-agent']?.includes('Railway') || req.query.healthcheck) {
-        res.status(200).json({ status: 'ok', service: 'plazma-bot' });
-      } else {
-        res.redirect('/webapp');
-      }
-    });
 
     // Alias /products for frontend (which expects it at root)
     app.get('/products', async (req, res) => {
@@ -183,12 +183,8 @@ async function bootstrap() {
       }
     });
 
-    const port = Number(process.env.PORT ?? 3000);
-    // Listen on 0.0.0.0 to accept connections from Railway
-    app.listen(port, '0.0.0.0', () => {
-      console.log(`🌐 Server is running on port ${port}`);
-      console.log(`🔗 Webapp URL: ${env.webappUrl || `http://localhost:${port}/webapp`}`);
-    });
+    // app.listen moved to top
+
 
     // Initialize bot separately
     const bot = new Telegraf<Context>(env.botToken, {
