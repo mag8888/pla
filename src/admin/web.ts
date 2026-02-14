@@ -2930,13 +2930,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
               { firstName: { contains: search, mode: 'insensitive' } },
               { lastName: { contains: search, mode: 'insensitive' } }
             ]
-          } : {},
-          {
-            OR: [
-              { partner: null },
-              { partner: { isActive: true } }
-            ]
-          }
+          } : {}
         ]
       },
       orderBy: {
