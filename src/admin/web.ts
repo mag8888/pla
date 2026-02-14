@@ -2926,7 +2926,9 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
           search ? {
             OR: [
               { username: { contains: search, mode: 'insensitive' } },
-              { phone: { contains: search } }
+              { phone: { contains: search } },
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } }
             ]
           } : {},
           {
