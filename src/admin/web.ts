@@ -2910,7 +2910,7 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
 
     // Get all users with their related data
     // Search by username or phone
-    const search = (req.query.search as string | undefined)?.trim();
+    const search = (req.query.search as string | undefined)?.trim().replace(/^@/, '');
     const users = await prisma.user.findMany({
       include: {
         partner: {
