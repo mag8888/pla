@@ -1206,7 +1206,7 @@ function openSection(sectionName) {
     // Set section title
     const titles = {
         shop: 'Каталог',
-        partner: 'Партнёрка',
+        partner: 'Партнёрка (v2)',
         audio: 'Звуковые матрицы',
         reviews: 'Отзывы',
         about: 'О нас',
