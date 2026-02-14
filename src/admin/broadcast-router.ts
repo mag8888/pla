@@ -186,11 +186,22 @@ broadcastRouter.post('/test', requireAdmin, upload.single('photo'), async (req, 
 
     // Find admin's telegram ID
     const adminUser = await prisma.user.findUnique({ where: { id: user?.id || '' } });
-    if (!adminUser || !adminUser.telegramId) {
+
+    // Fallback to ADMIN_CHAT_ID from env if user has no ID
+    let targetTelegramId = adminUser?.telegramId;
+
+    if (!targetTelegramId && process.env.ADMIN_CHAT_ID) {
+      const envIds = process.env.ADMIN_CHAT_ID.split(',').map(id => id.trim()).filter(Boolean);
+      if (envIds.length > 0) {
+        targetTelegramId = BigInt(envIds[0]);
+      }
+    }
+
+    if (!targetTelegramId) {
       return res.status(400).json({ error: 'Admin has no linked Telegram ID' });
     }
 
-    await broadcastService.sendTestBroadcast(adminUser.telegramId, {
+    await broadcastService.sendTestBroadcast(targetTelegramId.toString(), {
       message,
       photo: req.file,
       buttonText,
