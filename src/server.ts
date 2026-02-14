@@ -81,7 +81,10 @@ async function bootstrap() {
       console.warn('⚠️  Skipping initial data setup - database not connected');
     }
 
+
     // App initialized at top
+    // Trust proxy (required for secure cookies behind Railway load balancer)
+    app.set('trust proxy', 1);
 
 
     // CORS for webapp
