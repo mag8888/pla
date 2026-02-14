@@ -96,24 +96,28 @@ async function bootstrap() {
       }
     });
 
-    // Configure session middleware
-    // Suppress MemoryStore warning in production
-    const originalWarn = console.warn;
-    console.warn = (...args: any[]) => {
-      if (args[0]?.includes?.('MemoryStore') || args[0]?.includes?.('production environment')) {
-        return; // Suppress MemoryStore warning
-      }
-      originalWarn.apply(console, args);
-    };
+    // Configure session middleware (PostgreSQL)
+    // Dynamic import to avoid issues if module is missing during build
+    const pgSession = (await import('connect-pg-simple')).default(session);
+    const pgPool = new (await import('pg')).Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+    });
 
     app.use(session({
+      store: new pgSession({
+        pool: pgPool as any,
+        tableName: 'session',
+        createTableIfMissing: true
+      }),
       secret: process.env.SESSION_SECRET || 'plazma-bot-secret-key',
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      }
     }));
-    console.warn = originalWarn;
-
     // Health checks moved to top
 
 
@@ -150,43 +154,7 @@ async function bootstrap() {
     // Web admin panel
     app.use('/admin', adminWebRouter);
 
-    // Webapp routes
-    app.use('/webapp', webappRouter);
-    app.use('/webapp-v2', webappV2Router);
-    app.use('/api/external', externalApiRouter);
-
-    // Log route registration
-    console.log('✅ Routes registered:');
-    console.log('   - GET / → redirects to /webapp');
-    console.log('   - GET /health → health check');
-    console.log('   - GET /api/health → API health check');
-    console.log('   - /admin → admin panel');
-    console.log('   - /webapp → web application');
-
-    // Lava webhook routes (only if Lava is enabled)
-    const { lavaService } = await import('./services/lava-service.js');
-    if (lavaService.isEnabled()) {
-      app.use('/webhook', lavaWebhook);
-      console.log('✅ Lava webhook routes enabled');
-    } else {
-      console.log('ℹ️  Lava webhook routes disabled (Lava service not configured)');
-    }
-
-    // 404 handler for unknown routes
-    app.use((req, res) => {
-      console.log(`⚠️  404: ${req.method} ${req.path}`);
-      if (req.path.startsWith('/api')) {
-        res.status(404).json({ error: 'Not found', path: req.path });
-      } else {
-        // For non-API routes, redirect to webapp
-        res.redirect('/webapp');
-      }
-    });
-
-    // app.listen moved to top
-
-
-    // Initialize bot separately
+    // Initialize bot separately (Moved up for Webhook support)
     const bot = new Telegraf<Context>(env.botToken, {
       handlerTimeout: 30_000,
     });
@@ -239,7 +207,6 @@ async function bootstrap() {
       ]);
       console.log('Bot commands registered successfully');
     } catch (error: any) {
-      // Telegram API timeout is common on Railway - continue anyway
       if (error.code === 'ETIMEDOUT' || error.errno === 'ETIMEDOUT') {
         console.warn('⚠️  Telegram API timeout when registering commands - continuing anyway');
       } else {
@@ -267,41 +234,67 @@ async function bootstrap() {
       }
     }
 
-    console.log('Starting bot in long polling mode...');
+    // WEBHOOK CONFIGURATION (Production / 3 Replicas)
+    // We use a fixed path for webhook
+    const webhookPath = '/api/telegram-webhook';
 
-    // Clear any existing webhook first
-    try {
-      await bot.telegram.deleteWebhook();
-      console.log('Cleared existing webhook');
-    } catch (error: any) {
-      // Telegram API timeout is common on Railway - continue anyway
-      if (error.code === 'ETIMEDOUT' || error.errno === 'ETIMEDOUT') {
-        console.warn('⚠️  Telegram API timeout when clearing webhook - continuing anyway');
-      } else {
-        console.log('No webhook to clear or error clearing:', error instanceof Error ? error.message : String(error));
-      }
+    // Determine public domain (must be HTTPS)
+    const tempDomain = env.webappUrl || env.publicBaseUrl || 'https://plazma.up.railway.app';
+    // Clean domain: remove /webapp if present, remove trailing slash
+    const domain = tempDomain.replace(/\/webapp\/?$/, '').replace(/\/$/, '');
+    const webhookUrl = `${domain}${webhookPath}`;
+
+    console.log(`🌍 Configured Webhook URL: ${webhookUrl}`);
+
+    // Set webhook (background, don't await/block startup significantly)
+    // Clear any pending updates? No, just set.
+    bot.telegram.setWebhook(webhookUrl)
+      .then(() => console.log(`✅ Webhook set successfully to ${webhookUrl}`))
+      .catch(err => {
+        console.error('❌ Failed to set webhook:', err?.message || err);
+      });
+
+    // Mount webhook middleware BEFORE 404 handler
+    app.use(bot.webhookCallback(webhookPath));
+    console.log(`✅ Bot webhook middleware mounted at ${webhookPath}`);
+
+    // Webapp routes
+    app.use('/webapp', webappRouter);
+    app.use('/webapp-v2', webappV2Router);
+    app.use('/api/external', externalApiRouter);
+
+    // Log route registration
+    console.log('✅ Routes registered:');
+    console.log('   - GET / → redirects to /webapp');
+    console.log('   - GET /health → health check');
+    console.log('   - GET /api/health → API health check');
+    console.log('   - /admin → admin panel');
+    console.log('   - /webapp → web application');
+
+    // Lava webhook routes (only if Lava is enabled)
+    const { lavaService } = await import('./services/lava-service.js');
+    if (lavaService.isEnabled()) {
+      app.use('/webhook', lavaWebhook);
+      console.log('✅ Lava webhook routes enabled');
+    } else {
+      console.log('ℹ️  Lava webhook routes disabled (Lava service not configured)');
     }
 
-    // Try to launch bot with error handling - don't crash server if bot fails
-    try {
-      await bot.launch();
-      console.log('✅ Bot launched successfully');
-    } catch (error: any) {
-      const errorMessage = error?.message || String(error);
-      const errorCode = error?.response?.error_code || error?.code;
-
-      if (errorCode === 409 || errorMessage.includes('409') || errorMessage.includes('Conflict')) {
-        console.warn('⚠️  Bot conflict detected (409). Another bot instance may be running.');
-        console.warn('⚠️  Web server will continue running without bot.');
-        console.warn('ℹ️  To fix: Stop other bot instances or wait for webhook to clear.');
-      } else if (error.code === 'ETIMEDOUT' || error.errno === 'ETIMEDOUT') {
-        console.warn('⚠️  Telegram API timeout when launching bot - web server continues');
+    // 404 handler for unknown routes
+    app.use((req, res) => {
+      console.log(`⚠️  404: ${req.method} ${req.path}`);
+      if (req.path.startsWith('/api')) {
+        res.status(404).json({ error: 'Not found', path: req.path });
       } else {
-        console.error('❌ Bot launch failed, but web server is running:', errorMessage);
+        // For non-API routes, redirect to webapp
+        res.redirect('/webapp');
       }
-      // Don't exit - web server should continue working
-      console.log('✅ Web server continues to run despite bot error');
-    }
+    });
+
+    // app.listen moved to top
+
+
+
 
     // Graceful shutdown handlers
     process.once('SIGINT', () => {
