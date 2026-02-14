@@ -549,6 +549,7 @@ async function loadProfileContent() {
 
         // Реферальная ссылка с юзернеймом в конце
         // Реферальная ссылка с юзернеймом в конце
+        console.log('User botUsername:', user.botUsername);
         const botUsername = (user.botUsername || 'PLAZMA_test8_bot').replace(/^@/, '');
         let referralLink = `https://t.me/${botUsername}`;
 

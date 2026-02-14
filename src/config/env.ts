@@ -10,7 +10,7 @@ function requireEnv(key: string): string {
 
 export const env = {
   botToken: requireEnv('BOT_TOKEN'),
-  botUsername: process.env.BOT_USERNAME || 'PLAZMA_test8_bot',
+  botUsername: process.env.BOT_USERNAME || 'iplazmabot',
   botWebhookUrl: process.env.BOT_WEBHOOK_URL,
   botWebhookSecret: process.env.BOT_WEBHOOK_SECRET,
   adminChatId: process.env.ADMIN_CHAT_ID,
