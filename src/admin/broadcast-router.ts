@@ -2,18 +2,18 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { prisma } from '../lib/prisma.js';
-import { requireAdmin, renderAdminShellStart, renderAdminShellEnd } from './web.js';
+import { requireAdmin, renderAdminShellStart, renderAdminShellEnd } from './ui-shared.js';
 import { broadcastService } from '../services/broadcast-service.js';
 
 // Setup Multer for file uploads
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
 });
 const upload = multer({ storage: storage });
 
@@ -24,23 +24,23 @@ console.log('📢 Broadcast Service initialized:', !!broadcastService);
 
 // 1. List Broadcasts
 broadcastRouter.get('/', requireAdmin, async (req, res) => {
-    const broadcasts = await prisma.broadcast.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: { _count: { select: { targets: true } } }
-    });
+  const broadcasts = await prisma.broadcast.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { _count: { select: { targets: true } } }
+  });
 
-    const renderStatus = (status: string) => {
-        const colors: any = {
-            'DRAFT': 'bg-gray-100 text-gray-800',
-            'PROCESSING': 'bg-blue-100 text-blue-800',
-            'COMPLETED': 'bg-green-100 text-green-800',
-            'PAUSED': 'bg-yellow-100 text-yellow-800',
-            'FAILED': 'bg-red-100 text-red-800'
-        };
-        return `<span class="px-2 py-1 text-xs font-semibold rounded-full ${colors[status] || 'bg-gray-100'}">${status}</span>`;
+  const renderStatus = (status: string) => {
+    const colors: any = {
+      'DRAFT': 'bg-gray-100 text-gray-800',
+      'PROCESSING': 'bg-blue-100 text-blue-800',
+      'COMPLETED': 'bg-green-100 text-green-800',
+      'PAUSED': 'bg-yellow-100 text-yellow-800',
+      'FAILED': 'bg-red-100 text-red-800'
     };
+    return `<span class="px-2 py-1 text-xs font-semibold rounded-full ${colors[status] || 'bg-gray-100'}">${status}</span>`;
+  };
 
-    const content = `
+  const content = `
     <div class="p-6">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">📢 Рассылки</h1>
@@ -96,24 +96,24 @@ broadcastRouter.get('/', requireAdmin, async (req, res) => {
     </div>
   `;
 
-    // Minimal admin layout wrapper (hacky but quick, reusing style from main admin)
-    // Better approach: use a layout function exported from web.ts if possible, but for now just returning partial HTML 
-    // to be rendered inside the admin shell if we were inside web.ts.
-    // Since we are in a separate router, we need to inject the shell. 
-    // Importing `renderAdminShell` from web.ts might be circular or hard if not exported.
-    // Let's assume we can import a layout helper or just duplicate the shell for now.
-    // Inspection showed `renderAdminShell` is a function inside `web.ts`... likely not exported.
+  // Minimal admin layout wrapper (hacky but quick, reusing style from main admin)
+  // Better approach: use a layout function exported from web.ts if possible, but for now just returning partial HTML 
+  // to be rendered inside the admin shell if we were inside web.ts.
+  // Since we are in a separate router, we need to inject the shell. 
+  // Importing `renderAdminShell` from web.ts might be circular or hard if not exported.
+  // Let's assume we can import a layout helper or just duplicate the shell for now.
+  // Inspection showed `renderAdminShell` is a function inside `web.ts`... likely not exported.
 
-    // STRATEGY: Return full HTML page by copying basic admin layout structure or 
-    // requesting `web.ts` to export its layout helpers.
-    // Let's modify `web.ts` to export `renderAdminShell` first.
+  // STRATEGY: Return full HTML page by copying basic admin layout structure or 
+  // requesting `web.ts` to export its layout helpers.
+  // Let's modify `web.ts` to export `renderAdminShell` first.
 
-    res.send(renderAdminShellStart({ title: 'Рассылки', activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+  res.send(renderAdminShellStart({ title: 'Рассылки', activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
 });
 
 // 2. Create Form
 broadcastRouter.get('/create', requireAdmin, (req, res) => {
-    const content = `
+  const content = `
     <div class="p-6 max-w-2xl mx-auto">
       <h1 class="text-2xl font-bold mb-6">📢 Новая рассылка</h1>
       
@@ -161,94 +161,94 @@ broadcastRouter.get('/create', requireAdmin, (req, res) => {
       </form>
     </div>
   `;
-    res.send(renderAdminShellStart({ title: 'Новая рассылка', activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+  res.send(renderAdminShellStart({ title: 'Новая рассылка', activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
 });
 
 // 3. Handle Creation
 broadcastRouter.post('/create', requireAdmin, upload.single('photo'), async (req, res) => {
-    try {
-        const { title, targetType, message, buttonText, buttonUrl } = req.body;
-        let photoUrl = null;
+  try {
+    const { title, targetType, message, buttonText, buttonUrl } = req.body;
+    let photoUrl = null;
 
-        if (req.file) {
-            photoUrl = req.file.path; // e.g. uploads/123-file.jpg
-        }
-
-        // 1. Create Broadcast Record
-        const broadcast = await prisma.broadcast.create({
-            data: {
-                title,
-                message,
-                photoUrl,
-                buttonText,
-                buttonUrl,
-                targetType,
-                status: 'PROCESSING', // Start immediately
-                startedAt: new Date()
-            }
-        });
-
-        // 2. Select Users based on Target
-        // This could be heavy, so we might want to do it in batches or entirely in background?
-        // User asked for "queue to avoid hanging".
-        // Strategy: We select IDs here (it's fast enough for <100k usually) and bulk insert targets.
-        // Optimization: If >10k users, bulk insert might timeout if not batched.
-
-        let whereClause: any = { isBlocked: false }; // Don't target blocked users initially (optimization)
-
-        if (targetType === 'BUYERS') {
-            whereClause.orders = { some: { status: 'COMPLETED' } }; // Simplified logic
-        } else if (targetType === 'NON_BUYERS') {
-            whereClause.orders = { none: { status: 'COMPLETED' } };
-        }
-
-        const users = await prisma.user.findMany({
-            where: whereClause,
-            select: { id: true }
-        });
-
-        // 3. Bulk Insert Targets (Batching 5000 at a time)
-        const BATCH_INSERT = 5000;
-        const total = users.length;
-
-        for (let i = 0; i < total; i += BATCH_INSERT) {
-            const batch = users.slice(i, i + BATCH_INSERT);
-            await prisma.broadcastTarget.createMany({
-                data: batch.map((u: any) => ({
-                    broadcastId: broadcast.id,
-                    userId: u.id,
-                    status: 'PENDING'
-                }))
-            });
-        }
-
-        // Update total count
-        await prisma.broadcast.update({
-            where: { id: broadcast.id },
-            data: { totalRecipients: total }
-        });
-
-        res.redirect('/admin/broadcasts');
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Error creating broadcast: ' + error);
+    if (req.file) {
+      photoUrl = req.file.path; // e.g. uploads/123-file.jpg
     }
+
+    // 1. Create Broadcast Record
+    const broadcast = await prisma.broadcast.create({
+      data: {
+        title,
+        message,
+        photoUrl,
+        buttonText,
+        buttonUrl,
+        targetType,
+        status: 'PROCESSING', // Start immediately
+        startedAt: new Date()
+      }
+    });
+
+    // 2. Select Users based on Target
+    // This could be heavy, so we might want to do it in batches or entirely in background?
+    // User asked for "queue to avoid hanging".
+    // Strategy: We select IDs here (it's fast enough for <100k usually) and bulk insert targets.
+    // Optimization: If >10k users, bulk insert might timeout if not batched.
+
+    let whereClause: any = { isBlocked: false }; // Don't target blocked users initially (optimization)
+
+    if (targetType === 'BUYERS') {
+      whereClause.orders = { some: { status: 'COMPLETED' } }; // Simplified logic
+    } else if (targetType === 'NON_BUYERS') {
+      whereClause.orders = { none: { status: 'COMPLETED' } };
+    }
+
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      select: { id: true }
+    });
+
+    // 3. Bulk Insert Targets (Batching 5000 at a time)
+    const BATCH_INSERT = 5000;
+    const total = users.length;
+
+    for (let i = 0; i < total; i += BATCH_INSERT) {
+      const batch = users.slice(i, i + BATCH_INSERT);
+      await prisma.broadcastTarget.createMany({
+        data: batch.map((u: any) => ({
+          broadcastId: broadcast.id,
+          userId: u.id,
+          status: 'PENDING'
+        }))
+      });
+    }
+
+    // Update total count
+    await prisma.broadcast.update({
+      where: { id: broadcast.id },
+      data: { totalRecipients: total }
+    });
+
+    res.redirect('/admin/broadcasts');
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error creating broadcast: ' + error);
+  }
 });
 
 // 4. View Details
 broadcastRouter.get('/:id', requireAdmin, async (req, res) => {
-    const { id } = req.params;
-    const broadcast = await prisma.broadcast.findUnique({
-        where: { id },
-        include: {
-            // _count: { select: { targets: true } } 
-        }
-    });
+  const { id } = req.params;
+  const broadcast = await prisma.broadcast.findUnique({
+    where: { id },
+    include: {
+      // _count: { select: { targets: true } } 
+    }
+  });
 
-    if (!broadcast) return res.status(404).send('Not found');
+  if (!broadcast) return res.status(404).send('Not found');
 
-    const content = `
+  const content = `
       <div class="p-6">
         <div class="mb-4">
             <a href="/admin/broadcasts" class="text-blue-600 hover:underline">&larr; Назад к списку</a>
@@ -286,5 +286,5 @@ broadcastRouter.get('/:id', requireAdmin, async (req, res) => {
 
       </div>
     `;
-    res.send(renderAdminShellStart({ title: broadcast.title, activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
+  res.send(renderAdminShellStart({ title: broadcast.title, activePath: '/admin/broadcasts' }) + content + renderAdminShellEnd());
 });
