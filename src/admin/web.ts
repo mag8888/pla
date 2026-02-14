@@ -5754,7 +5754,8 @@ router.get('/partners', requireAdmin, async (req, res) => {
           </td>
           <td>
             ${partner.user.firstName || 'Не указан'}
-            ${!partner.isActive ? '<span style="display:inline-block; margin-left:6px; padding:2px 6px; background:#fee2e2; color:#991b1b; border-radius:4px; font-size:10px; font-weight:bold;">DEACTIVATED</span>' : ''}
+            <div style="font-size: 12px; color: #6c757d;">@${partner.user.username || 'без username'}</div>
+            ${!partner.isActive ? '<span style="display:inline-block; margin-top:4px; padding:2px 6px; background:#fee2e2; color:#991b1b; border-radius:4px; font-size:10px; font-weight:bold;">DEACTIVATED</span>' : ''}
           </td>
           <td>${partner.programType === 'DIRECT' ? 'Прямая (25%)' : 'Многоуровневая (15%+5%+5%)'}</td>
 
