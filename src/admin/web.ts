@@ -2941,58 +2941,58 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
       }
     });
 
-    // Helper function to count partners by level (based on hierarchy depth)
-    async function countPartnersByLevel(userId: string): Promise<{ level1: number, level2: number, level3: number }> {
-      // Level 1: Direct referrals (all referrals of this user)
-      const level1Partners = await prisma.partnerReferral.findMany({
-        where: {
-          profile: { userId: userId },
-          referredId: { not: null }
-        },
-        select: { referredId: true }
-      });
+    // OPTIMIZATION: Fetch all referrals once to avoid N+1 queries
+    const allReferrals = await prisma.partnerReferral.findMany({
+      select: {
+        referredId: true,
+        profile: {
+          select: {
+            userId: true,
+            user: { select: { id: true, username: true, firstName: true, lastName: true, telegramId: true } }
+          }
+        }
+      }
+    });
 
-      const level1Count = level1Partners.length;
+    // Build in-memory maps for O(1) access
+    const downlineMap = new Map<string, string[]>();
+    const inviterMap = new Map<string, any>();
+
+    for (const ref of allReferrals) {
+      if (!ref.referredId || !ref.profile?.userId) continue;
+
+      // Populate downline (Parent -> Children)
+      const inviterId = ref.profile.userId;
+      if (!downlineMap.has(inviterId)) downlineMap.set(inviterId, []);
+      downlineMap.get(inviterId)?.push(ref.referredId);
+
+      // Populate inviter map (Child -> Parent User)
+      if (ref.profile.user) {
+        inviterMap.set(ref.referredId, ref.profile.user);
+      }
+    }
+
+    // Helper function to count partners by level (In-Memory)
+    function countPartnersByLevel(userId: string): { level1: number, level2: number, level3: number } {
+      // Level 1: Direct referrals
+      const level1Ids = downlineMap.get(userId) || [];
+      const level1Count = level1Ids.length;
 
       // Level 2: Referrals of level 1 partners
-      const level1UserIds = level1Partners.map(p => p.referredId).filter((id): id is string => id !== null);
-
-      const level2Count = level1UserIds.length > 0 ? await prisma.partnerReferral.count({
-        where: {
-          profile: {
-            userId: {
-              in: level1UserIds
-            }
-          },
-          referredId: { not: null }
-        }
-      }) : 0;
+      let level2Count = 0;
+      let level2Ids: string[] = [];
+      for (const id of level1Ids) {
+        const children = downlineMap.get(id) || [];
+        level2Count += children.length;
+        level2Ids.push(...children);
+      }
 
       // Level 3: Referrals of level 2 partners
-      const level2Partners = level1UserIds.length > 0 ? await prisma.partnerReferral.findMany({
-        where: {
-          profile: {
-            userId: {
-              in: level1UserIds
-            }
-          },
-          referredId: { not: null }
-        },
-        select: { referredId: true }
-      }) : [];
-
-      const level2UserIds = level2Partners.map(p => p.referredId).filter((id): id is string => id !== null);
-
-      const level3Count = level2UserIds.length > 0 ? await prisma.partnerReferral.count({
-        where: {
-          profile: {
-            userId: {
-              in: level2UserIds
-            }
-          },
-          referredId: { not: null }
-        }
-      }) : 0;
+      let level3Count = 0;
+      for (const id of level2Ids) {
+        const children = downlineMap.get(id) || [];
+        level3Count += children.length;
+      }
 
       return { level1: level1Count, level2: level2Count, level3: level3Count };
     }
@@ -3002,8 +3002,8 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
       const partnerProfile = user.partner;
       const directPartners = partnerProfile?.referrals?.length || 0;
 
-      // Get partners count by level
-      const partnersByLevel = await countPartnersByLevel(user.id);
+      // Get partners count by level (Sync)
+      const partnersByLevel = countPartnersByLevel(user.id);
 
       console.log(`👤 User ${user.firstName} (@${user.username}) ID: ${user.id}: ${user.orders?.length || 0} orders`);
 
@@ -3068,22 +3068,14 @@ router.get('/users-detailed', requireAdmin, async (req, res) => {
         lastActivity,
         ordersByStatus,
         priorityStatus,
-        paidOrderSum
+        priorityStatus,
+        paidOrderSum,
+        inviter: inviterMap.get(user.id) || null
       };
     }));
 
-    // Enrich with inviter info
-    const usersWithInviters = await Promise.all(usersWithStats.map(async (u: any) => {
-      const referralRecord = await prisma.partnerReferral.findFirst({
-        where: { referredId: u.id },
-        include: {
-          profile: {
-            include: { user: { select: { username: true, firstName: true } } }
-          }
-        }
-      });
-      return { ...u, inviter: referralRecord?.profile?.user || null };
-    }));
+    // Alias for compatibility (already enriched)
+    const usersWithInviters = usersWithStats;
 
     // Apply sorting
     let sortedUsers = usersWithInviters;

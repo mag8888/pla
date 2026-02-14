@@ -48,8 +48,8 @@ export async function showAbout(ctx: Context) {
 
     const keyboard = Markup.inlineKeyboard([
       [
-        Markup.button.url('📱 VK', 'https://vk.com/ivital'),
-        Markup.button.url('📸 Instagram', 'https://www.instagram.com/ivitalnano/')
+        Markup.button.url('📱 VK', 'https://vk.com/iplazma'),
+        Markup.button.url('📸 Instagram', 'https://www.instagram.com/iplazmanano/')
       ],
       [
         Markup.button.url('🆘 Поддержка', 'https://t.me/diglukhov?text=Здрасвуйте у меня вопрос по VITAL')

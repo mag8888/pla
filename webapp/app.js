@@ -3537,11 +3537,11 @@ function loadContactsContent() {
                 </div>
                 <div class="contact-item">
                     <strong>Telegram:</strong>
-                    <a href="https://t.me/ivitalbot" target="_blank">@ivitalbot</a>
+                    <a href="https://t.me/iplasmanano" target="_blank">@iplasmanano</a>
                 </div>
                 <div class="contact-item">
                     <strong>ВКонтакте:</strong>
-                    <a href="https://vk.com/ivital" target="_blank">vk.com/ivital</a>
+                    <a href="https://vk.com/iplazma" target="_blank">vk.com/iplazma</a>
                 </div>
                 <div class="contact-item">
                     <strong>Сертификаты:</strong>
@@ -3549,7 +3549,7 @@ function loadContactsContent() {
                 </div>
                 <div class="contact-item">
                     <strong>Instagram:</strong>
-                    <a href="https://www.instagram.com/ivitalnano/" target="_blank">@ivitalnano</a>
+                    <a href="https://www.instagram.com/iplazmanano/" target="_blank">@iplazmanano</a>
                 </div>
             </div>
             
