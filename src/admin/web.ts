@@ -6281,6 +6281,90 @@ router.post('/partners/:id/subtract-balance', requireAdmin, async (req, res) => 
   return res.redirect(307, `/admin/partners/${encodeURIComponent(String(req.params.id || ''))}/adjust-balance`);
 });
 
+// Fetch partners by level for a user
+router.get('/users/:id/partners', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const level = parseInt(req.query.level as string) || 1;
+
+    // Find user and check if they have a partner profile
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: { partner: true }
+    });
+
+    if (!user || !user.partner) {
+      return res.json([]);
+    }
+
+    let partnerIds: string[] = [];
+
+    // Level 1: Direct referrals
+    const level1Referrals = await prisma.partnerReferral.findMany({
+      where: { profileId: user.partner.id }, // We know partner exists
+      select: { referredId: true }
+    });
+
+    const level1Ids = level1Referrals.map(r => r.referredId).filter((id): id is string => id !== null);
+
+    if (level === 1) {
+      partnerIds = level1Ids;
+    } else if (level === 2) {
+      if (level1Ids.length === 0) return res.json([]);
+      const level1Profiles = await prisma.partnerProfile.findMany({
+        where: { userId: { in: level1Ids } },
+        select: { id: true }
+      });
+      const level1ProfileIds = level1Profiles.map(p => p.id);
+
+      const level2Referrals = await prisma.partnerReferral.findMany({
+        where: { profileId: { in: level1ProfileIds } },
+        select: { referredId: true }
+      });
+      partnerIds = level2Referrals.map(r => r.referredId).filter((id): id is string => id !== null);
+    } else if (level === 3) {
+      if (level1Ids.length === 0) return res.json([]);
+      const level1Profiles = await prisma.partnerProfile.findMany({
+        where: { userId: { in: level1Ids } },
+        select: { id: true }
+      });
+      const level1ProfileIds = level1Profiles.map(p => p.id);
+
+      const level2Referrals = await prisma.partnerReferral.findMany({
+        where: { profileId: { in: level1ProfileIds } },
+        select: { referredId: true }
+      });
+      const level2Ids = level2Referrals.map(r => r.referredId).filter((id): id is string => id !== null);
+
+      if (level2Ids.length === 0) return res.json([]);
+      const level2Profiles = await prisma.partnerProfile.findMany({
+        where: { userId: { in: level2Ids } },
+        select: { id: true }
+      });
+      const level2ProfileIds = level2Profiles.map(p => p.id);
+
+      const level3Referrals = await prisma.partnerReferral.findMany({
+        where: { profileId: { in: level2ProfileIds } },
+        select: { referredId: true }
+      });
+
+      partnerIds = level3Referrals.map(r => r.referredId).filter((id): id is string => id !== null);
+    }
+
+    // Fetch user details
+    const partners = await prisma.user.findMany({
+      where: { id: { in: partnerIds } },
+      select: { id: true, username: true, firstName: true, lastName: true, telegramId: true }
+    });
+
+    res.json(partners);
+
+  } catch (error) {
+    console.error('Error fetching partners:', error);
+    res.status(500).json({ error: 'Ошибка при получении списка партнеров' });
+  }
+});
+
 // Handle user inviter change
 router.post('/users/:id/change-inviter', requireAdmin, async (req, res) => {
   try {
