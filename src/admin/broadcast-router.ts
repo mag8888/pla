@@ -193,7 +193,7 @@ broadcastRouter.post('/test', requireAdmin, upload.single('photo'), async (req, 
     if (!targetTelegramId && process.env.ADMIN_CHAT_ID) {
       const envIds = process.env.ADMIN_CHAT_ID.split(',').map(id => id.trim()).filter(Boolean);
       if (envIds.length > 0) {
-        targetTelegramId = BigInt(envIds[0]);
+        targetTelegramId = envIds[0];
       }
     }
 
@@ -201,7 +201,7 @@ broadcastRouter.post('/test', requireAdmin, upload.single('photo'), async (req, 
       return res.status(400).json({ error: 'Admin has no linked Telegram ID' });
     }
 
-    await broadcastService.sendTestBroadcast(targetTelegramId.toString(), {
+    await broadcastService.sendTestBroadcast(targetTelegramId, {
       message,
       photo: req.file,
       buttonText,
