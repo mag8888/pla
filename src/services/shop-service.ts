@@ -4,21 +4,10 @@ export async function getActiveCategories() {
   try {
     const categories = await prisma.category.findMany({
       where: { isActive: true },
-      orderBy: { name: 'asc' },
+      orderBy: { sortOrder: 'asc' },
     });
     const sortedCategories = categories
-      .filter((c: any) => c?.isVisibleInWebapp !== false && c?.name !== 'Отключенные')
-      .sort((a, b) => {
-        const order = ['Набор', 'На каждый день', 'Артефакты'];
-        const indexA = order.indexOf(a.name);
-        const indexB = order.indexOf(b.name);
-
-        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-        if (indexA !== -1) return -1;
-        if (indexB !== -1) return 1;
-
-        return a.name.localeCompare(b.name);
-      });
+      .filter((c: any) => c?.isVisibleInWebapp !== false && c?.name !== 'Отключенные');
 
     return sortedCategories;
   } catch (error: any) {
